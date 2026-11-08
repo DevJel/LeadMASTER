@@ -17,6 +17,7 @@ The landing page includes CSS-animated conceptual product moments and a searchab
 | Experimental single-key text/HTML email submission route | Implemented behind a disabled-by-default flag; mock tests only, no key-management UI, not production-ready or deployed |
 | Dashboard | Responsive navigation shell; no authenticated data, actions or backend; not deployed |
 | API key creation, audiences, webhooks and other console features | Intended, not implemented |
+| Experimental read-only MCP integration | Disabled by default; local tests only, not deployed; no email sending via MCP |
 | Public Worker HTTP routing, robots.txt and llms.txt | Implemented; static preview deployed, full runtime verification pending |
 | Cloudflare production deployment, storage, domain, rate limiting and monitoring | Empty email and dead-letter queues and a Secrets Store exist; Worker bindings, monitoring and production deployment remain pending; a public preview exists |
 
@@ -27,7 +28,8 @@ The login remains disabled if its configuration endpoint cannot be reached. Ther
 ```text
 public/
   index.html                  Marketing landing page
-  docs.html, docs.css         Public documentation page and styling
+  docs.html, mcp.html        Public documentation pages
+  docs.css                   Public documentation styling
   privacy.html, terms.html    Draft legal notices, not yet effective
   legal.css                   Draft legal-page styling
   robots.txt, llms.txt        Crawler policy and factual AI-readable overview
@@ -51,6 +53,7 @@ src/
   queue-batch.mjs             Queue acknowledgement and retry handling
   http-router.mjs             Static routing, fail-closed auth, opt-in email API route
   email-api.mjs               Experimental guarded email submission boundary
+  mcp-server.mjs              Experimental read-only MCP endpoint
 test/                         Node unit tests using mock external boundaries
 docs/API.md                   Module contracts and experimental API status
 docs/QUEUE_DESIGN.md          Queue implementation and release gates
@@ -62,7 +65,7 @@ The landing page uses the original full logo, an interactive halftone wordmark, 
 
 ## Local checks
 
-Run `node --test` from the repository root using a recent Node.js runtime. These tests do not contact Cloudflare or AWS. Opening `public/login.html` locally displays the layout, but sign-in is unavailable because no API server exists.
+Run `npm ci --ignore-scripts` followed by `npm test` from the repository root using a recent Node.js runtime. These tests do not contact Cloudflare or AWS. Opening `public/login.html` locally displays the layout, but sign-in is unavailable because no API server exists.
 
 ## Production prerequisites
 
@@ -75,3 +78,7 @@ The existing public preview at https://leadmaster-preview.projects-public-portfo
 ## Draft legal notices
 
 Privacy and terms pages cover the current preview only and are explicitly marked drafts, not effective agreements. Before publication, the operator must confirm the legal entity and address, privacy contact, governing law, actual provider processing and international transfers, cookies, retention and deletion schedules, data-rights procedure, and review the terms and service-specific obligations with qualified counsel. Update both notices before enabling authentication, email, campaigns, AI or MCP features. Do not treat a link to a draft as evidence of legal acceptance.
+
+### Experimental MCP integration
+
+The repository includes a disabled-by-default, read-only MCP endpoint. It can describe its limited capabilities and validate message input; it cannot send or queue email. It is not present in the public preview and is not production-ready. See [MCP implementation notes](docs/MCP.md) for security, configuration and release gates.
