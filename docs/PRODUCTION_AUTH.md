@@ -34,7 +34,7 @@ The canonical HTML designs remain in:
 - `public/email-otpformat.html`
 - `public/email-securityalert.html`
 
-The production Worker imports `src/email-templates.mjs`, generated from those two public files. This avoids relying on the preview Worker to serve public assets; the preview's email-template URLs were returning 404 during production validation. When either public template changes, regenerate the module copy and redeploy the Worker.
+The production Worker imports `src/email-templates.mjs`, generated from those two public files. A production consistency check confirmed that the bundled strings exactly match the current public HTML files. The preview's email-template URLs return 404, so the Worker does not fetch them remotely. When either public template changes, regenerate the module copy and redeploy the Worker.
 
 ### OTP template variables
 
@@ -57,7 +57,7 @@ The production Worker imports `src/email-templates.mjs`, generated from those tw
 
 Replacement values are HTML-escaped before insertion. The security alert is sent after a successful OTP login; its delivery is best-effort and does not invalidate an already-created session.
 
-## SES SMTP configuration format
+## Production static assets\n\nThe preview upstream was also found to be stale: its login JavaScript still redirected to the landing page and it returned 404 for `dashboard.html`. To avoid a repeat of that failure, the production Worker imports `src/static-assets.mjs`, generated from the current public login and dashboard files. It serves the current login page, login JavaScript/CSS, dashboard page, dashboard JavaScript/CSS, HTML preview assets, DOMPurify, logo and favicon directly from the production Worker. The dashboard now checks the session and provides a POST-based logout action. The `dashboard.html` page remains a navigation shell; the underlying email-workspace services are not implemented.\n\n## SES SMTP configuration format
 
 The Worker uses the existing SES SMTP transport module and Cloudflare Workers Sockets with implicit TLS:
 
@@ -78,8 +78,8 @@ Verified from the Cloudflare configuration:
 - The existing Turnstile secret binding is retained.
 - The dedicated D1 binding is attached and the auth tables exist.
 - SES SMTP credentials, administrator password and session-signing secret are referenced through Cloudflare Secrets Store bindings.
-- The live hostname serves the intended Turnstile challenge page.
-- The canonical templates are bundled into the deployed Worker; production email rendering no longer fetches the preview URLs.
+- The live hostname serves the intended Turnstile challenge page. The custom Worker domain is enabled and the proxied DNS record remains present.
+- The canonical templates and current login/dashboard assets are bundled into the deployed Worker; production rendering no longer depends on the stale preview asset cache.
 
 Not independently verified:
 
