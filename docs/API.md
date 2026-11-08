@@ -2,7 +2,17 @@
 
 ## Status and boundary
 
-There is currently **no public HTTP API implementation**. A Queue consumer Worker entry point exists but is not configured or deployed. The browser calls below are proposed integration contracts; their presence in the UI does not mean a working endpoint exists. The helper modules are not authorization boundaries and must not be exposed directly.
+An experimental `POST /api/v1/emails` submission route exists in code, **disabled by default and not deployed**. It is not production-ready. A Queue consumer Worker entry point exists but is not configured or deployed. The browser calls below are proposed integration contracts; their presence in the UI does not mean a working endpoint exists. The helper modules are not authorization boundaries and must not be exposed directly.
+
+## Experimental email submission — disabled and not deployed
+
+`POST /api/v1/emails` accepts one text-only message only when the `EMAIL_API_ENABLED` configuration equals `true`, the `EMAIL_QUEUE` producer is bound, and `EMAIL_API_KEY` is available as a Worker secret or Secrets Store binding. Keep the flag disabled until all release gates below are met. The key must be a cryptographically random 43–128 character base64url string; do not put it in browser code or source control. This is a **single shared key**, not a key-management service or admin login.
+
+Request: `Authorization: Bearer <key>`, `Content-Type: application/json`, and `Idempotency-Key: <16–128 ASCII letters, digits, hyphens or underscores>`. The body contains only `to`, `subject`, and `text`. The configured SES identity supplies the sender. Requests are limited to 100,000 bytes. A `202` response `{ "id": "<idempotency key>", "status": "queued" }` means the Queue accepted the job; it does not mean SES accepted or delivered it. No internal send-rate information is returned. Failures use generic 400, 401, 405, 413, 415 or 503 responses.
+
+The client must reuse the same idempotency key **only with identical message content** when retrying an uncertain submission. Duplicate queue messages are deduplicated by the existing coordinator. Reusing a key with changed content is detected only during consumption; this prototype has no public status endpoint and does not synchronously report that conflict. There is no key issuance, rotation interface, authentication UI, consent policy, endpoint abuse limit, live delivery-status endpoint or recovery interface. Queue retries, failed and unknown SMTP outcomes still require operator handling. Never interpret `queued` as `delivered`.
+
+**Release gates:** independent security review, scoped credentials and key lifecycle, request abuse controls, queue and DLQ bindings, retention and privacy controls, monitored recovery for unknown outcomes and queue publication/consumption, integration tests in an isolated Cloudflare environment, verified SES identity and quota, and an authorized live-recipient test. The API must remain disabled until these are completed; the local tests only use mocks.
 
 ## Proposed authentication HTTP endpoints
 
@@ -60,4 +70,4 @@ Export: `src/email-queue-core.mjs`. A trusted, authenticated and authorized serv
 
 ## Public Worker routing (implemented, not deployed)
 
-The Worker HTTP adapter in `src/http-router.mjs` serves static requests through its `ASSETS` binding; non-GET/HEAD static requests receive 405. API paths never fall through to static assets. `GET /api/auth/config` returns a no-store 503 generic availability response until a real authentication service is implemented, so the existing login UI stays disabled. Other `/api` paths return a no-store 404; POST to the config endpoint returns 405. The adapter is exported by the same entry point as the queue consumer. This does not implement sign-in, sessions, an email API, or authorization.
+The Worker HTTP adapter in `src/http-router.mjs` serves static requests through its `ASSETS` binding; non-GET/HEAD static requests receive 405. API paths never fall through to static assets. `GET /api/auth/config` returns a no-store 503 generic availability response until a real authentication service is implemented, so the existing login UI stays disabled. The experimental `/api/v1/emails` route fails closed unless explicitly enabled and configured; other `/api` paths return a no-store 404. POST to the config endpoint returns 405. The adapter is exported by the same entry point as the queue consumer. This does not implement sign-in or sessions. The email-submission route is experimental and disabled by default.
