@@ -38,8 +38,9 @@ export async function webhookRoute(req,env){
   return (r.meta?.changes||0)?json({revoked:true}):json({error:"Not found"},404);
  }
  if(id&&parts.length===5&&parts[4]==="deliveries"&&req.method==="GET"){
-  const rows=await env.AUTH_DB.prepare("SELECT id,event_type,event_id,http_status,attempted_at,success FROM developer_webhook_deliveries WHERE webhook_id=? ORDER BY attempted_at DESC LIMIT 50").bind(id).all();
-  return json({deliveries:rows.results||[]});
+  const rows=await env.AUTH_DB.prepare("SELECT d.id,d.event_type,d.event_id,d.http_status,d.attempted_at,d.success FROM developer_webhook_deliveries d INNER JOIN developer_webhooks w ON w.id=d.webhook_id WHERE d.webhook_id=? AND w.api_key_id=? ORDER BY d.attempted_at DESC LIMIT 50").bind(id,key.id).all();
+  const owned=await env.AUTH_DB.prepare("SELECT id FROM developer_webhooks WHERE id=? AND api_key_id=?").bind(id,key.id).first();
+  return owned?json({deliveries:rows.results||[]}):json({error:"Not found"},404);
  }
  return json({error:"Not found"},404);
 }
