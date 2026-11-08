@@ -6,6 +6,8 @@
 
 - [Home](/): Product direction and current status.
 - [Sign in](/login.html): Admin sign-in interface; the authentication service is not yet implemented.
+- [Data privacy](/privacy.html): Draft, not yet effective.
+- [Terms and conditions](/terms.html): Draft, not yet effective.
 
 ## Implementation status
 
