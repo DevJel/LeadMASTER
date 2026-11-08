@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<title>Log in · LeadMASTER</title>
+<link rel="stylesheet" href="./login.css">
+<link rel="stylesheet" href="./cover.css">
+<script src="./login.js" defer></script>
+</head>
+<body>
+<main class="layout">
+  <section class="hero" aria-label="About LeadMASTER">
+    <div class="hero-art" aria-hidden="true"></div>
+    <div class="hero-content">
+      <div class="hero-top"><span class="brand brand-light"><span class="mark">L</span>LeadMASTER</span><span class="pill"><span class="dot"></span>Email workspace</span></div>
+      <div class="hero-center">
+        <span class="tag"><span aria-hidden="true">✧</span> Email for your business</span>
+        <h1>Email that<br>just gets delivered.</h1>
+        <p>Send transactional and marketing email with one clean workspace. Built to help you connect with confidence.</p>
+        <div class="feature-card"><span class="feature-label">LEADMASTER</span><div class="feature-heading">One place for every message.</div><p>Manage your email activity, audiences, and delivery in one clear view.</p><div class="feature-foot"><span class="signal"></span> Built for focused work</div></div>
+      </div>
+      <div class="hero-footer">LeadMASTER · Your email workspace</div>
+    </div>
+  </section>
+  <section class="right">
+    <header class="top"><span class="brand"><span class="mark">L</span>LeadMASTER</span></header>
+    <div class="main-content"><div class="card">
+      <div id="login-step">
+        <h2>Log in to LeadMASTER</h2><p class="sub">Welcome back. Please enter your details.</p>
+        <form id="login-form">
+          <div class="field"><label for="identity">Username or email</label><input id="identity" name="identity" autocomplete="username" required maxlength="254" placeholder="Enter your username or email"></div>
+          <div class="field"><label for="password">Password</label><div class="password-wrap"><input id="password" name="password" type="password" autocomplete="current-password" required maxlength="1024" placeholder="Enter your password"><button id="show-password" type="button" aria-label="Show password" aria-pressed="false">Show</button></div></div>
+          <div id="turnstile" class="challenge" aria-label="Security verification"></div>
+          <p id="login-error" class="error" role="alert" hidden></p>
+          <button id="login-button" class="primary" type="submit" disabled>Log in</button>
+        </form>
+      </div>
+      <div id="otp-step" hidden>
+        <h2>Check your email</h2><p class="sub">Enter the verification code sent to your registered email address.</p>
+        <form id="otp-form"><div class="field"><label for="code">Verification code</label><input id="code" name="code" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" minlength="6" maxlength="6" required placeholder="Enter 6-digit code"></div><p id="otp-error" class="error" role="alert" hidden></p><button id="otp-button" class="primary" type="submit">Verify and continue</button></form>
+        <button id="back-button" type="button" class="back">← Back to log in</button>
+      </div>
+    </div><div class="card-footer"><span><span aria-hidden="true">◇</span> Protected by Cloudflare Turnstile</span><span>Secure sign in</span></div></div>
+  </section>
+</main>
+</body>
+</html>
