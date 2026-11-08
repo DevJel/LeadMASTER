@@ -14,9 +14,9 @@ The landing page includes CSS-animated conceptual product moments and a searchab
 | Turnstile server-side verification | Connected to the production gateway; hostname and action are checked server-side |
 | SES SMTP transport | Connected to OTP and security-alert flows; SMTP delivery has not been independently verified against a live recipient |
 | Admin password allowlist, OTP and sessions | Single admin allowlist (`admin@work.jelvan.pro`), password verification, hashed single-use OTP, expiry/attempt limits and D1-backed sessions implemented in the production Worker |
-| Experimental single-key text/HTML email submission route | Implemented behind a disabled-by-default flag; mock tests only, no key-management UI, not production-ready or deployed |
+| Developer API keys and email submission | Repository implementation includes admin key console, scoped key issuance/revocation, D1 request tracking, idempotency, rate limits and SES SMTP submission; production release pending Worker bindings and live tests |
 | Dashboard | Responsive navigation shell with a local, unsaved HTML preview for Emails and Templates; no authenticated data, sending or template backend |
-| API key creation, audiences, webhooks and other console features | Intended, not implemented |
+| Developer API key console | Implemented in the repository at `/developer-api-keys.html`; protected by the admin session; production release pending deployment verification |
 | Experimental read-only MCP integration | Disabled by default; local tests only, not deployed; no email sending via MCP |
 | Public Worker HTTP routing, robots.txt and llms.txt | Implemented; static preview deployed, full runtime verification pending |
 | Cloudflare production authentication deployment | `leadmaster` Worker deployed with Turnstile, dedicated `leadmaster-auth` D1 and Secrets Store bindings; production route remains on `leadmaster.jelvan.pro`; full product backend and live email-delivery verification remain outstanding |
@@ -90,3 +90,10 @@ The repository includes a disabled-by-default, read-only MCP endpoint. It can de
 ## Production authentication
 
 See [Production authentication and release notes](docs/PRODUCTION_AUTH.md) for the deployed Worker, D1 schema, required secret bindings, Turnstile checks, SES SMTP configuration format, branded email-template placeholders, and remaining release checks. The public HTML files in `public/` are the canonical email designs; a generated module copy is bundled into the Worker so production email delivery does not depend on the separately hosted preview asset cache.
+
+
+## Developer email integration
+
+Developers can create named, scoped API keys in the authenticated workspace at `/developer-api-keys.html`, then use those credentials from another application's backend. Each key is shown once, stored as a hash, can be revoked independently, and can be scoped to `email:send` and/or `email:read`. Email requests are recorded in D1 with per-key idempotency and a per-key request rate limit. See [Developer Email API](docs/API.md) for the full contract, cURL, Node.js and Python examples, status semantics, errors and security requirements.
+
+The source and D1 schema are in place, but production enablement is gated on confirming the live Worker has the `AUTH_DB` binding and SES Secrets Store bindings, deploying the updated Worker bundle, and completing end-to-end tests. Do not treat repository implementation as proof that the production endpoint is active.
