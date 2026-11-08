@@ -1,0 +1,28 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { EmailDispatchCore, enqueueEmail } from '../src/email-queue-core.mjs';
+class Storage {
+  constructor(){this.map=new Map()}
+  async get(k){return this.map.get(k)}
+  async put(k,v){this.map.set(k,v)}
+  async delete(k){this.map.delete(k)}
+  async transaction(fn){const saved=new Map(this.map);try{return await fn(this)}catch(e){this.map=saved;throw e}}
+}
+const job=n=>({id:`job_${n}`,to:'recipient@example.com',subject:'Hello',text:'Message'});
+test('serializes concurrent sends with a 101 ms minimum completion-to-next-start gap',async()=>{
+  const storage=new Storage();let now=1000;const starts=[];let active=0,maxActive=0;
+  const core=new EmailDispatchCore({storage,clock:()=>now,sleep:async ms=>{now+=ms},send:async()=>{active++;maxActive=Math.max(maxActive,active);starts.push(now);now+=10;active--;return {status:'accepted'}}});
+  const results=await Promise.all(Array.from({length:25},(_,i)=>core.dispatch(job(i))));
+  assert.ok(results.every(x=>x.status==='accepted'));assert.equal(maxActive,1);assert.equal(starts.length,25);
+  for(let i=1;i<starts.length;i++)assert.ok(starts[i]-starts[i-1]>=111);
+  for(const t of starts) assert.ok(starts.filter(s=>s>=t&&s<t+1000).length<=10);
+});
+test('acknowledged duplicate does not resend; altered duplicate conflicts',async()=>{let sends=0;const core=new EmailDispatchCore({storage:new Storage(),send:async()=>{sends++;return {status:'accepted'}}});assert.equal((await core.dispatch(job(1))).status,'accepted');assert.equal((await core.dispatch(job(1))).status,'accepted');assert.equal((await core.dispatch({...job(1),text:'changed'})).status,'id_conflict');assert.equal(sends,1)});
+test('uncertain DATA outcome halts later work and is not retried after restart',async()=>{const storage=new Storage();let sends=0;let core=new EmailDispatchCore({storage,send:async()=>{sends++;const e=Error();e.deliveryOutcome='unknown';throw e}});assert.equal((await core.dispatch(job(1))).status,'unknown');core=new EmailDispatchCore({storage,send:async()=>{sends++;return {status:'accepted'}}});assert.equal((await core.dispatch(job(1))).status,'blocked_unknown');assert.equal((await core.dispatch(job(2))).status,'blocked_unknown');assert.equal(sends,1)});
+test('persisted in-flight job after crash blocks all sends',async()=>{const storage=new Storage();await storage.put('active',{id:'earlier'});let count=0;const core=new EmailDispatchCore({storage,send:async()=>{count++}});assert.equal((await core.dispatch(job(2))).status,'blocked_unknown');assert.equal(count,0)});
+test('definite pre-DATA failure is recorded and not retried automatically',async()=>{let sends=0;const core=new EmailDispatchCore({storage:new Storage(),send:async()=>{sends++;const e=Error();e.deliveryOutcome='not_accepted';throw e}});assert.equal((await core.dispatch(job(1))).status,'failed');assert.equal((await core.dispatch(job(1))).status,'failed');assert.equal(sends,1)});
+test('backward clock fails closed',async()=>{const storage=new Storage();await storage.put('last_end',50000);let sends=0;const core=new EmailDispatchCore({storage,clock:()=>1000,send:async()=>{sends++}});assert.equal((await core.dispatch(job(1))).status,'blocked_clock');assert.equal(sends,0)});
+test('invalid identities and rates are rejected',async()=>{const core=new EmailDispatchCore({storage:new Storage(),send:async()=>{throw Error('unexpected')}});await assert.rejects(core.dispatch({...job(1),to:'bad\r\nDATA'}));assert.throws(()=>new EmailDispatchCore({storage:new Storage(),send:async()=>{},ratePerSecond:11}));});
+
+test('trusted enqueue validates and sends only the normalized queue payload',async()=>{let posted;const result=await enqueueEmail({send:async j=>{posted=j}},{...job(1),ignored:'unused'});assert.deepEqual(result,{status:'queued'});assert.deepEqual(posted,job(1));await assert.rejects(enqueueEmail({send:async()=>{}},{...job(1),text:'x'.repeat(100001)}));});
+test('unknown job state never sends even if active marker is absent',async()=>{const storage=new Storage();const core=new EmailDispatchCore({storage,send:async()=>{const e=Error();e.deliveryOutcome='unknown';throw e}});assert.equal((await core.dispatch(job(1))).status,'unknown');await storage.delete('active');let calls=0;const second=new EmailDispatchCore({storage,send:async()=>{calls++;return {status:'accepted'}}});assert.equal((await second.dispatch(job(1))).status,'blocked_unknown');assert.equal(calls,0)});
