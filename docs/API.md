@@ -6,13 +6,38 @@ An experimental `POST /api/v1/emails` submission route exists in code, **disable
 
 ## Experimental email submission — disabled and not deployed
 
-`POST /api/v1/emails` accepts one text-only message only when the `EMAIL_API_ENABLED` configuration equals `true`, the `EMAIL_QUEUE` producer is bound, and `EMAIL_API_KEY` is available as a Worker secret or Secrets Store binding. Keep the flag disabled until all release gates below are met. The key must be a cryptographically random 43–128 character base64url string; do not put it in browser code or source control. This is a **single shared key**, not a key-management service or admin login.
+`POST /api/v1/emails` accepts one message with required plain text and optional HTML only when the `EMAIL_API_ENABLED` configuration equals `true`, the `EMAIL_QUEUE` producer is bound, and `EMAIL_API_KEY` is available as a Worker secret or Secrets Store binding. Keep the flag disabled until all release gates below are met. The key must be a cryptographically random 43–128 character base64url string; do not put it in browser code or source control. This is a **single shared key**, not a key-management service or admin login.
 
-Request: `Authorization: Bearer <key>`, `Content-Type: application/json`, and `Idempotency-Key: <16–128 ASCII letters, digits, hyphens or underscores>`. The body contains only `to`, `subject`, and `text`. The configured SES identity supplies the sender. Requests are limited to 100,000 bytes. A `202` response `{ "id": "<idempotency key>", "status": "queued" }` means the Queue accepted the job; it does not mean SES accepted or delivered it. No internal send-rate information is returned. Failures use generic 400, 401, 405, 413, 415 or 503 responses.
+Request: `Authorization: Bearer <key>`, `Content-Type: application/json`, and `Idempotency-Key: <16–128 ASCII letters, digits, hyphens or underscores>`. The body contains `to`, `subject`, `text`, and optional `html`. A plain-text fallback is required. The API does not sanitize HTML: only submit trusted content. The configured SES identity supplies the sender. Requests are limited to 100,000 bytes. A `202` response `{ "id": "<idempotency key>", "status": "queued" }` means the Queue accepted the job; it does not mean SES accepted or delivered it. No internal send-rate information is returned. Failures use generic 400, 401, 405, 413, 415 or 503 responses.
 
 The client must reuse the same idempotency key **only with identical message content** when retrying an uncertain submission. Duplicate queue messages are deduplicated by the existing coordinator. Reusing a key with changed content is detected only during consumption; this prototype has no public status endpoint and does not synchronously report that conflict. There is no key issuance, rotation interface, authentication UI, consent policy, endpoint abuse limit, live delivery-status endpoint or recovery interface. Queue retries, failed and unknown SMTP outcomes still require operator handling. Never interpret `queued` as `delivered`.
 
 **Release gates:** independent security review, scoped credentials and key lifecycle, request abuse controls, queue and DLQ bindings, retention and privacy controls, monitored recovery for unknown outcomes and queue publication/consumption, integration tests in an isolated Cloudflare environment, verified SES identity and quota, and an authorized live-recipient test. The API must remain disabled until these are completed; the local tests only use mocks.
+
+### Server-side example (once enabled)
+
+Keep the API key on your server; never place it in frontend code. Set `LEADMASTER_API_URL` to the deployed HTTPS base URL and `LEADMASTER_API_KEY` in your server’s secret manager. Use a new idempotency key for each logical message and reuse it only with the same content when retrying. The endpoint is not live yet.
+
+```js
+const response = await fetch(`${process.env.LEADMASTER_API_URL}/api/v1/emails`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.LEADMASTER_API_KEY}`,
+    'Content-Type': 'application/json',
+    'Idempotency-Key': crypto.randomUUID()
+  },
+  body: JSON.stringify({
+    to: 'recipient@example.com',
+    subject: 'Your verification code',
+    text: 'Your verification code is 123456.',
+    html: '<p>Your verification code is <strong>123456</strong>.</p>'
+  })
+});
+if (!response.ok) throw new Error('Email submission failed');
+const { id, status } = await response.json(); // queued, not delivered
+```
+
+The code above illustrates a request; it does not generate or validate OTPs. Applications must generate random codes server-side, enforce expiry and attempt limits, and never log codes. Never use the example code in real authentication.
 
 ## Proposed authentication HTTP endpoints
 
@@ -49,11 +74,11 @@ Purpose: complete the email verification challenge and establish a session.
 
 Export: `src/turnstile.mjs`. Returns `true` only for a successful Siteverify response matching both hostname and action; otherwise returns `false`. `secret` may be a string or a Secrets Store binding with `get()`. `fetcher` defaults to `fetch`; the default network timeout is 5 seconds. The helper rejects empty or oversized tokens and invalid configuration, and fails closed on verification failures. The timeout applies to the network request, not secret retrieval. The helper does not authenticate a user or implement a route.
 
-### `sendSesEmail({ connect, env, to, subject, text, timeoutMs? })`
+### `sendSesEmail({ connect, env, to, subject, text, html?, timeoutMs? })`
 
 Export: `src/ses-smtp.mjs`. `connect` is the Cloudflare sockets `connect` function supplied by the caller. `env` requires `SES_SMTP_HOST`, `SES_SMTP_USERNAME`, `SES_SMTP_PASSWORD` and `SES_FROM_EMAIL`; the host, username and password accept strings or Secrets Store bindings. The host must match an AWS SES SMTP endpoint, and the transport uses implicit TLS on port 465. The default network timeout is 15 seconds; it does not cover secret retrieval.
 
-Accepts one recipient and a text-only message. It validates addresses and subject, sends base64 UTF-8 content, closes the socket, and returns `{ "status": "accepted" }` after SES accepts the DATA command. This does **not** confirm final delivery. It makes no retries. On a sending error, `deliveryOutcome` is `not_accepted` before DATA or `unknown` when DATA may have been submitted. Unknown outcomes require reconciliation before retry. Configuration and input-validation errors can occur before socket creation. Do not log secrets or message content. See [SES_TRANSPORT.md](../SES_TRANSPORT.md).
+Accepts one recipient, required plain text and optional HTML. HTML messages use multipart/alternative with a plain-text fallback; both bodies are base64 encoded. It validates addresses and subject, sends base64 UTF-8 content, closes the socket, and returns `{ "status": "accepted" }` after SES accepts the DATA command. This does **not** confirm final delivery. It makes no retries. On a sending error, `deliveryOutcome` is `not_accepted` before DATA or `unknown` when DATA may have been submitted. Unknown outcomes require reconciliation before retry. Configuration and input-validation errors can occur before socket creation. Do not log secrets or message content. See [SES_TRANSPORT.md](../SES_TRANSPORT.md).
 
 ## Verification
 
@@ -62,7 +87,7 @@ Accepts one recipient and a text-only message. It validates addresses and subjec
 
 ### `enqueueEmail(queue, job)`
 
-Export: `src/email-queue-core.mjs`. A trusted, authenticated and authorized server caller may submit `{id, to, subject, text}` to a Cloudflare Queue binding. It validates inputs and a 100,000-byte serialized payload limit, and returns `{ "status": "queued" }` after the Queue accepts the message. This is not proof of SMTP acceptance or final delivery. The function does not implement authentication, authorization, consent, an outbox, idempotent producer storage, or an HTTP endpoint. See [QUEUE_DESIGN.md](QUEUE_DESIGN.md).
+Export: `src/email-queue-core.mjs`. A trusted, authenticated and authorized server caller may submit `{id, to, subject, text, html?}` to a Cloudflare Queue binding. It validates inputs and a 100,000-byte serialized payload limit, and returns `{ "status": "queued" }` after the Queue accepts the message. This is not proof of SMTP acceptance or final delivery. The function does not implement authentication, authorization, consent, an outbox, idempotent producer storage, or an HTTP endpoint. See [QUEUE_DESIGN.md](QUEUE_DESIGN.md).
 
 ### Queue consumer and coordinator
 

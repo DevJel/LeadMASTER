@@ -14,7 +14,7 @@ The landing page includes CSS-animated conceptual product moments and a searchab
 | Turnstile server-side helper | Implemented and unit-tested; not connected to an endpoint |
 | SES SMTP transport | Implemented and unit-tested with mock sockets; no live delivery verified |
 | Admin secret allowlist, password verification, OTP and sessions | Required; not implemented |
-| Experimental single-key email submission route | Implemented behind a disabled-by-default flag; mock tests only, no key-management UI, not production-ready or deployed |
+| Experimental single-key text/HTML email submission route | Implemented behind a disabled-by-default flag; mock tests only, no key-management UI, not production-ready or deployed |
 | Dashboard, API key creation, audiences, webhooks and other console features | Intended, not implemented |
 | Public Worker HTTP routing, robots.txt and llms.txt | Implemented; static preview deployed, full runtime verification pending |
 | Cloudflare production deployment, storage, domain, rate limiting and monitoring | Empty email and dead-letter queues and a Secrets Store exist; Worker bindings, monitoring and production deployment remain pending; a public preview exists |

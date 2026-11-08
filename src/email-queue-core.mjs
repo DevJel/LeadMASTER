@@ -10,18 +10,22 @@ const EMAIL = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-
 const defaultSleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 export function validateEmailJob(job) {
   if (!job || typeof job !== 'object' || Array.isArray(job) || typeof job.id !== 'string' || job.id.length > MAX_ID || !ID.test(job.id) || typeof job.to !== 'string' || job.to.length > 254 || !EMAIL.test(job.to) || job.to.includes('..') || typeof job.subject !== 'string' || !job.subject.trim() || /[\r\n\x00-\x1f\x7f]/.test(job.subject) || encoder.encode(job.subject).length > 300 || typeof job.text !== 'string' || !job.text.trim() || encoder.encode(job.text).length > 200000) throw new TypeError('Invalid queued message');
+  if (job.html !== undefined && (typeof job.html !== 'string' || !job.html.trim() || encoder.encode(job.html).length > 200000)) throw new TypeError('Invalid queued message');
 }
 /** Trusted server-side callers must authenticate/authorize before enqueueing. */
 export async function enqueueEmail(queue, job) {
   validateEmailJob(job);
   if (!queue || typeof queue.send !== 'function') throw new TypeError('Queue unavailable');
-  const message = {id:job.id,to:job.to,subject:job.subject,text:job.text};
+  const message = {id:job.id,to:job.to,subject:job.subject,text:job.text,...(job.html === undefined ? {} : {html:job.html})};
   if (encoder.encode(JSON.stringify(message)).length > 100000) throw new TypeError('Queued message too large');
   await queue.send(message);
   return {status:'queued'};
 }
 async function digest(job) {
-  const input = encoder.encode(JSON.stringify([job.to,job.subject,job.text]));
+  // Keep existing text-only hashes stable across deployments.
+  const parts = [job.to,job.subject,job.text];
+  if (job.html !== undefined) parts.push(job.html);
+  const input = encoder.encode(JSON.stringify(parts));
   const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256',input));
   return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
 }
@@ -73,7 +77,7 @@ export class EmailDispatchCore {
     if(reserved!=='reserved') return typeof reserved==='string'?{status:reserved}:reserved;
     let outcome;
     try {
-      const result=await this.send({to:job.to,subject:job.subject,text:job.text});
+      const result=await this.send({to:job.to,subject:job.subject,text:job.text,...(job.html === undefined ? {} : {html:job.html})});
       outcome=result?.status==='accepted'?'accepted':'unknown';
     } catch(e) {outcome=e?.deliveryOutcome==='not_accepted'?'failed':'unknown';}
     const end=this.clock();

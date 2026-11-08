@@ -35,8 +35,8 @@ export async function submitEmail(request,env) {
   if(!/^application\/json(?:\s*;|$)/i.test(request.headers.get('content-type')||'')) return json({error:'Invalid request'},415);
   const id=request.headers.get('idempotency-key')||'';if(!KEY.test(id)) return json({error:'Invalid request'},400);
   let data;try{data=await boundedBody(request)}catch(e){return json({error:'Invalid request'},e instanceof RangeError?413:400)}
-  if(!data || typeof data!=='object' || Array.isArray(data) || Object.keys(data).some(k=>!['to','subject','text'].includes(k))) return json({error:'Invalid request'},400);
-  const job={id,to:data.to,subject:data.subject,text:data.text};
+  if(!data || typeof data!=='object' || Array.isArray(data) || Object.keys(data).some(k=>!['to','subject','text','html'].includes(k))) return json({error:'Invalid request'},400);
+  const job={id,to:data.to,subject:data.subject,text:data.text,...(data.html === undefined ? {} : {html:data.html})};
   try { validateEmailJob(job); } catch { return json({error:'Invalid request'},400); }
   try { await enqueueEmail(env.EMAIL_QUEUE,job); } catch { return json({error:'Service unavailable'},503); }
   // Accepted by the durable queue, not a guarantee of SMTP acceptance or delivery.
