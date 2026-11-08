@@ -2,7 +2,7 @@
 
 ## Status and boundary
 
-An experimental `POST /api/v1/emails` submission route exists in code, **disabled by default and not deployed**. It is not production-ready. A Queue consumer Worker entry point exists but is not configured or deployed. The browser calls below are proposed integration contracts; their presence in the UI does not mean a working endpoint exists. The helper modules are not authorization boundaries and must not be exposed directly.
+An experimental `POST /api/v1/emails` submission route exists in code, **disabled by default and not deployed**. It is not production-ready. A Queue consumer Worker entry point exists but is not configured or deployed. The authentication endpoints below are implemented in the deployed production gateway. The separate experimental email-submission API remains disabled and is not production-ready. The helper modules are not authorization boundaries and must not be exposed directly.
 
 ## Experimental email submission — disabled and not deployed
 
