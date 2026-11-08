@@ -9,15 +9,15 @@ The landing page includes CSS-animated conceptual product moments and a searchab
 | Capability | Status |
 | --- | --- |
 | Marketing landing page, login page, LeadMASTER logos and favicon | Implemented as static assets |
-| Cloudflare queue and global 10-message-per-second rate control | Code and mock tests added; deployment, integration, recovery and runtime verification pending |
+| Cloudflare queue and send-rate control | 10-per-second and conservative rolling 50,000-per-day coordinator guards have mock tests; bindings, integration, recovery and runtime verification pending |
 | Password entry, Turnstile widget and email-code screens | UI implemented; authentication service is not implemented |
 | Turnstile server-side helper | Implemented and unit-tested; not connected to an endpoint |
 | SES SMTP transport | Implemented and unit-tested with mock sockets; no live delivery verified |
 | Admin secret allowlist, password verification, OTP and sessions | Required; not implemented |
-| Experimental single-key email submission route | Implemented behind a disabled-by-default flag; mock tests only, no key-management UI, not production-ready or deployed |
+| Experimental single-key text/HTML email submission route | Implemented behind a disabled-by-default flag; mock tests only, no key-management UI, not production-ready or deployed |
 | Dashboard, API key creation, audiences, webhooks and other console features | Intended, not implemented |
 | Public Worker HTTP routing, robots.txt and llms.txt | Implemented; static preview deployed, full runtime verification pending |
-| Cloudflare production deployment, storage, domain, rate limiting and monitoring | Not configured in this repository; a public preview exists |
+| Cloudflare production deployment, storage, domain, rate limiting and monitoring | Empty email and dead-letter queues and a Secrets Store exist; Worker bindings, monitoring and production deployment remain pending; a public preview exists |
 
 The login remains disabled if its configuration endpoint cannot be reached. There are no sample users or simulated login in the application.
 
