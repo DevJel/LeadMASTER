@@ -14,7 +14,7 @@ async function auth(req,env){
  if(!row||row.revoked_at||await sha(m[1])!==row.key_hash)return null;
  return {...row,scopes:JSON.parse(row.scopes||"[]")};
 }
-function safeUrl(value){try{const u=new URL(value);return u.protocol==="https:"&&!u.username&&!u.password&&u.hostname!=="localhost"&&!u.hostname.endsWith(".local")&&!/^127\.|^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[01])\./.test(u.hostname)?u:null}catch{return null}}
+function safeUrl(value){try{const u=new URL(value),host=u.hostname.toLowerCase();const ipLiteral=/^(?:\d{1,3}\.){3}\d{1,3}$/.test(host)||host.includes(":");const reserved=/^(localhost|.*\.(?:local|internal|test|invalid|example))$/.test(host);return u.protocol==="https:"&&(!u.port||u.port==="443")&&!u.username&&!u.password&&!ipLiteral&&!reserved&&host.includes(".")?u:null}catch{return null}}
 export async function webhookRoute(req,env){
  if(!env.AUTH_DB)return json({error:"Service unavailable"},503);
  const key=await auth(req,env);if(!key)return json({error:"Unauthorized"},401);
