@@ -27,4 +27,22 @@
   window.addEventListener('hashchange',render);
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&el('menu').getAttribute('aria-expanded')==='true'){menu(false);el('menu').focus()}});
   render();
+
+  async function verifySession(){
+    try {
+      const response=await fetch('/api/auth/session',{credentials:'same-origin',cache:'no-store'});
+      if(!response.ok) throw new Error('session-check-failed');
+      const data=await response.json();
+      if(data.authenticated!==true) location.replace('/login.html');
+    } catch { location.replace('/login.html'); }
+  }
+  const logout=el('logout-link');
+  if(logout) logout.addEventListener('click',async event=>{
+    event.preventDefault();
+    logout.setAttribute('aria-busy','true');
+    try {
+      await fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:'{}',cache:'no-store'});
+    } finally { location.replace('/login.html'); }
+  });
+  verifySession();
 })();
