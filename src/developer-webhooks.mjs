@@ -2,6 +2,9 @@ const enc=new TextEncoder();
 const json=(v,s=200)=>Response.json(v,{status:s,headers:{"cache-control":"no-store","x-content-type-options":"nosniff"}});
 const b64=b=>{let s="";for(const x of b)s+=String.fromCharCode(x);return btoa(s).replaceAll("+","-").replaceAll("/","_").replace(/=+$/,"")};
 const makeSecret=()=>"whsec_"+b64(crypto.getRandomValues(new Uint8Array(32)));
+async function cryptKey(env){const raw=typeof env.SESSION_SECRET?.get==="function"?await env.SESSION_SECRET.get():env.SESSION_SECRET;if(typeof raw!=="string"||!raw)throw Error("Webhook encryption is unavailable");return crypto.subtle.importKey("raw",await crypto.subtle.digest("SHA-256",enc.encode(raw)),"AES-GCM",false,["encrypt","decrypt"])}
+async function seal(value,env){const iv=crypto.getRandomValues(new Uint8Array(12)),key=await cryptKey(env),data=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,enc.encode(value));return b64(new Uint8Array([...iv,...new Uint8Array(data)]))}
+async function unseal(value,env){const bytes=Uint8Array.from(atob(value.replaceAll("-","+").replaceAll("_","/")),c=>c.charCodeAt(0)),iv=bytes.slice(0,12),data=bytes.slice(12),key=await cryptKey(env);return new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv},key,data))}
 const sha=async v=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",enc.encode(v))),b=>b.toString(16).padStart(2,"0")).join("");
 const EVENTS=["email.accepted","email.failed","email.unknown"];
 async function auth(req,env){
@@ -27,7 +30,7 @@ export async function webhookRoute(req,env){
   if(!name||name.length>80||!target||!events.length||events.some(e=>!EVENTS.includes(e)))return json({error:"Provide a name, public HTTPS URL and supported events"},400);
   const id=crypto.randomUUID(),secret=makeSecret(),now=Date.now();
   await env.AUTH_DB.prepare("INSERT INTO developer_webhooks (id,api_key_id,name,target_url,secret_hash,secret_value,events,created_at,revoked_at,last_delivery_at) VALUES (?,?,?,?,?,?,?,?,NULL,NULL)")
-   .bind(id,key.id,name,target.href,await sha(secret),secret,JSON.stringify(events),now).run();
+   .bind(id,key.id,name,target.href,await sha(secret),await seal(secret,env),JSON.stringify(events),now).run();
   return json({id,name,url:target.href,events,signing_secret:secret,created_at:now,warning:"Copy the signing secret now. It is shown only once."},201);
  }
  if(id&&parts.length===4&&req.method==="DELETE"){
@@ -44,8 +47,8 @@ export async function deliverWebhookEvent(env,eventType,eventData){
  if(!env.AUTH_DB||!EVENTS.includes(eventType))return;
  const hooks=await env.AUTH_DB.prepare("SELECT id,api_key_id,target_url,secret_value FROM developer_webhooks WHERE revoked_at IS NULL AND EXISTS (SELECT 1 FROM json_each(events) WHERE value=?)").bind(eventType).all();
  for(const hook of hooks.results||[]){
-  const eventId=crypto.randomUUID(),timestamp=Math.floor(Date.now()/1000),body=JSON.stringify({id:eventId,type:eventType,created_at:new Date().toISOString(),data:eventData});
-  const signature=await crypto.subtle.sign("HMAC",await crypto.subtle.importKey("raw",enc.encode(hook.secret_value),{name:"HMAC",hash:"SHA-256"},false,["sign"]),enc.encode(timestamp+"."+body));
+  const eventId=crypto.randomUUID(),timestamp=Math.floor(Date.now()/1000),secret=await unseal(hook.secret_value,env),body=JSON.stringify({id:eventId,type:eventType,created_at:new Date().toISOString(),data:eventData});
+  const signature=await crypto.subtle.sign("HMAC",await crypto.subtle.importKey("raw",enc.encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]),enc.encode(timestamp+"."+body));
   const sig=Array.from(new Uint8Array(signature),b=>b.toString(16).padStart(2,"0")).join("");
   let status=null,success=0;
   try{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),7000);try{const response=await fetch(hook.target_url,{method:"POST",headers:{"content-type":"application/json","user-agent":"LeadMASTER-Webhooks/1.0","leadmaster-id":eventId,"leadmaster-timestamp":String(timestamp),"leadmaster-signature":"v1="+sig},body,signal:controller.signal,redirect:"manual"});status=response.status;success=response.ok?1:0;}finally{clearTimeout(timer)}}catch{}
