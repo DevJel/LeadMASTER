@@ -181,14 +181,14 @@ async function login(request, env) {
   const id = crypto.randomUUID();
   const codeHash = await hmac(sessionSecret, "otp:" + id + ":" + code);
   const now = Date.now();
-  await env.AUTH_DB.prepare("DELETE FROM auth_challenges WHERE email = ?").bind(ADMIN_EMAIL).run();
+  await env.AUTH_DB.prepare("DELETE FROM auth_challenges WHERE email = ?").bind(adminEmail).run();
   await env.AUTH_DB.prepare("INSERT INTO auth_challenges (id,email,code_hash,created_at,expires_at,attempts) VALUES (?,?,?,?,?,0)")
-    .bind(id, ADMIN_EMAIL, codeHash, now, now + 10 * 60 * 1000).run();
+    .bind(id, adminEmail, codeHash, now, now + 10 * 60 * 1000).run();
   try {
     await sendSesEmail({
       connect,
       env,
-      to: ADMIN_EMAIL,
+      to: adminEmail,
       subject: "Your LeadMASTER sign-in code",
       text: "Your LeadMASTER verification code is " + code + ". It expires in 10 minutes. If you did not request this code, you can ignore this email.",
       html: await renderEmailTemplate("/email-otpformat.html", { USER_NAME: "Admin", OTP_CODE: code, EXPIRY_MINUTES: "10" })
@@ -210,7 +210,7 @@ async function verifyOtp(request, env) {
   if (!(await rateLimit(env, "verify-ip:" + ip, 12, 15 * 60 * 1000))) return json({ error: "Too many attempts" }, 429);
   const code = typeof body.code === "string" ? body.code : "";
   if (!/^\d{6}$/.test(code)) return json({ error: "Invalid code" }, 400);
-  const row = await env.AUTH_DB.prepare("SELECT id,code_hash,expires_at,attempts FROM auth_challenges WHERE email = ? ORDER BY created_at DESC LIMIT 1").bind(ADMIN_EMAIL).first();
+  const row = await env.AUTH_DB.prepare("SELECT id,code_hash,expires_at,attempts FROM auth_challenges WHERE email = ? ORDER BY created_at DESC LIMIT 1").bind(adminEmail).first();
   if (!row || row.expires_at <= Date.now() || row.attempts >= 5) return json({ error: "Invalid or expired code" }, 401);
   const sessionSecret = await secret(env.SESSION_SECRET);
   if (!sessionSecret) return json({ error: "Service unavailable" }, 503);
@@ -226,7 +226,7 @@ async function verifyOtp(request, env) {
   const now = Date.now();
   const expires = now + 8 * 60 * 60 * 1000;
   await env.AUTH_DB.prepare("INSERT INTO auth_sessions (token_hash,email,created_at,expires_at,revoked_at) VALUES (?,?,?,?,NULL)")
-    .bind(tokenHash, ADMIN_EMAIL, now, expires).run();
+    .bind(tokenHash, adminEmail, now, expires).run();
   // Send the branded security alert after the authenticated session is established.
   // Alert delivery is best-effort so an email outage cannot strand a valid login.
   try {
@@ -242,7 +242,7 @@ async function verifyOtp(request, env) {
     await sendSesEmail({
       connect,
       env,
-      to: ADMIN_EMAIL,
+      to: adminEmail,
       subject: "New login detected — LeadMASTER",
       text: "A new login to your LeadMASTER account was detected. Location: " + details.location +
         ". Time: " + details.time + ". Device: " + details.device + ". Browser: " + details.browser +
@@ -324,7 +324,7 @@ async function handle(request, env) {
 export default {
   async fetch(request, env) {
     try {
-      if (!env.AUTH_DB || !env.ADMIN_PASSWORD || !env.SESSION_SECRET || !env.SES_SMTP_HOST || !env.SES_SMTP_USERNAME || !env.SES_SMTP_PASSWORD || !env.SES_FROM_EMAIL) {
+      if (!env.AUTH_DB || !env.ADMIN_EMAIL || !env.ADMIN_PASSWORD || !env.SESSION_SECRET || !env.SES_SMTP_HOST || !env.SES_SMTP_USERNAME || !env.SES_SMTP_PASSWORD || !env.SES_FROM_EMAIL) {
         // Public pages remain available while auth fails closed.
         const p = new URL(request.url).pathname;
         if (p.startsWith("/api/auth/") || p.startsWith("/dashboard")) return json({ error: "Authentication service is not configured" }, 503);
