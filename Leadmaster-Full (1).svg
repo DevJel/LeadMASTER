@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 200" width="880" height="200">
+<g transform="translate(0,0)"><rect x="12" y="12" width="176" height="176" rx="34" fill="none" stroke="#0A0A0A" stroke-width="13"/>
+<path d="M48 52 L48 152 L138 152 L138 128 L72 128 L72 52 Z" fill="#0A0A0A"/>
+<path d="M78 142 C 92 96 112 72 156 46" fill="none" stroke="#0A0A0A" stroke-width="11" stroke-linecap="round"/>
+<path d="M128 40 L163 40 L160 78 L144 58 Z" fill="#0A0A0A"/></g>
+<text x="228" y="132" font-family="Inter, Helvetica, Arial, sans-serif" font-size="96" letter-spacing="-1"><tspan font-weight="300" fill="#0A0A0A">Lead</tspan><tspan font-weight="800" fill="#0A0A0A">MASTER</tspan></text>
+</svg>
