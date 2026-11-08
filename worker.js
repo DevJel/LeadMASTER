@@ -5,7 +5,6 @@ import { staticAssets } from "./src/static-assets.mjs";
 
 const SITEKEY = "0x4AAAAAAF5KTL83dA8wIZQH";
 const HOSTNAME = "leadmaster.jelvan.pro";
-const ADMIN_EMAIL = "admin@work.jelvan.pro";
 const UPSTREAM = "https://leadmaster-preview.projects-public-portfolio.workers.dev";
 const CHALLENGE_COOKIE = "lm_turnstile";
 const SESSION_COOKIE = "lm_session";
@@ -130,6 +129,11 @@ function loginDetails(request) {
     ip_address: request.headers.get("CF-Connecting-IP") || "Unavailable"
   };
 }
+async function configuredAdminEmail(env) {
+  const value = await secret(env.ADMIN_EMAIL);
+  const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
+  return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalized) ? normalized : null;
+}
 async function passwordMatches(supplied, configured) {
   if (typeof supplied !== "string" || typeof configured !== "string" || supplied.length > 1024) return false;
   // Supports an optional pbkdf2$iterations$salt$hex representation, as well as
@@ -168,7 +172,8 @@ async function login(request, env) {
   if (!(await rateLimit(env, "ip:" + ip, 10, 15 * 60 * 1000))) return json({ error: "Too many attempts" }, 429);
   if (!(await verifyTurnstile(body.turnstileToken, request, env, "login"))) return json({ error: "Security verification failed" }, 403);
   const identity = typeof body.identity === "string" ? body.identity.trim().toLowerCase() : "";
-  if (identity !== ADMIN_EMAIL || !(await rateLimit(env, "email:" + ADMIN_EMAIL, 8, 15 * 60 * 1000))) return json({ error: "Unable to sign in" }, 401);
+  const adminEmail = await configuredAdminEmail(env);
+  if (!adminEmail || identity !== adminEmail || !(await rateLimit(env, "email:" + adminEmail, 8, 15 * 60 * 1000))) return json({ error: "Unable to sign in" }, 401);
   const configuredPassword = await secret(env.ADMIN_PASSWORD);
   const sessionSecret = await secret(env.SESSION_SECRET);
   if (!configuredPassword || !sessionSecret || !(await passwordMatches(body.password, configuredPassword))) return json({ error: "Unable to sign in" }, 401);
@@ -195,6 +200,8 @@ async function login(request, env) {
   return json({ next: "verify_email" });
 }
 async function verifyOtp(request, env) {
+  const adminEmail = await configuredAdminEmail(env);
+  if (!adminEmail) return json({ error: "Authentication service is not configured" }, 503);
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405, { allow: "POST" });
   if (!sameOrigin(request)) return json({ error: "Invalid request" }, 403);
   let body;
