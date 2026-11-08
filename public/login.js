@@ -32,7 +32,7 @@
   });
   $('otp-form').addEventListener('submit',async event=>{
     event.preventDefault();if(busy)return;error('otp-error','');setBusy(otpButton,true,'Verify and continue');
-    try{const res=await request('/api/auth/verify',{method:'POST',body:JSON.stringify({code:$('code').value})});if(!res.ok){error('otp-error',res.status===429?'Too many attempts. Please wait and try again.':'Unable to verify the code. Please try again.');return;}const body=await res.json();if(body.authenticated!==true)throw Error();location.assign('/');}
+    try{const res=await request('/api/auth/verify',{method:'POST',body:JSON.stringify({code:$('code').value})});if(!res.ok){error('otp-error',res.status===429?'Too many attempts. Please wait and try again.':'Unable to verify the code. Please try again.');return;}const body=await res.json();if(body.authenticated!==true)throw Error();location.assign('/dashboard.html');}
     catch{error('otp-error','Verification is temporarily unavailable. Please try again.');}
     finally{setBusy(otpButton,false,'Verify and continue');}
   });
