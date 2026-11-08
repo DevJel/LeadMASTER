@@ -3,6 +3,7 @@ import { sendSesEmail } from "./src/ses-smtp.mjs";
 import { emailOtpTemplate, emailSecurityAlertTemplate } from "./src/email-templates.mjs";
 import { staticAssets } from "./src/static-assets.mjs";
 import { developerAdminRoute, developerEmailRoute, developerEmailStatus } from "./src/developer-api.mjs";
+import { webhookRoute } from "./src/developer-webhooks.mjs";
 
 const SITEKEY = "0x4AAAAAAF5KTL83dA8wIZQH";
 const HOSTNAME = "leadmaster.jelvan.pro";
@@ -276,6 +277,7 @@ async function handle(request, env) {
     const session = await sessionFor(request, env);
     return developerAdminRoute(request, env, session);
   }
+  if (url.pathname === "/api/v1/webhooks" || url.pathname.startsWith("/api/v1/webhooks/")) return webhookRoute(request, env);
   if (url.pathname === "/api/v1/emails") return developerEmailRoute(request, env, connect);
   if (url.pathname.startsWith("/api/v1/emails/")) return developerEmailStatus(request, env);
   if (url.pathname === "/api/auth/config") return authConfig(request);
