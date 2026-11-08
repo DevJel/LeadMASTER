@@ -28,6 +28,8 @@ The login remains disabled if its configuration endpoint cannot be reached. Ther
 public/
   index.html                  Marketing landing page
   docs.html, docs.css         Public documentation page and styling
+  privacy.html, terms.html    Draft legal notices, not yet effective
+  legal.css                   Draft legal-page styling
   robots.txt, llms.txt        Crawler policy and factual AI-readable overview
   landing-halftone.css        Styles adapted from the supplied landing design
   landing-halftone.js         Landing-page tabs and mobile navigation
@@ -69,3 +71,7 @@ A production release requires an authenticated Worker, a secure admin credential
 ## Public preview
 
 The existing public preview at https://leadmaster-preview.projects-public-portfolio.workers.dev/ uses a temporary Worker with a KV-backed copy of public assets. It is not a production deployment; queue bindings and authentication are not configured. Preview assets and Worker routing require manual synchronization with repository changes. No actual email sending is enabled.
+
+## Draft legal notices
+
+Privacy and terms pages cover the current preview only and are explicitly marked drafts, not effective agreements. Before publication, the operator must confirm the legal entity and address, privacy contact, governing law, actual provider processing and international transfers, cookies, retention and deletion schedules, data-rights procedure, and review the terms and service-specific obligations with qualified counsel. Update both notices before enabling authentication, email, campaigns, AI or MCP features. Do not treat a link to a draft as evidence of legal acceptance.
