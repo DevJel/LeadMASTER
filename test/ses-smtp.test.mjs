@@ -28,3 +28,11 @@ test('resolves Cloudflare Secrets Store bindings without logging values',async()
 test('resolves SMTP hostname through a Secrets Store binding',async()=>{const s=server();let host;const wrapped={...env,SES_SMTP_HOST:{get:async()=> 'email-smtp.ap-southeast-2.amazonaws.com'}};const r=await sendSesEmail({...input,env:wrapped,connect:(address,options)=>{host=address.hostname;return s.connect(address,options)}});assert.equal(r.status,'accepted');assert.equal(host,'email-smtp.ap-southeast-2.amazonaws.com')});
 test('sends multipart alternative with base64 text and HTML',async()=>{const s=server(), text='Plain text',html='<h1>Hello ✨</h1>';await sendSesEmail({...input,text,html,connect:s.connect});const message=s.commands.at(-1);const match=/boundary="([^"]+)"/.exec(message);assert.ok(match);assert.match(message,/Content-Type: text\/plain; charset=UTF-8/);assert.match(message,/Content-Type: text\/html; charset=UTF-8/);assert.ok(message.includes(Buffer.from(text).toString('base64')));assert.ok(message.includes(Buffer.from(html).toString('base64')));assert.ok(message.includes('--'+match[1]+'--'));});
 test('rejects malformed HTML before connecting',async()=>{let connected=false;await assert.rejects(sendSesEmail({...input,html:'  ',connect:()=>{connected=true}}));assert.equal(connected,false)});
+test('proposed Secrets Store aliases resolve to the SMTP binding names',async()=>{
+  const {readFile}=await import('node:fs/promises');
+  const config=JSON.parse(await readFile(new URL('../config/secrets-store-bindings.fragment.json',import.meta.url),'utf8'));
+  assert.deepEqual(config.secrets_store_secrets.map(x=>[x.binding,x.secret_name]),[['SES_SMTP_HOST','AWS_SES_SMTP_HOSTNAME'],['SES_SMTP_USERNAME','AWS_SES_SMTP_USERNAME'],['SES_SMTP_PASSWORD','AWS_SES_SMTP_PASSPWORD']]);
+  const fakeStore={AWS_SES_SMTP_HOSTNAME:'email-smtp.ap-southeast-2.amazonaws.com',AWS_SES_SMTP_USERNAME:'mock-user',AWS_SES_SMTP_PASSPWORD:'mock-password'};
+  const bindings=Object.fromEntries(config.secrets_store_secrets.map(({binding,secret_name})=>[binding,{get:async()=>fakeStore[secret_name]}]));
+  const s=server();assert.equal((await sendSesEmail({...input,env:{...bindings,SES_FROM_EMAIL:env.SES_FROM_EMAIL},connect:s.connect})).status,'accepted');
+});
