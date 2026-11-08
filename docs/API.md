@@ -39,32 +39,32 @@ const { id, status } = await response.json(); // queued, not delivered
 
 The code above illustrates a request; it does not generate or validate OTPs. Applications must generate random codes server-side, enforce expiry and attempt limits, and never log codes. Never use the example code in real authentication.
 
-## Proposed authentication HTTP endpoints
+## Production authentication HTTP endpoints
 
 All requests are same-origin; the browser uses same-origin credentials, `Cache-Control: no-store` request behavior and JSON for POST bodies. Production code must validate origin/CSRF, authenticate and authorize protected endpoints, use secure HttpOnly SameSite session cookies, rate-limit durably, avoid account enumeration, and prevent replay.
 
-### `GET /api/auth/config` — not implemented
+### `GET /api/auth/config` — deployed
 
 Purpose: supply the public Turnstile site key to the login UI.
 
 - Success: JSON object containing a nonempty `turnstileSiteKey` string.
 - Failure: non-2xx or unreachable configuration prevents login and displays a generic availability message. Secret keys must never be returned.
 
-### `POST /api/auth/login` — not implemented
+### `POST /api/auth/login` — deployed
 
 Purpose: start sign-in for a configured admin after password and Turnstile verification.
 
 - JSON request: `{ "identity": "<username or email>", "password": "<password>", "turnstileToken": "<single-use token>" }`.
-- Proposed success: `{ "next": "verify_email" }`, after the server has validated the allowlist, password and Turnstile and has securely issued an email challenge. The response must not include credentials or the code.
+- Success: `{ "next": "verify_email" }`, after the server has validated the allowlist, password and Turnstile and has securely issued an email challenge. The response must not include credentials or the code.
 - Client behavior: `429` displays a rate-limit message; other non-2xx responses show a generic sign-in failure. Network errors and unexpected success bodies show a generic availability error. The client clears the password and resets Turnstile after the attempt.
 - Required server safeguards: configured admin identities only, secure password hashing, replay prevention, server-side Turnstile validation with the expected hostname and action, rate limits and generic errors. Challenge state, delivery handling and cookies require a reviewed implementation.
 
-### `POST /api/auth/verify` — not implemented
+### `POST /api/auth/verify` — deployed
 
 Purpose: complete the email verification challenge and establish a session.
 
 - JSON request: `{ "code": "<six digits>" }`; the UI expects challenge context to be maintained securely server-side.
-- Proposed success: `{ "authenticated": true }`, followed by navigation to `/`. The destination is not implemented.
+- Proposed success: `{ "authenticated": true }`, followed by navigation to `/dashboard.html`.
 - Client behavior: `429` displays a rate-limit message; other non-2xx responses show a generic verification error. The UI permits returning to sign-in.
 - Required server safeguards: an atomic single-use challenge, expiry, attempt limits, session issuance/rotation/revocation, appropriate cookie attributes and server-side authorization. These controls are not present yet.
 
@@ -93,6 +93,9 @@ Export: `src/email-queue-core.mjs`. A trusted, authenticated and authorized serv
 
 `src/email-queue-worker.mjs` provides a Queue consumer and internal Durable Object handler. `SES_MAX_MESSAGES_PER_SECOND` must be explicitly set to a verified integer from 1 through 10. `SES_MAX_MESSAGES_PER_DAY` must also be explicitly configured from 1 through 50,000. A single Durable Object serializes all sends, conservatively reserves attempts in rolling daily minute buckets and waits at least 101 ms after completion at the maximum per-second setting. The daily counter only covers sends made through this coordinator, not other applications sharing the SES account and region. Terminal states are acknowledged; blocked or unavailable work is delayed for retry. Cloudflare retry counts and message retention are finite, and unknown outcomes lack a recoverable payload; durable recovery and dead-letter monitoring remain release blockers. An uncertain SMTP outcome blocks further sends until an authorized recovery mechanism is implemented. This code has not been tested on Cloudflare or integrated with a real producer. It is not a public HTTP API. See [QUEUE_DESIGN.md](QUEUE_DESIGN.md).
 
-## Public Worker routing (implemented, not deployed)
+## Public Worker routing
 
 The Worker HTTP adapter in `src/http-router.mjs` serves static requests through its `ASSETS` binding; non-GET/HEAD static requests receive 405. API paths never fall through to static assets. `GET /api/auth/config` returns a no-store 503 generic availability response until a real authentication service is implemented, so the existing login UI stays disabled. The experimental `/api/v1/emails` route fails closed unless explicitly enabled and configured; other `/api` paths return a no-store 404. POST to the config endpoint returns 405. The adapter is exported by the same entry point as the queue consumer. This does not implement sign-in or sessions. The email-submission route is experimental and disabled by default.
+
+
+For the exact production Worker bindings, canonical email-template placeholders, SMTP format, and outstanding end-to-end release checks, see [PRODUCTION_AUTH.md](PRODUCTION_AUTH.md).
