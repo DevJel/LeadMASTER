@@ -132,7 +132,7 @@ function loginDetails(request) {
 async function configuredAdminEmail(env) {
   const value = await secret(env.ADMIN_EMAIL);
   const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
-  return /^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(normalized) ? normalized : null;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) ? normalized : null;
 }
 async function passwordMatches(supplied, configured) {
   if (typeof supplied !== "string" || typeof configured !== "string" || supplied.length > 1024) return false;
