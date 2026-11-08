@@ -15,6 +15,7 @@ function validMessage(v){
 async function readBody(req,max=250000){const raw=await req.text();if(enc.encode(raw).length>max)throw Error("large");const v=JSON.parse(raw);if(!v||typeof v!=="object"||Array.isArray(v))throw Error("invalid");return v;}
 export async function developerAdminRoute(request,env,session){
  if(!session)return json({error:"Unauthorized"},401);
+ if(request.method!=="GET" && request.headers.get("Origin")!==new URL(request.url).origin)return json({error:"Invalid request origin"},403);
  if(!env.AUTH_DB)return json({error:"Service unavailable"},503);
  const url=new URL(request.url), id=url.pathname.split("/").filter(Boolean).at(-1);
  if(url.pathname==="/api/developer/keys"&&request.method==="GET"){
@@ -50,6 +51,9 @@ export async function developerEmailRoute(request,env,connect){
  const idem=request.headers.get("idempotency-key")||"";if(!/^[A-Za-z0-9_-]{16,128}$/.test(idem))return json({error:"A 16–128 character Idempotency-Key header is required"},400);
  let body;try{body=await readBody(request)}catch{return json({error:"Invalid JSON or request too large"},400)}
  if(!validMessage(body))return json({error:"Invalid email payload"},400);
+ const nowWindow=Date.now(), windowStart=nowWindow-60000;
+ const limited=await env.AUTH_DB.prepare("INSERT INTO auth_rate_limits (bucket_key,window_start,count) VALUES (?, ?, 1) ON CONFLICT(bucket_key) DO UPDATE SET count=CASE WHEN auth_rate_limits.window_start<=? THEN 1 ELSE auth_rate_limits.count+1 END, window_start=CASE WHEN auth_rate_limits.window_start<=? THEN excluded.window_start ELSE auth_rate_limits.window_start END RETURNING count").bind("developer-api:"+row.id,nowWindow,windowStart,windowStart).first();
+ if(Number(limited?.count||0)>30)return json({error:"Rate limit exceeded"},429,{"retry-after":"60"});
  const prior=await env.AUTH_DB.prepare("SELECT id,status,created_at FROM developer_email_requests WHERE api_key_id=? AND idempotency_key=?").bind(row.id,idem).first();
  if(prior)return json({id:prior.id,status:prior.status,created_at:prior.created_at,replayed:true},prior.status==="accepted"?200:202);
  const id=crypto.randomUUID(),now=Date.now();
