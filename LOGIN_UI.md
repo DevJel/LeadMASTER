@@ -1,6 +1,6 @@
 # Login interface
 
-`public/login.html` is a responsive LeadMASTER login interface. It supports the password step, a server-rendered Turnstile widget, a six-digit email-code step, loading and error states, keyboard controls, an animated cover and reduced-motion preferences. No simulated login or sample accounts are included.
+`public/login.html` is a responsive LeadMASTER login interface. It supports the password step, a client-rendered Turnstile widget, a six-digit email-code step, loading and error states, keyboard controls, an animated cover and reduced-motion preferences. No simulated login or sample accounts are included.
 
 ## Integration boundary — not yet implemented
 
@@ -13,3 +13,7 @@ The UI is not a working authentication system and must not be deployed as one. I
 The backend must enforce origin/CSRF protection, secure HttpOnly SameSite cookies, rate limiting across instances, replay prevention, fail-closed secret/config handling, authorization on every private endpoint, session revocation, generic public errors and redacted logging. SMTP acceptance does not mean the code was delivered. Protect against ambiguous send outcomes. Neither the UI nor the Turnstile component alone is an authentication boundary.
 
 The requested 100 individually named username/email pairs cannot all be supplied as ordinary variables to a single Worker under published per-Worker variable limits; an approved secrets arrangement is still needed. No production secrets, Turnstile keys, sender, Worker, route, storage, or account configuration is supplied here.
+
+## Branding assets
+
+The original full logo, icon and gray favicon are organized under `public/assets/brand/`. The full logo appears on the login page in both light and dark contexts; CSS inverts it for the dark panel. The login HTML references the gray SVG favicon. The source artwork is otherwise unchanged. See [README.md](README.md) and [docs/API.md](docs/API.md) for current implementation status and contracts.
