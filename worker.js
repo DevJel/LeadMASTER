@@ -1,5 +1,6 @@
 import { connect } from "cloudflare:sockets";
 import { sendSesEmail } from "./src/ses-smtp.mjs";
+import { emailOtpTemplate, emailSecurityAlertTemplate } from "./src/email-templates.mjs";
 
 const SITEKEY = "0x4AAAAAAF5KTL83dA8wIZQH";
 const HOSTNAME = "leadmaster.jelvan.pro";
@@ -99,10 +100,12 @@ async function rateLimit(env, key, limit, windowMs) {
   return Number(result?.count || 0) <= limit;
 }
 async function renderEmailTemplate(path, replacements) {
-  const response = await fetch(new URL(path, UPSTREAM), { headers: { "accept": "text/html" } });
-  if (!response.ok) throw new Error("Email template unavailable");
-  let html = await response.text();
-  if (html.length > 200000) throw new Error("Email template too large");
+  const templates = {
+    "/email-otpformat.html": emailOtpTemplate,
+    "/email-securityalert.html": emailSecurityAlertTemplate
+  };
+  let html = templates[path];
+  if (typeof html !== "string" || html.length > 200000) throw new Error("Email template unavailable");
   for (const [key, value] of Object.entries(replacements)) {
     const safe = String(value ?? "").replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[ch]);
     html = html.replaceAll("{{" + key + "}}", safe);
