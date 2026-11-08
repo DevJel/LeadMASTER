@@ -65,12 +65,13 @@ async function secret(value) {
  * delivery may have occurred: caller MUST reconcile and must not blindly retry.
  */
 export async function sendSesEmail({ connect, env, to, subject, text, timeoutMs = 15000 }) {
-  if (!env || typeof connect !== 'function' || !HOST.test(env.SES_SMTP_HOST || '') || !Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 30000) throw new Error('SMTP configuration unavailable');
+  if (!env || typeof connect !== 'function' || !Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 30000) throw new Error('SMTP configuration unavailable');
   const from = mailbox(env.SES_FROM_EMAIL); const message = buildMessage({ from, to, subject, text });
-  const [username, password] = await Promise.all([secret(env.SES_SMTP_USERNAME), secret(env.SES_SMTP_PASSWORD)]);
+  const [host, username, password] = await Promise.all([secret(env.SES_SMTP_HOST), secret(env.SES_SMTP_USERNAME), secret(env.SES_SMTP_PASSWORD)]);
+  if (!HOST.test(host)) throw new Error('SMTP configuration unavailable');
   let socket; let timer; let dataSent = false; let accepted = false;
   try {
-    socket = connect({ hostname: env.SES_SMTP_HOST, port: 465 }, { secureTransport: 'on' });
+    socket = connect({ hostname: host, port: 465 }, { secureTransport: 'on' });
     const run = async () => {
       await socket.opened;
       const reader = socket.readable.getReader(); const writer = socket.writable.getWriter(); const replies = new ReplyReader(reader);

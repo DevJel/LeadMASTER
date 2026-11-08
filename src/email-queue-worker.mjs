@@ -8,7 +8,7 @@ export class EmailCoordinator {
   constructor(ctx,env) {
     // Require an explicit quota no greater than the verified SES limit.
     const configured=Number(env.SES_MAX_MESSAGES_PER_SECOND);
-    this.core=new EmailDispatchCore({storage:ctx.storage,ratePerSecond:configured,send:message=>sendSesEmail({connect,env,...message})});
+    this.core=new EmailDispatchCore({storage:ctx.storage,ratePerSecond:configured,maxPer24h:Number(env.SES_MAX_MESSAGES_PER_DAY),send:message=>sendSesEmail({connect,env,...message})});
   }
   async fetch(request) {
     if(request.method!=='POST')return new Response(null,{status:405});
