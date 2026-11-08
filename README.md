@@ -15,7 +15,7 @@ The landing page includes CSS-animated conceptual product moments and a searchab
 | SES SMTP transport | Implemented and unit-tested with mock sockets; no live delivery verified |
 | Admin secret allowlist, password verification, OTP and sessions | Required; not implemented |
 | Experimental single-key text/HTML email submission route | Implemented behind a disabled-by-default flag; mock tests only, no key-management UI, not production-ready or deployed |
-| Dashboard | Responsive navigation shell; no authenticated data, actions or backend; not deployed |
+| Dashboard | Responsive navigation shell with a local, unsaved HTML preview for Emails and Templates; no authenticated data, sending or template backend; not deployed |
 | API key creation, audiences, webhooks and other console features | Intended, not implemented |
 | Experimental read-only MCP integration | Disabled by default; local tests only, not deployed; no email sending via MCP |
 | Public Worker HTTP routing, robots.txt and llms.txt | Implemented; static preview deployed, full runtime verification pending |
@@ -43,6 +43,8 @@ public/
   login.js                    Client-side interaction and proposed API calls
   dashboard.html              Responsive workspace navigation shell
   dashboard.css, dashboard.js Dashboard styling and navigation (no backend)
+  html-preview.css, html-preview.js  Isolated local email/template HTML preview
+  assets/vendor/              Locally vendored DOMPurify and its license
   cover.css                   Embedded animated login cover
   assets/brand/               Original full logo, icon and favicon SVGs
 src/
@@ -57,6 +59,7 @@ src/
 test/                         Node unit tests using mock external boundaries
 docs/API.md                   Module contracts and experimental API status
 docs/QUEUE_DESIGN.md          Queue implementation and release gates
+docs/HTML_PREVIEW.md          Preview usage, limitations and security
 LOGIN_UI.md                   Login behavior and integration requirements
 SES_TRANSPORT.md              SMTP setup and operational constraints
 ```

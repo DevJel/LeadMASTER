@@ -1,0 +1,7 @@
+# HTML preview
+
+The dashboard shell exposes a local HTML preview in the Emails and Templates sections. Enter HTML, select **Preview HTML**, and use Desktop or Mobile to change the viewport. Each section keeps its own unsaved text in tab memory until the page is reloaded or closed. This is not a working message composer or template manager: no content is saved or sent, and authentication, sending and template storage are not connected.
+
+The preview uses a locally bundled DOMPurify library with its license, a restrictive content security policy, and a sandboxed iframe. Scripts, forms, links, nested documents, SVG/MathML and external resources are blocked to limit active content and prevent remote tracking in the preview; data-URI images are permitted. Some legitimate email content can therefore render differently from a recipient's email client. The editor preserves the original text; sanitization affects only the displayed preview. Avoid entering confidential content on an untrusted device. DOMPurify is vendored and must be kept current as security updates are released.
+
+This local utility does not substitute for authenticated access, safe content handling elsewhere, email-client compatibility testing or an end-to-end delivery test. When actual compose and template features are implemented, reuse this isolation and connect the preview to the real editor state; never run arbitrary email markup in the authenticated application DOM.
