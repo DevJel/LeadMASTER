@@ -26,7 +26,7 @@ export async function developerAdminRoute(request,env,session){
   let body;try{body=await readBody(request,4000)}catch{return json({error:"Invalid request"},400)}
   const name=typeof body.name==="string"?body.name.trim():"";
   const scopes=Array.isArray(body.scopes)?[...new Set(body.scopes)]:["email:send","email:read"];
-  if(!name||name.length>80||!scopes.length||scopes.some(s=>!["email:send","email:read"].includes(s)))return json({error:"Provide a name and supported scopes"},400);
+  if(!name||name.length>80||!scopes.length||scopes.some(s=>!["email:send","email:read","webhook:manage"].includes(s)))return json({error:"Provide a name and supported scopes"},400);
   const raw=token(), id=crypto.randomUUID(), now=Date.now();
   await env.AUTH_DB.prepare("INSERT INTO developer_api_keys (id,name,key_prefix,key_hash,scopes,created_by,created_at,last_used_at,revoked_at) VALUES (?,?,?,?,?,?,?,NULL,NULL)")
    .bind(id,name,raw.slice(0,16),await hash(raw),JSON.stringify(scopes),session.email,now).run();
