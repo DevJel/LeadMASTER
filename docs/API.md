@@ -2,7 +2,7 @@
 
 ## Status and boundary
 
-There is currently **no HTTP API implementation** or Worker entry point. The browser calls below are proposed integration contracts; their presence in the UI does not mean a working endpoint exists. The helper modules are not authorization boundaries and must not be exposed directly.
+There is currently **no public HTTP API implementation**. A Queue consumer Worker entry point exists but is not configured or deployed. The browser calls below are proposed integration contracts; their presence in the UI does not mean a working endpoint exists. The helper modules are not authorization boundaries and must not be exposed directly.
 
 ## Proposed authentication HTTP endpoints
 
@@ -47,4 +47,13 @@ Accepts one recipient and a text-only message. It validates addresses and subjec
 
 ## Verification
 
-`node --test` executes deterministic unit tests against mocked sockets and fetch. It does not verify live SES delivery, Cloudflare configuration, identity provisioning, HTTP endpoints, storage, rate limits, sessions or deployment.
+`node --test` executes deterministic unit tests against mocked sockets and fetch. It does not verify live SES delivery, Cloudflare configuration, identity provisioning, HTTP endpoints, actual Durable Object storage, production rate limits, sessions or deployment.
+
+
+### `enqueueEmail(queue, job)`
+
+Export: `src/email-queue-core.mjs`. A trusted, authenticated and authorized server caller may submit `{id, to, subject, text}` to a Cloudflare Queue binding. It validates inputs and a 100,000-byte serialized payload limit, and returns `{ "status": "queued" }` after the Queue accepts the message. This is not proof of SMTP acceptance or final delivery. The function does not implement authentication, authorization, consent, an outbox, idempotent producer storage, or an HTTP endpoint. See [QUEUE_DESIGN.md](QUEUE_DESIGN.md).
+
+### Queue consumer and coordinator
+
+`src/email-queue-worker.mjs` provides a Queue consumer and internal Durable Object handler. `SES_MAX_MESSAGES_PER_SECOND` must be explicitly set to a verified integer from 1 through 10. A single Durable Object serializes all sends and waits at least 101 ms after completion at the maximum setting. Terminal states are acknowledged; blocked or unavailable work is delayed for retry. An uncertain SMTP outcome blocks further sends until an authorized recovery mechanism is implemented. This code has not been tested on Cloudflare or integrated with a real producer. It is not a public HTTP API. See [QUEUE_DESIGN.md](QUEUE_DESIGN.md).

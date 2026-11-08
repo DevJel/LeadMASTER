@@ -1,6 +1,6 @@
 # SES SMTP transport
 
-This is an isolated transport module, not an application or a deployed service. No HTTP route calls it. Production use requires authenticated, authorized application endpoints, sender verification, an approved Cloudflare account, durable send-state/idempotency, rate limits, observability, security review and a real SES integration test.
+This is a transport helper, not an application or a deployed service. The Queue coordinator calls it internally; no public HTTP route calls it. Production use requires authenticated, authorized application endpoints, sender verification, an approved Cloudflare account, durable send-state/idempotency, rate limits, observability, security review and a real SES integration test.
 
 - `src/ses-smtp.mjs` exports `sendSesEmail`. Supply `connect` from `cloudflare:sockets` within a Worker handler, not global scope.
 - Configure `SES_SMTP_HOST` as the SES SMTP hostname for the verified identity's region, and `SES_FROM_EMAIL` as the verified sender. Store `SES_SMTP_USERNAME` and `SES_SMTP_PASSWORD` in Worker secrets or Secrets Store bindings. Do not commit them.

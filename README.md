@@ -1,13 +1,13 @@
 # LeadMASTER
 
-LeadMASTER is intended to be a single-user email workspace with an interface inspired by modern transactional-email consoles. The current repository contains a responsive marketing page and login interface, an isolated Cloudflare Turnstile verification helper, and an isolated AWS SES SMTP transport. It is **not a complete application and is not production-ready**.
+LeadMASTER is intended to be a single-user email workspace with an interface inspired by modern transactional-email consoles. The current repository contains a responsive marketing page and login interface, an isolated Cloudflare Turnstile verification helper, an AWS SES SMTP transport and a queue/coordinator implementation. It is **not a complete application and is not production-ready**.
 
 ## Current status
 
 | Capability | Status |
 | --- | --- |
 | Marketing landing page, login page, LeadMASTER logos and favicon | Implemented as static assets |
-| Cloudflare queue and global 10-message-per-second rate control | Required; design documented, not implemented |
+| Cloudflare queue and global 10-message-per-second rate control | Code and mock tests added; deployment, integration, recovery and runtime verification pending |
 | Password entry, Turnstile widget and email-code screens | UI implemented; authentication service is not implemented |
 | Turnstile server-side helper | Implemented and unit-tested; not connected to an endpoint |
 | SES SMTP transport | Implemented and unit-tested with mock sockets; no live delivery verified |
@@ -32,9 +32,12 @@ public/
 src/
   turnstile.mjs               Server-side Turnstile validation helper
   ses-smtp.mjs                SES SMTP transport helper
+  email-queue-core.mjs        Enqueue and serialized dispatch logic
+  email-queue-worker.mjs      Cloudflare Queue / Durable Object adapter
+  queue-batch.mjs             Queue acknowledgement and retry handling
 test/                         Node unit tests using mock external boundaries
 docs/API.md                   Module contracts and unimplemented HTTP API
-docs/QUEUE_DESIGN.md          Proposed queue and rate-control design
+docs/QUEUE_DESIGN.md          Queue implementation and release gates
 LOGIN_UI.md                   Login behavior and integration requirements
 SES_TRANSPORT.md              SMTP setup and operational constraints
 ```
