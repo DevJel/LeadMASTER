@@ -31,4 +31,27 @@
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!menu.hidden){closeMenu();menuButton.focus();}});
 
   const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
+  const motion = document.querySelector('#moments-motion');
+  const moments = document.querySelector('#product-moments');
+  function syncMotion() {
+    motion.disabled = reduced.matches;
+    if (reduced.matches) { moments.classList.remove('moments-paused'); motion.setAttribute('aria-pressed','false'); motion.textContent='Motion reduced'; }
+    else { const paused=moments.classList.contains('moments-paused'); motion.setAttribute('aria-pressed',String(paused)); motion.textContent=paused?'Play animations':'Pause animations'; }
+  }
+  motion.addEventListener('click',()=>{moments.classList.toggle('moments-paused');syncMotion();});
+  reduced.addEventListener('change',syncMotion);syncMotion();
+  const docs=document.querySelector('#panel-documentation');
+  const search=docs.querySelector('#docs-search');
+  const filters=[...docs.querySelectorAll('[data-doc-filter]')];
+  const cards=[...docs.querySelectorAll('[data-doc-card]')];
+  let category='all';
+  function filterDocs() {
+    const term=search.value.trim().toLocaleLowerCase(); let count=0;
+    for(const card of cards){const visible=(category==='all'||card.dataset.docCategory===category)&&card.textContent.toLocaleLowerCase().includes(term);card.hidden=!visible;if(visible)count++;}
+    docs.querySelector('#docs-count').textContent=`${count} ${count===1?'topic':'topics'} shown`;
+    docs.querySelector('#docs-empty').hidden=count!==0;
+    for(const filter of filters){const active=filter.dataset.docFilter===category;filter.classList.toggle('active',active);filter.setAttribute('aria-pressed',String(active));}
+  }
+  search.addEventListener('input',filterDocs);
+  filters.forEach(filter=>filter.addEventListener('click',()=>{category=filter.dataset.docFilter;filterDocs();}));
 })();

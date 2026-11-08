@@ -2,6 +2,8 @@
 
 LeadMASTER is intended to be a single-user email workspace with an interface inspired by modern transactional-email consoles. The current repository contains a responsive marketing page and login interface, an isolated Cloudflare Turnstile verification helper, an AWS SES SMTP transport and a queue/coordinator implementation, and fail-closed HTTP routing. It is **not a complete application and is not production-ready**.
 
+The landing page includes CSS-animated conceptual product moments and a searchable documentation index. The illustrations are not live product activity or real metrics. The login hero intentionally keeps a minimal layout.
+
 ## Current status
 
 | Capability | Status |
