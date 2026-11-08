@@ -292,7 +292,7 @@ async function handle(request, env) {
     if (!session) return Response.redirect(new URL("/login.html", request.url), 302);
     return Response.redirect(new URL("/dashboard.html", request.url), 302);
   }
-  const protectedPaths = ["/dashboard.html", "/dashboard.js", "/dashboard.css", "/html-preview.js", "/html-preview.css", "/assets/vendor/dompurify.min.js"];
+  const protectedPaths = ["/dashboard.html", "/developer-api-keys.html", "/dashboard.js", "/dashboard.css", "/html-preview.js", "/html-preview.css", "/assets/vendor/dompurify.min.js"];
   if (protectedPaths.includes(url.pathname)) {
     const session = await sessionFor(request, env);
     if (!session) return Response.redirect(new URL("/login.html", request.url), 302);
