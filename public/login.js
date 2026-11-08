@@ -15,7 +15,7 @@
       const config=await res.json(); if(typeof config.turnstileSiteKey!=='string'||!config.turnstileSiteKey)throw Error();
       await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});
       if(!window.turnstile)throw Error();
-      widgetId=window.turnstile.render('#turnstile',{sitekey:config.turnstileSiteKey,action:'login',theme:'light',callback:()=>{turnstileReady=true;loginButton.disabled=false;error('login-error','');},'expired-callback':()=>{turnstileReady=false;loginButton.disabled=true;},'error-callback':()=>{turnstileReady=false;loginButton.disabled=true;error('login-error','Security verification is unavailable. Please refresh and try again.');}});
+      widgetId=window.turnstile.render('#turnstile',{sitekey:config.turnstileSiteKey,action:'login',theme:'light',retry:'auto','retry-interval':8000,'refresh-expired':'auto','refresh-timeout':'auto',callback:()=>{turnstileReady=true;loginButton.disabled=false;error('login-error','');},'expired-callback':()=>{turnstileReady=false;loginButton.disabled=true;},'timeout-callback':()=>{turnstileReady=false;loginButton.disabled=true;error('login-error','Security verification timed out. Please retry.');},'error-callback':()=>{turnstileReady=false;loginButton.disabled=true;error('login-error','Security verification is unavailable. Please check your connection and retry.');}});
     } catch {error('login-error','Secure sign-in is unavailable. Please try again later.');loginButton.disabled=true;}
   }
   $('show-password').addEventListener('click',()=>{const input=$('password'),show=input.type==='password';input.type=show?'text':'password';const b=$('show-password');b.textContent=show?'Hide':'Show';b.setAttribute('aria-label',show?'Hide password':'Show password');b.setAttribute('aria-pressed',String(show));});
@@ -24,7 +24,7 @@
     try {
       const token=window.turnstile.getResponse(widgetId);if(!token)throw Error();
       const res=await request('/api/auth/login',{method:'POST',body:JSON.stringify({identity:$('identity').value.trim(),password:$('password').value,turnstileToken:token})});
-      if(!res.ok){error('login-error',res.status===429?'Too many attempts. Please wait and try again.':'Unable to sign in. Check your details and try again.');return;}
+      if(!res.ok){const body=await res.json().catch(()=>({}));const message=res.status===429?'Too many attempts. Please wait and try again.':res.status===403?'Security verification failed. Please complete the check again.':res.status===503?'Email verification is temporarily unavailable. Please try again later.':res.status===401?'Unable to sign in. Check your email and password.':'Sign-in service is temporarily unavailable. Please try again.';error('login-error',message);return;}
       const body=await res.json(); if(body.next!=='verify_email')throw Error();
       $('password').value='';$('login-step').hidden=true;$('otp-step').hidden=false;$('code').focus();
     }catch{error('login-error','Sign-in is temporarily unavailable. Please try again.');}
