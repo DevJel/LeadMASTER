@@ -1,101 +1,83 @@
-# API and module reference
+# LeadMASTER API and module reference
 
-## Status and boundary
+## Production status
 
-An experimental `POST /api/v1/emails` submission route exists in code, **disabled by default and not deployed**. It is not production-ready. A Queue consumer Worker entry point exists but is not configured or deployed. The authentication endpoints below are implemented in the deployed production gateway. The separate experimental email-submission API remains disabled and is not production-ready. The helper modules are not authorization boundaries and must not be exposed directly.
+The production Worker is hosted at `https://leadmaster.jelvan.pro`. Its currently supported HTTP API is the same-origin, single-administrator authentication flow documented below.
 
-## Experimental email submission — disabled and not deployed
+**There is no supported public email-submission API in production.** The repository's experimental `POST /api/v1/emails` route is disabled by default and is not part of the deployed production Worker. Do not integrate against it or treat the prototype's response format as a production contract.
 
-`POST /api/v1/emails` accepts one message with required plain text and optional HTML only when the `EMAIL_API_ENABLED` configuration equals `true`, the `EMAIL_QUEUE` producer is bound, and `EMAIL_API_KEY` is available as a Worker secret or Secrets Store binding. Keep the flag disabled until all release gates below are met. The key must be a cryptographically random 43–128 character base64url string; do not put it in browser code or source control. This is a **single shared key**, not a key-management service or admin login.
+The dashboard remains a navigation shell. Campaigns, audiences, general email sending, template persistence, delivery status and public API-key management are not production-ready.
 
-Request: `Authorization: Bearer <key>`, `Content-Type: application/json`, and `Idempotency-Key: <16–128 ASCII letters, digits, hyphens or underscores>`. The body contains `to`, `subject`, `text`, and optional `html`. A plain-text fallback is required. The API does not sanitize HTML: only submit trusted content. The configured SES identity supplies the sender. Requests are limited to 100,000 bytes. A `202` response `{ "id": "<idempotency key>", "status": "queued" }` means the Queue accepted the job; it does not mean SES accepted or delivered it. No internal send-rate information is returned. Failures use generic 400, 401, 405, 413, 415 or 503 responses.
+## Authentication endpoints — deployed
 
-The client must reuse the same idempotency key **only with identical message content** when retrying an uncertain submission. Duplicate queue messages are deduplicated by the existing coordinator. Reusing a key with changed content is detected only during consumption; this prototype has no public status endpoint and does not synchronously report that conflict. There is no key issuance, rotation interface, authentication UI, consent policy, endpoint abuse limit, live delivery-status endpoint or recovery interface. Queue retries, failed and unknown SMTP outcomes still require operator handling. Never interpret `queued` as `delivered`.
+All endpoints are same-origin. State-changing requests use JSON and are protected by same-origin checks and rate limits. The current deployment supports one configured administrator.
 
-**Release gates:** independent security review, scoped credentials and key lifecycle, request abuse controls, queue and DLQ bindings, retention and privacy controls, monitored recovery for unknown outcomes and queue publication/consumption, integration tests in an isolated Cloudflare environment, verified SES identity and quota, and an authorized live-recipient test. The API must remain disabled until these are completed; the local tests only use mocks.
+### `GET /api/auth/config`
 
-### Server-side example (once enabled)
+Returns the public Turnstile site key for the login page. The secret key is never returned.
 
-Keep the API key on your server; never place it in frontend code. Set `LEADMASTER_API_URL` to the deployed HTTPS base URL and `LEADMASTER_API_KEY` in your server’s secret manager. Use a new idempotency key for each logical message and reuse it only with the same content when retrying. The endpoint is not live yet.
+### `POST /api/auth/login`
 
-```js
-const response = await fetch(`${process.env.LEADMASTER_API_URL}/api/v1/emails`, {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${process.env.LEADMASTER_API_KEY}`,
-    'Content-Type': 'application/json',
-    'Idempotency-Key': crypto.randomUUID()
-  },
-  body: JSON.stringify({
-    to: 'recipient@example.com',
-    subject: 'Your verification code',
-    text: 'Your verification code is 123456.',
-    html: '<p>Your verification code is <strong>123456</strong>.</p>'
-  })
-});
-if (!response.ok) throw new Error('Email submission failed');
-const { id, status } = await response.json(); // queued, not delivered
+Starts administrator sign-in.
+
+Request:
+```json
+{"identity":"admin@example.com","password":"<administrator password>","turnstileToken":"<single-use Turnstile token>"}
 ```
 
-The code above illustrates a request; it does not generate or validate OTPs. Applications must generate random codes server-side, enforce expiry and attempt limits, and never log codes. Never use the example code in real authentication.
+The server verifies the Turnstile token for the configured hostname and `login` action, checks the administrator allowlist and password, and applies D1-backed rate limits. It then creates a single-use six-digit email challenge and sends it through AWS SES SMTP.
 
-## Production authentication HTTP endpoints
+Success:
+```json
+{"next":"verify_email"}
+```
 
-All browser requests are same-origin and use same-origin credentials, no-store caching and JSON POST bodies. The deployed gateway checks Origin on state-changing auth requests, validates Turnstile server-side, rate-limits in D1, uses Secure HttpOnly SameSite cookies, and consumes OTPs once.
+The OTP expires after 10 minutes and allows at most five attempts. Generic errors are returned for invalid credentials. A rate-limited request returns HTTP 429.
 
-### `GET /api/auth/config` — deployed
+### `POST /api/auth/verify`
 
-Purpose: supply the public Turnstile site key to the login UI.
+Completes the email challenge.
 
-- Success: JSON object containing a nonempty `turnstileSiteKey` string.
-- Failure: non-2xx or unreachable configuration prevents login and displays a generic availability message. Secret keys must never be returned.
+Request:
+```json
+{"code":"123456"}
+```
 
-### `POST /api/auth/login` — deployed
+Success:
+```json
+{"authenticated":true}
+```
 
-Purpose: start sign-in for a configured admin after password and Turnstile verification.
+The response sets an eight-hour Secure, HttpOnly, SameSite=Strict session cookie. The code is consumed once. D1 stores challenge and session hashes, expiries and attempt counts rather than plaintext OTP or session tokens.
 
-- JSON request: `{ "identity": "<username or email>", "password": "<password>", "turnstileToken": "<single-use token>" }`.
-- Success: `{ "next": "verify_email" }`, after the server has validated the allowlist, password and Turnstile and has securely issued an email challenge. The response must not include credentials or the code.
-- Client behavior: `429` displays a rate-limit message; other non-2xx responses show a generic sign-in failure. Network errors and unexpected success bodies show a generic availability error. The client clears the password and resets Turnstile after the attempt.
-- Implemented safeguards: fixed administrator allowlist, password check against Cloudflare Secrets Store, server-side Turnstile hostname/action validation, D1 rate limits, generic errors, single-use challenge state and secure session cookies. Password secret format and SES delivery still require operator verification.
+### `GET /api/auth/session`
 
-### `POST /api/auth/verify` — deployed
+Returns whether the current browser session is authenticated and the associated configured administrator email. The session cookie is HttpOnly and must not be copied into application storage.
 
-Purpose: complete the email verification challenge and establish a session.
+### `POST /api/auth/logout`
 
-- JSON request: `{ "code": "<six digits>" }`; the UI expects challenge context to be maintained securely server-side.
-- Success: `{ "authenticated": true }` with an eight-hour Secure, HttpOnly, SameSite=Strict session cookie, followed by navigation to `/dashboard.html`.
-- Client behavior: `429` displays a rate-limit message; other non-2xx responses show a generic verification error. The UI permits returning to sign-in.
-- Implemented safeguards: D1-backed single-use OTP challenge, 10-minute expiry, five-attempt ceiling, hashed session token, eight-hour expiry, logout revocation and session checks on dashboard routes.
+Revokes the current D1-backed session and expires the session cookie. The request must be same-origin.
 
-## Implemented internal modules
+These are browser authentication endpoints, not general-purpose API credentials, OAuth, or a multi-user identity API. Do not use them as an email-send authorization mechanism.
 
-### `verifyTurnstile({ token, secret, expectedHostname, expectedAction, fetcher?, timeoutMs? })`
+## Public email submission — unavailable
 
-Export: `src/turnstile.mjs`. Returns `true` only for a successful Siteverify response matching both hostname and action; otherwise returns `false`. `secret` may be a string or a Secrets Store binding with `get()`. `fetcher` defaults to `fetch`; the default network timeout is 5 seconds. The helper rejects empty or oversized tokens and invalid configuration, and fails closed on verification failures. The timeout applies to the network request, not secret retrieval. The helper does not authenticate a user or implement a route.
+The experimental `POST /api/v1/emails` implementation is disabled by default and not deployed in the production Worker. No production API key issuance, key rotation, delivery-status endpoint or public send contract exists.
 
-### `sendSesEmail({ connect, env, to, subject, text, html?, timeoutMs? })`
+The repository prototype describes a bearer-key request with an idempotency key and a 100 KB payload limit, but this is not a live production interface. It must remain disabled until scoped credentials and lifecycle, authorization, consent/suppression, abuse limits, durable queue acceptance, idempotency, monitoring, delivery events, reconciliation and operator recovery are implemented and reviewed.
 
-Export: `src/ses-smtp.mjs`. `connect` is the Cloudflare sockets `connect` function supplied by the caller. `env` requires `SES_SMTP_HOST`, `SES_SMTP_USERNAME`, `SES_SMTP_PASSWORD` and `SES_FROM_EMAIL`; the host, username and password accept strings or Secrets Store bindings. The host must match an AWS SES SMTP endpoint, and the transport uses implicit TLS on port 465. The default network timeout is 15 seconds; it does not cover secret retrieval.
+Never put API keys in browser code, URLs, source control or logs. A queued acknowledgement, if a future API provides one, must not be described as final delivery.
 
-Accepts one recipient, required plain text and optional HTML. HTML messages use multipart/alternative with a plain-text fallback; both bodies are base64 encoded. It validates addresses and subject, sends base64 UTF-8 content, closes the socket, and returns `{ "status": "accepted" }` after SES accepts the DATA command. This does **not** confirm final delivery. It makes no retries. On a sending error, `deliveryOutcome` is `not_accepted` before DATA or `unknown` when DATA may have been submitted. Unknown outcomes require reconciliation before retry. Configuration and input-validation errors can occur before socket creation. Do not log secrets or message content. See [SES_TRANSPORT.md](../SES_TRANSPORT.md).
+## Email transport
+
+The deployed authentication gateway uses AWS SES SMTP for sign-in OTP and best-effort security-alert email. The transport uses implicit TLS on port 465. SMTP host, username and password and sender configuration are supplied through Cloudflare Secrets Store bindings.
+
+SES accepting an SMTP DATA command is not proof of final inbox delivery. Sender identity, account sending mode, quotas and live deliverability must be verified independently. General customer email sending is not available through the production gateway.
+
+## Internal modules
+
+The repository also contains internal helpers for Turnstile verification, SES SMTP, queue input validation, enqueueing, queue consumption and MCP validation. These modules are not public authorization boundaries and must not be exposed directly. The queue producer/consumer and recovery design remain experimental; see [QUEUE_DESIGN.md](./QUEUE_DESIGN.md).
 
 ## Verification
 
-`node --test` executes deterministic unit tests against mocked sockets and fetch. It does not verify live SES delivery, Cloudflare configuration, identity provisioning, HTTP endpoints, actual Durable Object storage, production rate limits, sessions or deployment.
-
-
-### `enqueueEmail(queue, job)`
-
-Export: `src/email-queue-core.mjs`. A trusted, authenticated and authorized server caller may submit `{id, to, subject, text, html?}` to a Cloudflare Queue binding. It validates inputs and a 100,000-byte serialized payload limit, and returns `{ "status": "queued" }` after the Queue accepts the message. This is not proof of SMTP acceptance or final delivery. The function does not implement authentication, authorization, consent, an outbox, idempotent producer storage, or an HTTP endpoint. See [QUEUE_DESIGN.md](QUEUE_DESIGN.md).
-
-### Queue consumer and coordinator
-
-`src/email-queue-worker.mjs` provides a Queue consumer and internal Durable Object handler. `SES_MAX_MESSAGES_PER_SECOND` must be explicitly set to a verified integer from 1 through 10. `SES_MAX_MESSAGES_PER_DAY` must also be explicitly configured from 1 through 50,000. A single Durable Object serializes all sends, conservatively reserves attempts in rolling daily minute buckets and waits at least 101 ms after completion at the maximum per-second setting. The daily counter only covers sends made through this coordinator, not other applications sharing the SES account and region. Terminal states are acknowledged; blocked or unavailable work is delayed for retry. Cloudflare retry counts and message retention are finite, and unknown outcomes lack a recoverable payload; durable recovery and dead-letter monitoring remain release blockers. An uncertain SMTP outcome blocks further sends until an authorized recovery mechanism is implemented. This code has not been tested on Cloudflare or integrated with a real producer. It is not a public HTTP API. See [QUEUE_DESIGN.md](QUEUE_DESIGN.md).
-
-## Public Worker routing
-
-The Worker HTTP adapter in `src/http-router.mjs` serves static requests through its `ASSETS` binding; non-GET/HEAD static requests receive 405. API paths never fall through to static assets. `GET /api/auth/config` returns a no-store 503 generic availability response until a real authentication service is implemented, so the existing login UI stays disabled. The experimental `/api/v1/emails` route fails closed unless explicitly enabled and configured; other `/api` paths return a no-store 404. POST to the config endpoint returns 405. The adapter is exported by the same entry point as the queue consumer. This does not implement sign-in or sessions. The email-submission route is experimental and disabled by default.
-
-
-For the exact production Worker bindings, canonical email-template placeholders, SMTP format, and outstanding end-to-end release checks, see [PRODUCTION_AUTH.md](PRODUCTION_AUTH.md).
+Local `npm test` checks use mocked external boundaries. They do not verify live SES delivery, production API availability, queue deployment, real recipient consent, or end-to-end production behavior.
