@@ -1,17 +1,39 @@
-# Experimental read-only MCP integration
+# LeadMASTER MCP integration
 
-Status: repository implementation only, disabled by default. Not production-ready and not present in the static preview Worker. This is not an email-sending MCP service.
+## Status
 
-The Streamable HTTP server uses the official MCP SDK, is stateless, and exposes only `get_email_capabilities` and `validate_email`. Validation applies the queue's input rules and size limit; it does not store, queue, send, validate consent, confirm sender identity or check delivery. No SMTP or AWS API call is made by the MCP tools. Results do not echo the message.
+The repository contains an experimental, read-only Model Context Protocol server implemented with the official MCP SDK and stateless Streamable HTTP transport.
 
-## Security and configuration
+**It is not mounted by the current production Worker and is not available as a public service.** There is no production MCP URL, client credential, OAuth registration or supported connection procedure. Do not connect to `https://leadmaster.jelvan.pro/mcp` or assume that route is enabled.
 
-The `/mcp` route fails closed with 503 unless `MCP_EXPERIMENTAL_ENABLED` is `true` and a separate `MCP_ACCESS_TOKEN` secret is bound. The token must be a cryptographically random base64url string of at least 43 characters (at least 32 random bytes); never reuse an SES or email API credential. Keep tokens out of client-side code, logs, URLs and version control. Bearer authentication is supported for testing with a trusted client. This is **not OAuth**: there is no discovery, per-client authorization, scoped token issuance, rotation or revocation service. Any holder can call every exposed tool. An Origin header, if present, must exactly match `MCP_ALLOWED_ORIGIN`; this does not provide CORS or browser authorization. Requests and results should be treated as untrusted data.
+## Tools in the prototype
 
-These controls are not a production authorization solution. Do not expose the endpoint publicly or connect third-party assistants before the OAuth/resource-server design, abuse/rate limiting, monitoring, privacy and independent security review are complete. The current public Worker does not have this route or its secrets bound. No live endpoint is advertised.
+Only two tools are registered:
 
-## Deployment prerequisites
+- `get_email_capabilities` — returns a static description of the experimental MCP capabilities. It is not a live service health check.
+- `validate_email` — validates message shape and size against the queue input rules. It does not store, queue or send the message, verify recipient consent or sender identity, check quotas, or report delivery. The result does not echo message content.
 
-Build Worker dependencies with the lockfile, validate Workers runtime compatibility and deploy to an isolated staging environment first. Configure all runtime bindings explicitly; never place secret values in config files. Verify authorization, Origin handling, payload limits and SDK compatibility in the target Worker runtime. Separately complete authentication, safe durable email acceptance/recovery, SES sender and quota verification, and abuse controls before any email-sending tool is considered. Sending must use the existing SES SMTP queue path only. A webhook integration would need its own verified implementation and must not be presented as available until tested.
+The MCP implementation has no tools for sending email, campaigns, audiences, templates, delivery history, analytics or account administration. It makes no SMTP or AWS API calls.
 
-Run local checks with `npm ci --ignore-scripts` followed by `npm test`. Tests simulate boundaries and do not establish Cloudflare deployment, SMTP delivery or production readiness.
+## Protocol behavior in the source implementation
+
+The handler uses stateless Streamable HTTP with JSON responses. It accepts POST requests with JSON content and enforces a 100 KB body limit. Unsupported methods and content types are rejected. These are implementation details for isolated testing, not a production service-level contract.
+
+## Experimental configuration
+
+The prototype fails closed unless:
+
+- `MCP_EXPERIMENTAL_ENABLED` is set to `true`; and
+- a separate `MCP_ACCESS_TOKEN` secret is bound.
+
+The token must be a cryptographically random base64url string of 43–128 characters (at least 32 random bytes). It must never reuse administrator credentials, session-signing secrets, SES SMTP credentials or any email API key. If an Origin header is present, the prototype checks it against `MCP_ALLOWED_ORIGIN`.
+
+This is bearer-token authentication, not OAuth. There is no client registration, per-client scopes, token issuance/rotation/revocation service or production rate limiting. Any holder can call all registered tools. Origin checking is not a replacement for authorization or CORS.
+
+## Deployment and security gates
+
+Before any public deployment, complete an isolated staging release, Workers runtime compatibility tests, client-level authorization, token lifecycle and revocation, abuse/rate controls, privacy-safe monitoring, independent security review and end-to-end tests. Confirm that tools cannot bypass authentication or email sending safeguards.
+
+Any future email-send capability requires a separately reviewed public API, durable queue/outbox, idempotency, delivery events and operator reconciliation. It must not be implicitly exposed through MCP.
+
+Local tests use mocked boundaries and do not prove Cloudflare deployment, authorization safety or email delivery.
