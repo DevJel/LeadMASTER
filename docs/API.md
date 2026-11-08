@@ -57,3 +57,7 @@ Export: `src/email-queue-core.mjs`. A trusted, authenticated and authorized serv
 ### Queue consumer and coordinator
 
 `src/email-queue-worker.mjs` provides a Queue consumer and internal Durable Object handler. `SES_MAX_MESSAGES_PER_SECOND` must be explicitly set to a verified integer from 1 through 10. A single Durable Object serializes all sends and waits at least 101 ms after completion at the maximum setting. Terminal states are acknowledged; blocked or unavailable work is delayed for retry. An uncertain SMTP outcome blocks further sends until an authorized recovery mechanism is implemented. This code has not been tested on Cloudflare or integrated with a real producer. It is not a public HTTP API. See [QUEUE_DESIGN.md](QUEUE_DESIGN.md).
+
+## Public Worker routing (implemented, not deployed)
+
+The Worker HTTP adapter in `src/http-router.mjs` serves static requests through its `ASSETS` binding; non-GET/HEAD static requests receive 405. API paths never fall through to static assets. `GET /api/auth/config` returns a no-store 503 generic availability response until a real authentication service is implemented, so the existing login UI stays disabled. Other `/api` paths return a no-store 404; POST to the config endpoint returns 405. The adapter is exported by the same entry point as the queue consumer. This does not implement sign-in, sessions, an email API, or authorization.

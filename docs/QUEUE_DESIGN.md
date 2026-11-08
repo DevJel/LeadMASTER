@@ -29,3 +29,7 @@ LeadMASTER should use Cloudflare Queues and send no more than **10 messages per 
 `node --test` exercises the scheduler, idempotency, crash/unknown fail-closed behavior, input validation, acknowledgements and mock SMTP/Turnstile behavior using in-memory and mocked boundaries. It does not exercise Cloudflare or AWS and cannot prove production rate guarantees or live delivery.
 
 References: [Cloudflare queue configuration](https://developers.cloudflare.com/workers/wrangler/configuration/), [Durable Objects storage](https://developers.cloudflare.com/durable-objects/best-practices/access-durable-objects-storage/), [SES quotas](https://docs.aws.amazon.com/ses/latest/dg/manage-sending-quotas.html), [SES quota errors](https://docs.aws.amazon.com/ses/latest/dg/manage-sending-quotas-errors.html).
+
+## User-facing behavior
+
+The intended send endpoint should acknowledge successful durable queue acceptance without disclosing the internal send-rate limit. The Worker handles spacing in the background; a queued acknowledgement is not a delivery confirmation. Do not report success if a message was not safely persisted or queued. Real failures require safe operator visibility and a truthful generic user-facing result where appropriate. The producer, durable outbox, delivery status and recovery remain unimplemented.

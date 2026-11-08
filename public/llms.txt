@@ -1,0 +1,12 @@
+# LeadMASTER
+
+> LeadMASTER is an email workspace in development, intended for transactional email and campaigns.
+
+## Public pages
+
+- [Home](/): Product direction and current status.
+- [Sign in](/login.html): Admin sign-in interface; the authentication service is not yet implemented.
+
+## Implementation status
+
+The repository includes a responsive landing page and sign-in interface, a Turnstile verification helper, an AWS SES SMTP helper, and a Cloudflare Queue dispatch prototype. The email API, authentication service, campaign platform, AI workflows, and MCP integrations are not yet implemented. No public delivery or availability claim is made.
