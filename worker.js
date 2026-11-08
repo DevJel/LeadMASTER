@@ -98,6 +98,34 @@ async function rateLimit(env, key, limit, windowMs) {
   ).bind(key, now, threshold, threshold).first();
   return Number(result?.count || 0) <= limit;
 }
+async function renderEmailTemplate(path, replacements) {
+  const response = await fetch(new URL(path, UPSTREAM), { headers: { "accept": "text/html" } });
+  if (!response.ok) throw new Error("Email template unavailable");
+  let html = await response.text();
+  if (html.length > 200000) throw new Error("Email template too large");
+  for (const [key, value] of Object.entries(replacements)) {
+    const safe = String(value ?? "").replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[ch]);
+    html = html.replaceAll("{{" + key + "}}", safe);
+  }
+  return html;
+}
+function loginDetails(request) {
+  const cf = request.cf || {};
+  const city = typeof cf.city === "string" ? cf.city : "";
+  const region = typeof cf.region === "string" ? cf.region : "";
+  const country = typeof cf.country === "string" ? cf.country : "";
+  const location = [city, region, country].filter(Boolean).join(", ") || country || "Location unavailable";
+  const ua = request.headers.get("User-Agent") || "";
+  const browser = /Edg\//.test(ua) ? "Microsoft Edge" : /Firefox\//.test(ua) ? "Firefox" : /Chrome\//.test(ua) ? "Google Chrome" : /Safari\//.test(ua) ? "Safari" : "Unknown browser";
+  const device = /iPhone|iPad|Android|Mobile/i.test(ua) ? "Mobile device" : /Windows|Macintosh|Linux/i.test(ua) ? "Desktop device" : "Unknown device";
+  return {
+    location,
+    time: new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "long", timeZone: "UTC" }).format(new Date()) + " (UTC)",
+    device,
+    browser,
+    ip_address: request.headers.get("CF-Connecting-IP") || "Unavailable"
+  };
+}
 async function passwordMatches(supplied, configured) {
   if (typeof supplied !== "string" || typeof configured !== "string" || supplied.length > 1024) return false;
   // Supports an optional pbkdf2$iterations$salt$hex representation, as well as
@@ -154,7 +182,7 @@ async function login(request, env) {
       to: ADMIN_EMAIL,
       subject: "Your LeadMASTER sign-in code",
       text: "Your LeadMASTER verification code is " + code + ". It expires in 10 minutes. If you did not request this code, you can ignore this email.",
-      html: "<div style=\"font-family:Arial,sans-serif;color:#171717;max-width:520px\"><h2>LeadMASTER sign-in</h2><p>Your verification code is:</p><p style=\"font-size:30px;font-weight:700;letter-spacing:8px\">" + code + "</p><p>This code expires in 10 minutes. If you did not request it, ignore this message.</p></div>"
+      html: await renderEmailTemplate("/email-otpformat.html", { USER_NAME: "Admin", OTP_CODE: code, EXPIRY_MINUTES: "10" })
     });
   } catch {
     await env.AUTH_DB.prepare("DELETE FROM auth_challenges WHERE id = ?").bind(id).run();
@@ -188,6 +216,31 @@ async function verifyOtp(request, env) {
   const expires = now + 8 * 60 * 60 * 1000;
   await env.AUTH_DB.prepare("INSERT INTO auth_sessions (token_hash,email,created_at,expires_at,revoked_at) VALUES (?,?,?,?,NULL)")
     .bind(tokenHash, ADMIN_EMAIL, now, expires).run();
+  // Send the branded security alert after the authenticated session is established.
+  // Alert delivery is best-effort so an email outage cannot strand a valid login.
+  try {
+    const details = loginDetails(request);
+    const html = await renderEmailTemplate("/email-securityalert.html", {
+      USER_NAME: "Admin",
+      location: details.location,
+      time: details.time,
+      device: details.device,
+      browser: details.browser,
+      ip_address: details.ip_address
+    });
+    await sendSesEmail({
+      connect,
+      env,
+      to: ADMIN_EMAIL,
+      subject: "New login detected — LeadMASTER",
+      text: "A new login to your LeadMASTER account was detected. Location: " + details.location +
+        ". Time: " + details.time + ". Device: " + details.device + ". Browser: " + details.browser +
+        ". IP address: " + details.ip_address + ". If this was not you, secure your account immediately.",
+      html
+    });
+  } catch {
+    // Authentication remains successful; do not expose delivery internals.
+  }
   return json({ authenticated: true }, 200, {
     "set-cookie": SESSION_COOKIE + "=" + token + "; Path=/; Max-Age=28800; HttpOnly; Secure; SameSite=Strict"
   });
