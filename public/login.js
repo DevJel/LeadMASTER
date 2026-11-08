@@ -15,7 +15,7 @@
       const config=await res.json(); if(typeof config.turnstileSiteKey!=='string'||!config.turnstileSiteKey)throw Error();
       await new Promise((resolve,reject)=>{const s=document.createElement('script');s.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});
       if(!window.turnstile)throw Error();
-      widgetId=window.turnstile.render('#turnstile',{sitekey:config.turnstileSiteKey,action:'login',callback:()=>{turnstileReady=true;loginButton.disabled=false;error('login-error','');},'expired-callback':()=>{turnstileReady=false;loginButton.disabled=true;},'error-callback':()=>{turnstileReady=false;loginButton.disabled=true;error('login-error','Security verification is unavailable. Please refresh and try again.');}});
+      widgetId=window.turnstile.render('#turnstile',{sitekey:config.turnstileSiteKey,action:'login',theme:'light',callback:()=>{turnstileReady=true;loginButton.disabled=false;error('login-error','');},'expired-callback':()=>{turnstileReady=false;loginButton.disabled=true;},'error-callback':()=>{turnstileReady=false;loginButton.disabled=true;error('login-error','Security verification is unavailable. Please refresh and try again.');}});
     } catch {error('login-error','Secure sign-in is unavailable. Please try again later.');loginButton.disabled=true;}
   }
   $('show-password').addEventListener('click',()=>{const input=$('password'),show=input.type==='password';input.type=show?'text':'password';const b=$('show-password');b.textContent=show?'Hide':'Show';b.setAttribute('aria-label',show?'Hide password':'Show password');b.setAttribute('aria-pressed',String(show));});
