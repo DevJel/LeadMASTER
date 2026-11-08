@@ -14,7 +14,7 @@
     if (focus) selected.focus();
   }
   for (const tab of tabs) {
-    tab.addEventListener('click',() => showTab(tab.dataset.tab));
+    tab.addEventListener('click',() => {showTab(tab.dataset.tab);document.getElementById('panels').scrollIntoView({behavior:reduced.matches?'auto':'smooth',block:'start'});});
     tab.addEventListener('keydown',event => {
       const i=tabs.indexOf(tab); let next;
       if(event.key==='ArrowRight') next=(i+1)%tabs.length;
