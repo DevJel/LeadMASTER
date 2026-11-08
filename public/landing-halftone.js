@@ -1,5 +1,6 @@
 'use strict';
 (() => {
+  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
   const tabs = [...document.querySelectorAll('[data-tab]')];
   const menu = document.querySelector('#mobile-menu');
   const menuButton = document.querySelector('.hamburger');
@@ -30,16 +31,6 @@
   menu.querySelectorAll('a').forEach(link=>link.addEventListener('click',closeMenu));
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!menu.hidden){closeMenu();menuButton.focus();}});
 
-  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
-  const motion = document.querySelector('#moments-motion');
-  const moments = document.querySelector('#product-moments');
-  function syncMotion() {
-    motion.disabled = reduced.matches;
-    if (reduced.matches) { moments.classList.remove('moments-paused'); motion.setAttribute('aria-pressed','false'); motion.textContent='Motion reduced'; }
-    else { const paused=moments.classList.contains('moments-paused'); motion.setAttribute('aria-pressed',String(paused)); motion.textContent=paused?'Play animations':'Pause animations'; }
-  }
-  motion.addEventListener('click',()=>{moments.classList.toggle('moments-paused');syncMotion();});
-  reduced.addEventListener('change',syncMotion);syncMotion();
   const docs=document.querySelector('#panel-documentation');
   const search=docs.querySelector('#docs-search');
   const filters=[...docs.querySelectorAll('[data-doc-filter]')];

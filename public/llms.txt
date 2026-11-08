@@ -6,9 +6,10 @@
 
 - [Home](/): Product direction and current status.
 - [Sign in](/login.html): Admin sign-in interface; the authentication service is not yet implemented.
+- [MCP integration](/mcp.html): Read-only experimental integration; not available in the current preview.
 - [Data privacy](/privacy.html): Draft, not yet effective.
 - [Terms and conditions](/terms.html): Draft, not yet effective.
 
 ## Implementation status
 
-The repository includes a responsive landing page and sign-in interface, a Turnstile verification helper, an AWS SES SMTP helper, and a Cloudflare Queue dispatch prototype. The email API, authentication service, campaign platform, AI workflows, and MCP integrations are not yet implemented. No public delivery or availability claim is made.
+The repository includes a responsive landing page and sign-in interface, a Turnstile verification helper, an AWS SES SMTP helper, and a Cloudflare Queue dispatch prototype. An experimental email submission endpoint and a read-only MCP endpoint exist in the repository but are disabled by default and not operational in the preview. Authentication, the campaign platform and AI workflows are not operational. The MCP tools can describe capabilities and validate message input; they cannot send or check delivery. No public delivery or availability claim is made.
