@@ -20,7 +20,7 @@ export async function routeHttp(request, env) {
     const headers = new Headers(upstream.headers);
     headers.set('x-content-type-options','nosniff');
     headers.set('referrer-policy','strict-origin-when-cross-origin');
-    if (url.pathname === '/login' || url.pathname === '/login.html') {
+    if (url.pathname === '/login' || url.pathname === '/login.html' || url.pathname === '/dashboard.html') {
       headers.set('cache-control','no-store');
       headers.set('x-robots-tag','noindex, nofollow');
     }

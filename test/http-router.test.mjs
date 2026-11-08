@@ -15,6 +15,7 @@ test('API methods and unknown endpoints never fall through to static assets',asy
 test('static assets are forwarded and protected; private page not cached',async()=>{
  const env={ASSETS:{fetch:async r=>new Response(new URL(r.url).pathname,{headers:{'content-type':'text/html'}})}};
  let r=await routeHttp(req('/login.html'),env);assert.equal(await r.text(),'/login.html');assert.equal(r.headers.get('cache-control'),'no-store');assert.equal(r.headers.get('x-robots-tag'),'noindex, nofollow');assert.equal(r.headers.get('x-content-type-options'),'nosniff');
+ r=await routeHttp(req('/dashboard.html'),env);assert.equal(r.headers.get('cache-control'),'no-store');assert.equal(r.headers.get('x-robots-tag'),'noindex, nofollow');
  r=await routeHttp(req('/robots.txt'),env);assert.equal(r.status,200);
 });
 test('unsupported asset methods and missing bindings fail closed',async()=>{
