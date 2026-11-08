@@ -41,7 +41,7 @@ The code above illustrates a request; it does not generate or validate OTPs. App
 
 ## Production authentication HTTP endpoints
 
-All requests are same-origin; the browser uses same-origin credentials, `Cache-Control: no-store` request behavior and JSON for POST bodies. Production code must validate origin/CSRF, authenticate and authorize protected endpoints, use secure HttpOnly SameSite session cookies, rate-limit durably, avoid account enumeration, and prevent replay.
+All browser requests are same-origin and use same-origin credentials, no-store caching and JSON POST bodies. The deployed gateway checks Origin on state-changing auth requests, validates Turnstile server-side, rate-limits in D1, uses Secure HttpOnly SameSite cookies, and consumes OTPs once.
 
 ### `GET /api/auth/config` — deployed
 
@@ -57,16 +57,16 @@ Purpose: start sign-in for a configured admin after password and Turnstile verif
 - JSON request: `{ "identity": "<username or email>", "password": "<password>", "turnstileToken": "<single-use token>" }`.
 - Success: `{ "next": "verify_email" }`, after the server has validated the allowlist, password and Turnstile and has securely issued an email challenge. The response must not include credentials or the code.
 - Client behavior: `429` displays a rate-limit message; other non-2xx responses show a generic sign-in failure. Network errors and unexpected success bodies show a generic availability error. The client clears the password and resets Turnstile after the attempt.
-- Required server safeguards: configured admin identities only, secure password hashing, replay prevention, server-side Turnstile validation with the expected hostname and action, rate limits and generic errors. Challenge state, delivery handling and cookies require a reviewed implementation.
+- Implemented safeguards: fixed administrator allowlist, password check against Cloudflare Secrets Store, server-side Turnstile hostname/action validation, D1 rate limits, generic errors, single-use challenge state and secure session cookies. Password secret format and SES delivery still require operator verification.
 
 ### `POST /api/auth/verify` — deployed
 
 Purpose: complete the email verification challenge and establish a session.
 
 - JSON request: `{ "code": "<six digits>" }`; the UI expects challenge context to be maintained securely server-side.
-- Proposed success: `{ "authenticated": true }`, followed by navigation to `/dashboard.html`.
+- Success: `{ "authenticated": true }` with an eight-hour Secure, HttpOnly, SameSite=Strict session cookie, followed by navigation to `/dashboard.html`.
 - Client behavior: `429` displays a rate-limit message; other non-2xx responses show a generic verification error. The UI permits returning to sign-in.
-- Required server safeguards: an atomic single-use challenge, expiry, attempt limits, session issuance/rotation/revocation, appropriate cookie attributes and server-side authorization. These controls are not present yet.
+- Implemented safeguards: D1-backed single-use OTP challenge, 10-minute expiry, five-attempt ceiling, hashed session token, eight-hour expiry, logout revocation and session checks on dashboard routes.
 
 ## Implemented internal modules
 
