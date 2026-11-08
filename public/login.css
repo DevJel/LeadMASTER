@@ -2,3 +2,8 @@
 
 /* The original dark logo is inverted only when displayed on the dark panel. */
 .brand-logo{display:block;width:176px;height:40px;object-fit:contain;object-position:left center}.brand-logo-light{filter:invert(1)}
+
+/* Feature summary and shared landing-page wordmark. */
+.feature-list{list-style:none;padding:0;margin:16px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;color:#d0d0d0;font-size:13px;line-height:1.4}.feature-list li::before{content:"·";color:#4be3af;margin-right:7px;font-weight:700}.feature-foot{margin-top:16px;color:#aaa}.login-wordmark{position:relative;width:100%;height:75px;margin-bottom:12px;opacity:.55}.login-wordmark canvas{position:absolute;inset:0;width:100%;height:100%;display:block}.hero-footer{max-width:480px}
+@media(max-width:900px){.feature-card{display:block;margin-top:26px}.hero-footer{display:block}.login-wordmark{height:70px}.hero-center{padding-bottom:24px}.hero-content{gap:0}}
+@media(max-width:420px){.feature-list{grid-template-columns:1fr 1fr;gap:9px 10px}.hero-footer{font-size:11px}}

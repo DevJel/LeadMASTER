@@ -23,9 +23,11 @@ The login remains disabled if its configuration endpoint cannot be reached. Ther
 ```text
 public/
   index.html                  Marketing landing page
+  docs.html, docs.css         Public documentation page and styling
   robots.txt, llms.txt        Crawler policy and factual AI-readable overview
   landing-halftone.css        Styles adapted from the supplied landing design
-  landing-halftone.js         Tabs, mobile navigation and interactive wordmarks
+  landing-halftone.js         Landing-page tabs and mobile navigation
+  halftone.js                 Shared interactive landing and login wordmarks
   landing.css                 Previous landing styling (not used by current page)
   assets/marketing/           Previous landing artwork (not used by current page)
   login.html                  Login and verification screens
@@ -47,7 +49,7 @@ LOGIN_UI.md                   Login behavior and integration requirements
 SES_TRANSPORT.md              SMTP setup and operational constraints
 ```
 
-The landing page uses the original full logo, an interactive halftone wordmark, and links to the existing `login.html`; tabs describe only verified implementation status or clearly marked planned work. Authentication remains unavailable. The full logo is used on both sides of the login; on the dark panel it is visually inverted by CSS, without changing the original SVG. The separate icon is retained for future suitable uses, and the gray favicon is referenced from the login HTML.
+The landing page uses the original full logo, an interactive halftone wordmark, and links to the existing `login.html`; tabs describe only verified implementation status or clearly marked planned work, with links to the on-brand public documentation page rather than external repository links. Authentication remains unavailable. The full logo is used on both sides of the login; on the dark panel it is visually inverted by CSS, without changing the original SVG. The separate icon is retained for future suitable uses, and the gray favicon is referenced from the login HTML.
 
 ## Local checks
 
