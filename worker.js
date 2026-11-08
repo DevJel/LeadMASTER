@@ -1,6 +1,7 @@
 import { connect } from "cloudflare:sockets";
 import { sendSesEmail } from "./src/ses-smtp.mjs";
 import { emailOtpTemplate, emailSecurityAlertTemplate } from "./src/email-templates.mjs";
+import { staticAssets } from "./src/static-assets.mjs";
 
 const SITEKEY = "0x4AAAAAAF5KTL83dA8wIZQH";
 const HOSTNAME = "leadmaster.jelvan.pro";
@@ -55,9 +56,9 @@ function sameOrigin(request) {
 }
 async function readJson(request) {
   if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get("content-type") || "")) throw new Error("bad-content-type");
-  const len = Number(request.headers.get("content-length") || 0);
-  if (len > 12000) throw new Error("too-large");
-  const body = await request.json();
+  const raw = await request.text();
+  if (enc.encode(raw).length > 12000) throw new Error("too-large");
+  const body = JSON.parse(raw);
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("bad-body");
   return body;
 }
@@ -284,12 +285,28 @@ async function handle(request, env) {
     return json({ authenticated: Boolean(session), email: session?.email || null });
   }
 
-  const protectedPaths = ["/dashboard", "/dashboard.html", "/dashboard.js", "/dashboard.css"];
+  if (url.pathname === "/dashboard") {
+    const session = await sessionFor(request, env);
+    if (!session) return Response.redirect(new URL("/login.html", request.url), 302);
+    return Response.redirect(new URL("/dashboard.html", request.url), 302);
+  }
+  const protectedPaths = ["/dashboard.html", "/dashboard.js", "/dashboard.css", "/html-preview.js", "/html-preview.css", "/assets/vendor/dompurify.min.js"];
   if (protectedPaths.includes(url.pathname)) {
     const session = await sessionFor(request, env);
     if (!session) return Response.redirect(new URL("/login.html", request.url), 302);
   }
   if (url.pathname === "/logout" && request.method === "GET") return Response.redirect(new URL("/login.html", request.url), 302);
+
+  const asset = staticAssets[url.pathname];
+  if (asset) {
+    const isHtml = asset.contentType.startsWith("text/html");
+    return new Response(asset.body, { status: 200, headers: {
+      "content-type": asset.contentType,
+      "cache-control": isHtml ? "no-store" : "public, max-age=300",
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "strict-origin-when-cross-origin"
+    }});
+  }
 
   const upstream = new URL(url.pathname + url.search, UPSTREAM);
   const headers = new Headers(request.headers);
