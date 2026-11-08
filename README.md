@@ -14,7 +14,8 @@ The landing page includes CSS-animated conceptual product moments and a searchab
 | Turnstile server-side helper | Implemented and unit-tested; not connected to an endpoint |
 | SES SMTP transport | Implemented and unit-tested with mock sockets; no live delivery verified |
 | Admin secret allowlist, password verification, OTP and sessions | Required; not implemented |
-| Dashboard, email management, API keys, audiences, webhooks and other console features | Intended, not implemented |
+| Experimental single-key email submission route | Implemented behind a disabled-by-default flag; mock tests only, no key-management UI, not production-ready or deployed |
+| Dashboard, API key creation, audiences, webhooks and other console features | Intended, not implemented |
 | Public Worker HTTP routing, robots.txt and llms.txt | Implemented; static preview deployed, full runtime verification pending |
 | Cloudflare production deployment, storage, domain, rate limiting and monitoring | Not configured in this repository; a public preview exists |
 
@@ -43,9 +44,10 @@ src/
   email-queue-core.mjs        Enqueue and serialized dispatch logic
   email-queue-worker.mjs      Cloudflare Queue / Durable Object adapter
   queue-batch.mjs             Queue acknowledgement and retry handling
-  http-router.mjs             Static asset routing and fail-closed API boundary
+  http-router.mjs             Static routing, fail-closed auth, opt-in email API route
+  email-api.mjs               Experimental guarded email submission boundary
 test/                         Node unit tests using mock external boundaries
-docs/API.md                   Module contracts and unimplemented HTTP API
+docs/API.md                   Module contracts and experimental API status
 docs/QUEUE_DESIGN.md          Queue implementation and release gates
 LOGIN_UI.md                   Login behavior and integration requirements
 SES_TRANSPORT.md              SMTP setup and operational constraints

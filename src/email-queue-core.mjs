@@ -8,12 +8,12 @@ const MAX_ID = 128;
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
 const EMAIL = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$/;
 const defaultSleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-function validate(job) {
+export function validateEmailJob(job) {
   if (!job || typeof job !== 'object' || Array.isArray(job) || typeof job.id !== 'string' || job.id.length > MAX_ID || !ID.test(job.id) || typeof job.to !== 'string' || job.to.length > 254 || !EMAIL.test(job.to) || job.to.includes('..') || typeof job.subject !== 'string' || !job.subject.trim() || /[\r\n\x00-\x1f\x7f]/.test(job.subject) || encoder.encode(job.subject).length > 300 || typeof job.text !== 'string' || !job.text.trim() || encoder.encode(job.text).length > 200000) throw new TypeError('Invalid queued message');
 }
 /** Trusted server-side callers must authenticate/authorize before enqueueing. */
 export async function enqueueEmail(queue, job) {
-  validate(job);
+  validateEmailJob(job);
   if (!queue || typeof queue.send !== 'function') throw new TypeError('Queue unavailable');
   const message = {id:job.id,to:job.to,subject:job.subject,text:job.text};
   if (encoder.encode(JSON.stringify(message)).length > 100000) throw new TypeError('Queued message too large');
@@ -36,7 +36,7 @@ export class EmailDispatchCore {
     const next=this.tail.then(()=>this.run(job));this.tail=next.catch(()=>{});return next;
   }
   async run(job) {
-    validate(job);const hash=await digest(job), key=`job:${job.id}`;
+    validateEmailJob(job);const hash=await digest(job), key=`job:${job.id}`;
     const prior=await this.storage.get(key);
     if (prior && prior.hash!==hash) return {status:'id_conflict'};
     if (prior?.status==='accepted' || prior?.status==='failed') return {status:prior.status};

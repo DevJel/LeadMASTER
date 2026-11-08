@@ -1,8 +1,10 @@
-/** Public routing only. Authentication and email API are not implemented. */
+/** Public routing. Authentication remains unavailable; email API is opt-in only. */
+import { submitEmail } from './email-api.mjs';
 const json = (body, status, extra = {}) => Response.json(body, {status, headers:{'cache-control':'no-store','x-content-type-options':'nosniff',...extra}});
 export async function routeHttp(request, env) {
   const url = new URL(request.url);
   if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
+    if (url.pathname === '/api/v1/emails') return submitEmail(request,env);
     if (url.pathname === '/api/auth/config') {
       if (request.method !== 'GET') return json({error:'Method not allowed'},405,{allow:'GET'});
       // Fail closed: exposing a site key before a real auth backend exists

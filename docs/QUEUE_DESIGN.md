@@ -1,6 +1,6 @@
 # Email queue and rate-control implementation
 
-**Status: implementation in progress; not deployed or production-ready.** The repository contains a Queue consumer adapter, a Durable Object coordinator and a trusted enqueue helper. There is no authorized HTTP producer, Cloudflare binding configuration, operator recovery interface, runtime integration test or deployed queue. Do not use these modules for production until the gates below pass.
+**Status: implementation in progress; not deployed or production-ready.** The repository contains a Queue consumer adapter, a Durable Object coordinator and a trusted enqueue helper. An experimental, single-key HTTP producer exists behind a disabled-by-default flag, but there is no production-ready producer, Cloudflare binding configuration, operator recovery interface, runtime integration test or deployed queue. Do not use these modules for production until the gates below pass.
 
 ## Requested behavior
 
@@ -17,7 +17,7 @@ LeadMASTER should use Cloudflare Queues and send no more than **10 messages per 
 
 ## Deployment and integration requirements
 
-1. Implement an authenticated, authorized producer and durable enqueue/idempotency workflow. Prevent anonymous users and untrusted AI/MCP tools from sending mail. If database state and queue publication are separate, design a durable outbox and reconciliation so neither silent loss nor unsafe duplication occurs.
+1. Complete and review the experimental authenticated producer and its durable enqueue/idempotency workflow. Prevent anonymous users and untrusted AI/MCP tools from sending mail. If database state and queue publication are separate, design a durable outbox and reconciliation so neither silent loss nor unsafe duplication occurs.
 2. Configure the Queue producer and consumer, a dead-letter queue, the single `EMAIL_COORDINATOR` Durable Object binding and its migration, and SES environment settings. Secrets belong in Cloudflare secret storage. Do not expose the Durable Object fetch handler as a public endpoint.
 3. Provision an isolated staging environment with a verified SES sender, permitted recipient, known account/region, verified per-second and daily quota, and appropriate sender permissions. Confirm whether other applications share the SES account.
 4. Add explicit status, alerting and an authorized reconciliation flow for unknown outcomes, rejected messages, id conflicts, blocked clocks, backlog and dead-letter entries. Implement data retention and deletion. Review secret handling, abuse limits, sender identity, consent, unsubscribe requirements and bounce/complaint handling before marketing use.
