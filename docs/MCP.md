@@ -37,3 +37,8 @@ Before any public deployment, complete an isolated staging release, Workers runt
 Any future email-send capability requires a separately reviewed public API, durable queue/outbox, idempotency, delivery events and operator reconciliation. It must not be implicitly exposed through MCP.
 
 Local tests use mocked boundaries and do not prove Cloudflare deployment, authorization safety or email delivery.
+
+
+## Relationship to the Developer Email API
+
+The Developer Email API is a separate HTTPS integration for server-to-server application sending. Developers generate and revoke scoped credentials in the authenticated LeadMASTER workspace and use the REST endpoints documented in [API.md](./API.md). MCP clients must not treat a developer API key as an MCP access token. The current MCP server remains experimental and read-only; it does not expose email-send tools or bypass API-key scopes, idempotency, rate limits or audit records. Any future MCP send tool must call the same authorized email-submission service and receive a separate security review.
