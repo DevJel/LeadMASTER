@@ -4,7 +4,7 @@ Base URL: `https://leadmaster.jelvan.pro`
 
 LeadMASTER provides a server-to-server email API and signed webhooks. Create a separate API key for each application/environment, store it in a server-side secret manager, and never expose it in browser code, a mobile bundle, source control or client-side HTML.
 
-> **Release status:** Repository code and D1 schemas are implemented. Production use remains gated until the Worker is deployed with the required D1 and Secrets Store bindings and live tests pass. A successful D1 migration alone does not mean the public endpoints are live.
+> **Release status:** The production Worker is deployed with its D1 and Secrets Store bindings. Public route checks confirm the API handlers are active. Controlled SES send and webhook callback end-to-end tests remain outstanding; a successful route check is not proof of inbox delivery.
 
 ## 1. Create a developer API key
 
@@ -215,4 +215,4 @@ Delivery events describe SMTP submission outcomes only. They are not SES bounce,
 
 ## 8. Release checklist
 
-Before production use, verify the Worker has the `AUTH_DB` D1 binding and required SES SMTP, sender, Turnstile, admin and session secret bindings. Deploy the complete module bundle, apply migrations `0002` and `0003`, then test key creation/revocation, scope enforcement, email idempotency, each webhook event, signature verification, delivery logging and error handling against a controlled HTTPS endpoint. Do not describe the feature as production-live until these checks pass.
+Deployment completed: the Worker has `AUTH_DB`, SES SMTP, sender, Turnstile, administrator and session-secret bindings; the D1 schema includes the developer API and webhook tables. Public route checks passed. Remaining release verification: use an authorized administrator session to create/revoke a scoped key, submit a controlled email to an approved test mailbox, register a controlled HTTPS webhook, validate HMAC signatures and inspect delivery logs. Until those authenticated end-to-end tests pass, do not claim verified inbox delivery or fully tested webhook callbacks.
