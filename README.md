@@ -21,7 +21,7 @@ The landing page includes CSS-animated conceptual product moments and a searchab
 | Public Worker HTTP routing, robots.txt and llms.txt | Implemented; static preview deployed, full runtime verification pending |
 | Cloudflare production authentication deployment | `leadmaster` Worker deployed with Turnstile, dedicated `leadmaster-auth` D1 and Secrets Store bindings; production route remains on `leadmaster.jelvan.pro`; full product backend and live email-delivery verification remain outstanding |
 
-The login remains disabled if its configuration endpoint cannot be reached. There are no sample users or simulated login in the application.
+The login remains disabled if its configuration endpoint cannot be reached. There are no sample users or simulated login in the application. The production Worker serves current login and dashboard assets from its own bundle; it does not rely on the stale preview asset cache.
 
 ## Repository layout
 
