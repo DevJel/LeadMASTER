@@ -15,7 +15,8 @@ The landing page includes CSS-animated conceptual product moments and a searchab
 | SES SMTP transport | Implemented and unit-tested with mock sockets; no live delivery verified |
 | Admin secret allowlist, password verification, OTP and sessions | Required; not implemented |
 | Experimental single-key text/HTML email submission route | Implemented behind a disabled-by-default flag; mock tests only, no key-management UI, not production-ready or deployed |
-| Dashboard, API key creation, audiences, webhooks and other console features | Intended, not implemented |
+| Dashboard | Responsive navigation shell; no authenticated data, actions or backend; not deployed |
+| API key creation, audiences, webhooks and other console features | Intended, not implemented |
 | Public Worker HTTP routing, robots.txt and llms.txt | Implemented; static preview deployed, full runtime verification pending |
 | Cloudflare production deployment, storage, domain, rate limiting and monitoring | Empty email and dead-letter queues and a Secrets Store exist; Worker bindings, monitoring and production deployment remain pending; a public preview exists |
 
@@ -36,6 +37,8 @@ public/
   login.html                  Login and verification screens
   login.css                   Responsive layout and styling
   login.js                    Client-side interaction and proposed API calls
+  dashboard.html              Responsive workspace navigation shell
+  dashboard.css, dashboard.js Dashboard styling and navigation (no backend)
   cover.css                   Embedded animated login cover
   assets/brand/               Original full logo, icon and favicon SVGs
 src/
