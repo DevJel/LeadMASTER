@@ -262,19 +262,7 @@ function challengePage() {
 }
 async function handle(request, env) {
   const url = new URL(request.url);
-  if (url.pathname === "/_turnstile/verify" && request.method === "POST") {
-    let body;
-    try { body = await readJson(request); } catch { return json({ error: "Invalid request" }, 400); }
-    if (!(await verifyTurnstile(body.token, request, env, "managed"))) return json({ error: "Turnstile verification rejected" }, 403);
-    const exp = String(Math.floor(Date.now() / 1000) + 43200);
-    const key = await secret(env.TURNSTILE_SECRET);
-    const signature = await hmac(key, exp);
-    const returnTo = typeof body.returnTo === "string" && body.returnTo.startsWith("/") && !body.returnTo.startsWith("//") ? body.returnTo : "/";
-    return json({ ok: true, redirect: returnTo }, 200, {
-      "set-cookie": CHALLENGE_COOKIE + "=" + exp + "." + signature + "; Path=/; Max-Age=43200; HttpOnly; Secure; SameSite=Lax"
-    });
-  }
-  if (!(await challengeCookieValid(request, env))) return challengePage();
+
 
   if (url.pathname === "/api/auth/config") return authConfig(request);
   if (url.pathname === "/api/auth/login") return login(request, env);
