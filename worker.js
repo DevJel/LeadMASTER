@@ -2,6 +2,7 @@ import { connect } from "cloudflare:sockets";
 import { sendSesEmail } from "./src/ses-smtp.mjs";
 import { emailOtpTemplate, emailSecurityAlertTemplate } from "./src/email-templates.mjs";
 import { staticAssets } from "./src/static-assets.mjs";
+import { developerAdminRoute, developerEmailRoute, developerEmailStatus } from "./src/developer-api.mjs";
 
 const SITEKEY = "0x4AAAAAAF5KTL83dA8wIZQH";
 const HOSTNAME = "leadmaster.jelvan.pro";
@@ -271,6 +272,12 @@ async function handle(request, env) {
   const url = new URL(request.url);
 
 
+  if (url.pathname === "/api/developer/keys" || url.pathname.startsWith("/api/developer/keys/")) {
+    const session = await sessionFor(request, env);
+    return developerAdminRoute(request, env, session);
+  }
+  if (url.pathname === "/api/v1/emails") return developerEmailRoute(request, env, connect);
+  if (url.pathname.startsWith("/api/v1/emails/")) return developerEmailStatus(request, env);
   if (url.pathname === "/api/auth/config") return authConfig(request);
   if (url.pathname === "/api/auth/login") return login(request, env);
   if (url.pathname === "/api/auth/verify") return verifyOtp(request, env);
