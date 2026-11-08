@@ -1,4 +1,5 @@
 import { sendSesEmail } from "./ses-smtp.mjs";
+import { deliverWebhookEvent } from "./developer-webhooks.mjs";
 const enc = new TextEncoder();
 const json = (body,status=200,headers={}) => Response.json(body,{status,headers:{"cache-control":"no-store","x-content-type-options":"nosniff",...headers}});
 const b64 = bytes => { let s=""; for(const b of bytes)s+=String.fromCharCode(b); return btoa(s).replaceAll("+","-").replaceAll("/","_").replace(/=+$/,""); };
@@ -63,10 +64,12 @@ export async function developerEmailRoute(request,env,connect){
  try{
   await sendSesEmail({connect,env,to:body.to,subject:body.subject,text:body.text,...(body.html===undefined?{}:{html:body.html})});
   await env.AUTH_DB.prepare("UPDATE developer_email_requests SET status='accepted',updated_at=? WHERE id=?").bind(Date.now(),id).run();
+  await deliverWebhookEvent(env,"email.accepted",{request_id:id,recipient:body.to,subject:body.subject});
   return json({id,status:"accepted",message:"SES accepted the message for processing. This is not proof of inbox delivery."},200);
  }catch(error){
   const status=error?.deliveryOutcome==="unknown"?"unknown":"failed";
   await env.AUTH_DB.prepare("UPDATE developer_email_requests SET status=?,updated_at=?,error_code=? WHERE id=?").bind(status,Date.now(),status==="unknown"?"smtp_outcome_unknown":"smtp_not_accepted",id).run();
+  await deliverWebhookEvent(env,"email."+status,{request_id:id,recipient:body.to,subject:body.subject});
   return json({id,status,error:"Email submission did not complete. Check this request before retrying."},status==="unknown"?202:502);
  }
 }
