@@ -1,6 +1,6 @@
 # LeadMASTER
 
-LeadMASTER is intended to be a single-user email workspace with an interface inspired by modern transactional-email consoles. The current repository contains a responsive marketing page and login interface, an isolated Cloudflare Turnstile verification helper, an AWS SES SMTP transport and a queue/coordinator implementation. It is **not a complete application and is not production-ready**.
+LeadMASTER is intended to be a single-user email workspace with an interface inspired by modern transactional-email consoles. The current repository contains a responsive marketing page and login interface, an isolated Cloudflare Turnstile verification helper, an AWS SES SMTP transport and a queue/coordinator implementation, and fail-closed HTTP routing. It is **not a complete application and is not production-ready**.
 
 ## Current status
 
@@ -13,6 +13,7 @@ LeadMASTER is intended to be a single-user email workspace with an interface ins
 | SES SMTP transport | Implemented and unit-tested with mock sockets; no live delivery verified |
 | Admin secret allowlist, password verification, OTP and sessions | Required; not implemented |
 | Dashboard, email management, API keys, audiences, webhooks and other console features | Intended, not implemented |
+| Public Worker HTTP routing, robots.txt and llms.txt | Implemented; deployment and runtime verification pending |
 | Cloudflare deployment, storage, domain, rate limiting and monitoring | Not configured in this repository |
 
 The login remains disabled if its configuration endpoint cannot be reached. There are no sample users or simulated login in the application.
@@ -22,6 +23,7 @@ The login remains disabled if its configuration endpoint cannot be reached. Ther
 ```text
 public/
   index.html                  Marketing landing page
+  robots.txt, llms.txt        Crawler policy and factual AI-readable overview
   landing.css                 Responsive marketing styling
   assets/marketing/           Optimized embedded WebP artwork
   login.html                  Login and verification screens
@@ -35,6 +37,7 @@ src/
   email-queue-core.mjs        Enqueue and serialized dispatch logic
   email-queue-worker.mjs      Cloudflare Queue / Durable Object adapter
   queue-batch.mjs             Queue acknowledgement and retry handling
+  http-router.mjs             Static asset routing and fail-closed API boundary
 test/                         Node unit tests using mock external boundaries
 docs/API.md                   Module contracts and unimplemented HTTP API
 docs/QUEUE_DESIGN.md          Queue implementation and release gates

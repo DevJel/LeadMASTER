@@ -3,6 +3,7 @@ import { connect } from 'cloudflare:sockets';
 import { sendSesEmail } from './ses-smtp.mjs';
 import { EmailDispatchCore } from './email-queue-core.mjs';
 import { consumeEmailBatch } from './queue-batch.mjs';
+import { routeHttp } from './http-router.mjs';
 export class EmailCoordinator {
   constructor(ctx,env) {
     // Require an explicit quota no greater than the verified SES limit.
@@ -19,6 +20,7 @@ export class EmailCoordinator {
   }
 }
 export default {
+  async fetch(request,env) { return routeHttp(request,env); },
   async queue(batch,env) {
     // One fixed identity coordinates all LeadMASTER email for the configured
     // SES account and region. Do not create a second sending path.
