@@ -40,7 +40,7 @@ public/
   assets/marketing/           Previous landing artwork (not used by current page)
   login.html                  Login and verification screens
   login.css                   Responsive layout and styling
-  login.js                    Client-side interaction and proposed API calls
+  login.js                    Client-side interaction with deployed auth endpoints
   dashboard.html              Responsive workspace navigation shell
   dashboard.css, dashboard.js Dashboard styling and navigation (no backend)
   html-preview.css, html-preview.js  Isolated local email/template HTML preview
