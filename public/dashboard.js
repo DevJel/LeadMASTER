@@ -39,6 +39,12 @@
       const email=document.getElementById('workspace-email');
       if(name&&data.account?.name)name.textContent=data.account.name;
       if(email&&data.email)email.textContent=data.email;
+      const accountId=document.getElementById('workspace-account-id');
+      const apiUrl=document.getElementById('workspace-api-url');
+      const status=document.getElementById('workspace-status-description');
+      if(accountId)accountId.textContent=data.account?.id||'Not available';
+      if(apiUrl)apiUrl.textContent=data.account?.api_base_url||'Not available';
+      if(status)status.textContent='Your authenticated account is connected. Account details are loaded. Email API and webhook integrations are available through account-scoped API keys; inbox, campaigns, audiences, templates and analytics are not yet dashboard modules.';
     } catch { location.replace('/login.html'); }
   }
   const logout=el('logout-link');
