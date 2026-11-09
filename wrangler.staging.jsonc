@@ -1,0 +1,50 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "leadmaster-staging-release",
+  "main": "worker.js",
+  "compatibility_date": "2026-11-04",
+  "compatibility_flags": [],
+  "workers_dev": true,
+  "vars": {
+    "APP_HOSTNAME": "leadmaster-staging-release.bolekpadjelvan.workers.dev",
+    "STAGING_MODE": "true",
+    "SES_FROM_EMAIL": "staging-admin@leadmaster.test",
+    "SES_CONFIGURATION_SET": "leadmaster-staging-events",
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAAAAAAAAAAAAAAAAAAAA"
+  },
+  "d1_databases": [
+    {
+      "binding": "AUTH_DB",
+      "database_name": "leadmaster-staging-release-20261110",
+      "database_id": "78cfdd79-cd90-4c06-9d1e-2f391a3496d1",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "INBOUND_MAIL",
+      "bucket_name": "leadmaster-staging-inbound-mail"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "MAIL_SEND_QUEUE",
+        "queue": "leadmaster-staging-mail-send"
+      }
+    ]
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+      "persist": true
+    },
+    "traces": {
+      "enabled": false,
+      "persist": true
+    }
+  }
+}
