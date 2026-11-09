@@ -37,9 +37,9 @@
     setBusy(otpButton,true,'Verify and continue');
     try{
       const res=await request('/api/auth/verify',{method:'POST',body:JSON.stringify({code})});
-      if(!res.ok){const body=await res.json().catch(()=>({}));const message=res.status===429?'Too many attempts. Please wait before trying again.':res.status===401?'This code is incorrect or has expired. Return to sign in to request a new one.':res.status===400?'Enter the 6-number code from the latest email.':res.status===503?'Email verification is temporarily unavailable. Please try again shortly.':'We could not verify this code. Please try again.';error('otp-error',message);return;}
+      if(!res.ok){const body=await res.json().catch(()=>({}));const message=typeof body.error==='string'?body.error:res.status===429?'Too many verification attempts. Please wait before trying again.':res.status===401?'This code is incorrect, expired, or no longer active. Use the latest email code.':res.status===400?'Enter the six-digit code from the latest email.':res.status===503?'The email verification service is unavailable. Please try again shortly.':'We could not verify this code. Please try again.';error('otp-error',message);return;}
       const body=await res.json();if(body.authenticated!==true)throw Error();location.assign('/dashboard.html');
-    }catch{error('otp-error','Verification is temporarily unavailable. Please try again.');}
+    }catch(err){error('otp-error',err?.name==='AbortError'?'The verification request timed out. Check your connection and retry with the latest code.':'Could not reach the verification service. Check your connection, then retry with the latest code.');}
     finally{setBusy(otpButton,false,'Verify and continue');}
   });
   $('back-button').addEventListener('click',()=>{if(busy)return;$('code').value='';error('otp-error','');$('otp-step').hidden=true;$('login-step').hidden=false;$('identity').focus();});
