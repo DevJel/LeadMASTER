@@ -4,6 +4,8 @@
   "main": "workers/mail-queue-consumer.js",
   "compatibility_date": "2026-11-04",
   "compatibility_flags": [],
+  "workers_dev": false,
+  "preview_urls": false,
   "vars": {
     "SES_FROM_EMAIL": "staging-admin@leadmaster.test",
     "SES_CONFIGURATION_SET": "leadmaster-staging-events"
