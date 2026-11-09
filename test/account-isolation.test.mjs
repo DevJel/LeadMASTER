@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { developerEmailRoute, developerEmailStatus, developerAccountInfo, developerAdminRoute } from "../src/developer-api.mjs";
-import { webhookRoute } from "../src/developer-webhooks.mjs";
+import { webhookRoute, adminWebhookRoute } from "../src/developer-webhooks.mjs";
 
 const accountA="acct_AAAAAAAAAAAAAAAAAAAAAA";
 const accountB="acct_BBBBBBBBBBBBBBBBBBBBBB";
@@ -39,4 +39,18 @@ test("API key listing query is scoped to the signed-in account",async()=>{
  assert.equal(response.status,200);
  assert.equal(bound.value,accountA);
  assert.match(bound.sql,/WHERE account_id=\?/);
+});
+
+
+test("dashboard webhook listing is restricted to the authenticated account and omits secrets",async()=>{
+ let bound;
+ const env={AUTH_DB:{prepare(sql){return {bind(value){bound={sql,value};return this},async all(){return {results:[{id:"hook-1",name:"Production",target_url:"https://hooks.example.com/lm",events:'["email.accepted"]',created_at:1,revoked_at:null,last_delivery_at:null,api_key_id:"key-1",api_key_name:"Production API",key_prefix:"lm_live_123"}]}}}}}};
+ const response=await adminWebhookRoute(new Request("https://leadmaster.jelvan.pro/api/admin/webhooks"),env,{email:"owner@example.test",accountId:accountA});
+ assert.equal(response.status,200);
+ assert.equal(bound.value,accountA);
+ assert.match(bound.sql,/WHERE w\.account_id=\?/);
+ const data=await response.json();
+ assert.equal(data.webhooks[0].events[0],"email.accepted");
+ assert.equal("signing_secret" in data.webhooks[0],false);
+ assert.equal("secret_value" in data.webhooks[0],false);
 });
