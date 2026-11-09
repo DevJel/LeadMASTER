@@ -686,3 +686,10 @@ Update related references when implementation changes. Never make README, landin
 - Production Worker version 144 is assigned 100% traffic. Its D1 and Secrets Store bindings match the repository's production configuration.
 - The configured SES sender `hello@work.jelvan.pro` is an SES-verified identity with sending enabled. The sender was intentionally left unchanged; do not replace it without confirming the desired verified sender and updating configuration.
 - This is a schema/configuration release, not proof of successful interactive login, Turnstile challenge, OTP receipt, outbound email inbox placement, webhook callback delivery or account-isolation acceptance tests.
+
+
+## Login interface and privacy information
+
+The production login page uses the shared full LeadMASTER logo from `public/assets/brand/leadmaster-full.svg`, with the existing animated halftone wordmark retained on the brand panel. The left footer links to the [Data Privacy Notice](https://leadmaster.jelvan.pro/privacy.html); the right footer displays a **Secured Login** indicator beneath the sign-in card. These interface labels do not replace the server-enforced password, Turnstile, email OTP or session controls.
+
+See [LOGIN_UI.md](LOGIN_UI.md) for the login layout, responsive behavior and authentication integration. The public [Data Privacy Notice](https://leadmaster.jelvan.pro/privacy.html) and [Terms and Conditions](https://leadmaster.jelvan.pro/terms.html) remain separate legal documents.
