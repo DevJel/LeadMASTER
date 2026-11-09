@@ -50,3 +50,8 @@ Android shares the authenticated dashboard and backend. Native bottom navigation
 
 ## Release checks
 Run `npm test`, `npm run build:assets`, syntax checks for worker and developer modules, `node scripts/capture-screenshots.mjs`, and Android APK build when Android changes. Review desktop/mobile screenshots and perform authenticated production smoke tests for mailbox, send queue, suppression, API keys and webhooks before claiming end-to-end readiness. Never deploy while tests or visual checks fail.
+
+
+## Header profile control
+
+The dashboard header must contain only a compact profile SVG icon aligned at the far right (Cloudflare-style). Do not repeat the user's name/avatar or a Profile text tab in the header. The actual Profile page belongs only to the dashboard navigation (mobile bottom tab and desktop sidebar). The icon may expose the signed-in email and Log out; do not add a second profile-page destination. The authenticated login flow already redirects to `/dashboard.html`, which serves the mandatory dashboard; `/dashboard` redirects to that same canonical route. Replace any legacy dashboard rather than maintaining parallel dashboard implementations.
