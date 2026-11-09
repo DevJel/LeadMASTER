@@ -44,3 +44,16 @@
 .login-brand-footer a:focus-visible{outline:2px solid currentColor;outline-offset:3px}
 @media(max-width:720px){.login-brand-footer .hwf-root{height:440px}.login-brand-footer .hwf-top{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:18px}.login-brand-footer .hwf-brand{grid-column:1/-1}}
 @media(max-width:420px){.login-brand-footer .footer-hint{font-size:9px;padding-inline:12px}.login-brand-footer .hwf-root{height:470px}.login-brand-footer .hwf-top{font-size:10px;gap:16px;padding-inline:16px}.login-brand-footer .hwf-rule{margin-inline:16px}}
+
+
+/* Minimal login brand panel: reuse the landing footer's interactive halftone wordmark. */
+.hero-content{min-height:100vh;padding:0;display:grid;place-items:center}
+.hero-animation{position:relative;width:min(92%,760px);height:112px;overflow:visible}
+.hero-animation canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y}
+.hero-animation .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:900px){
+ .hero{min-height:132px}
+ .hero-content{min-height:132px;padding:0}
+ .hero-animation{width:min(92%,560px);height:96px}
+}
+@media(prefers-reduced-motion:reduce){.hero-animation canvas{animation:none}}
