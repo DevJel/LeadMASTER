@@ -24,3 +24,5 @@
  .card-footer{margin-top:14px}
 }
 @media(max-width:360px){.brand-logo{width:148px}.hero-content{padding-inline:16px}.main-content{padding-inline:12px}.card{padding:22px 16px}}
+
+@media(max-width:900px){.hero-content{padding:18px 20px 16px}.hero-center{padding:24px 0 18px}.hero-center h1{font-size:clamp(26px,7vw,34px)}.feature-card,.login-wordmark{display:none}.main-content{padding-bottom:calc(28px + env(safe-area-inset-bottom))}}
