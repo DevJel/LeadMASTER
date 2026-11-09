@@ -210,3 +210,8 @@ For coding agents changing the web application:
 - If the change has no Android impact, say why; do not make unrelated APK changes.
 - Build the APK after Android source changes and distinguish compilation from real-device acceptance.
 - Do not claim a feature is native Android functionality unless implemented and verified. Shared web functionality may be described as available through the companion only when the production route works in its WebView.
+
+
+## Mandatory LeadMASTER dashboard implementation rule
+
+Use `src/Mandatory LeadMASTER Dashboard.html` as the canonical dashboard UI. Preserve its React components, layout, typography, spacing, icons, colors, interactions and responsive behavior exactly while connecting authenticated APIs. Do not ship its local-preview sample data or local-only success actions as production behavior. Build missing account-scoped APIs first or clearly disable/unavailable-mark unsupported areas. Read `src/dashboard-feature-map.md` before dashboard changes; keep a protected rollback dashboard until functional and desktop/mobile visual regression checks pass. Align Android navigation and WebView behavior whenever connected routes change.
