@@ -42,3 +42,8 @@ Local tests use mocked boundaries and do not prove Cloudflare deployment, author
 ## Relationship to the Developer Email API
 
 The Developer Email API is a separate HTTPS integration for server-to-server application sending. Developers generate and revoke scoped credentials in the authenticated LeadMASTER workspace and use the REST endpoints documented in [API.md](./API.md). MCP clients must not treat a developer API key as an MCP access token. The current MCP server remains experimental and read-only; it does not expose email-send tools or bypass API-key scopes, idempotency, rate limits or audit records. Any future MCP send tool must call the same authorized email-submission service and receive a separate security review.
+
+
+## Public documentation location
+
+The public product and integration documentation is consolidated into the Documentation tab on the main landing page: [LeadMASTER documentation](https://leadmaster.jelvan.pro/#documentation). The legacy `/mcp.html` URL redirects to the MCP section of that landing page. This repository file remains the engineering source of truth for MCP implementation and release gates; it is not a separate public documentation destination.
