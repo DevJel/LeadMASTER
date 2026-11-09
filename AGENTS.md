@@ -86,6 +86,22 @@ For every change, assess and update all affected layers in the same branch:
 
 If a layer is genuinely unaffected, explicitly record why. Never advertise a feature as live unless its backend and acceptance tests support that claim.
 
+## Mandatory web ↔ Android companion parity
+
+The repository contains an Android companion app in `ANDROID APK/`. It shares the production LeadMASTER web workspace and authenticated backend through a restricted HTTPS WebView; it is not an independent implementation of product business logic.
+
+For every web coding change, assess whether it affects a feature, route, account flow, navigation item, responsive layout, download, notification, link or security boundary used by Android:
+
+1. Trace the changed web feature to its Android entry point and confirm whether it is shared through the WebView or has a native integration.
+2. If relevant, update and test the Android companion in the same branch so labels, routes, permissions, device behavior and user-visible states remain aligned with the web implementation.
+3. Keep business rules, account ownership, authentication, API calls and persistence in the shared web/server implementation. Do not create a second Android-only version or weaken server authorization.
+4. If unaffected, explicitly record why in the change summary or changelog; do not add irrelevant Android changes.
+5. Review Android concerns for relevant changes: exact-origin HTTPS navigation, WebView bridge exposure, cookies/session continuity, system Back behavior, notification permission, external intents, downloads, keyboard/safe-area behavior and accessibility.
+6. When Android source changes, run the Android APK workflow/build and report its result. Device-level acceptance remains separate from compilation.
+7. Update `ANDROID APK/README.md` when app capabilities, navigation mapping, build steps, security boundaries or parity rules change.
+
+Do not advertise a web feature as native Android functionality unless it is implemented and verified in the app. Shared WebView functionality may be described as available in the Android companion only when the corresponding production web route works inside the app.
+
 ## Engineering best practices
 
 - Keep route parsing, authentication, authorization, business logic and persistence separate.
