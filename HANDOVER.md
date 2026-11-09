@@ -365,3 +365,12 @@ Authentication, API-key, email and webhook route implementations are deployed. L
 - Canonical dashboard and public mirror are byte-for-byte identical; generated static bundle contains the dashboard, isolated preview JS/CSS and DOMPurify.
 - Cloudflare Worker `leadmaster` deployment `71150f57-564d-48e2-ab24-6fd46b1a4130` is serving 100% traffic.
 - Still outstanding: authenticated production UI click-through and real recipient mail-delivery smoke test. Queue acceptance must not be represented as confirmed delivery.
+
+
+## Dashboard access-control fix — 2026-11-09
+
+- Route checks normalize decoded URL paths and enforce `sessionFor()` before API routing, static asset lookup or preview-upstream proxying.
+- Unauthenticated dashboard and asset requests redirect to `/login.html`.
+- Case variants, percent-encoded paths, trailing slashes and unknown dashboard subpaths no longer bypass the gate or fall through to the preview upstream.
+- Added a regression test asserting the gate runs before static and proxy routing.
+- Production deployment and unauthenticated HTTP behavior must be verified after deployment completes.
