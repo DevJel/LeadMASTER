@@ -721,6 +721,11 @@ The mandatory React dashboard is the canonical production UI. Live integrations 
 Android native navigation mirrors the mandatory dashboard mobile sections: Home, Emails, Audience, Metrics and Profile. Other modules remain available through the dashboard navigation drawer.
 
 
-## Pending safety work (feature branch, not deployed)
+## Inbound deletion safety status
 
-Inbound permanent deletion is being hardened with an additive D1 claim migration and retryable R2/D1 cleanup. This is not production-verified. See `HANDOVER.md` for migration ordering and rollback cautions. Dashboard deletion confirmations and the remaining finalization requirements are still open.
+The deletion-claim code is present in the production Worker and D1 migration 0008 was applied on 2026-11-09. End-to-end deletion and recovery remain unverified. See `HANDOVER.md` for rollout and rollback cautions. Dashboard deletion confirmations and the remaining finalization requirements are still open.
+
+
+## Dashboard control audit
+
+See `docs/DASHBOARD_CONTROL_AUDIT.md` for the initial source-level control map and open UI-only actions. The suppression validation fix is on a feature branch and has not been deployed.
