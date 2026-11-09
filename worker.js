@@ -151,7 +151,7 @@ async function sessionFor(request, env) {
   if (!row || row.revoked_at || row.expires_at <= Date.now()) return null;
   return { email: row.email, tokenHash };
 }
-async function authConfig(request) {
+async function authConfig(request, env) {
   if (request.method !== "GET") return json({ error: "Method not allowed" }, 405, { allow: "GET" });
   const siteKey = await secret(env.TURNSTILE_SITE_KEY);
   if (!siteKey || !/^0x4[A-Za-z0-9_-]{20,}$/.test(siteKey)) return json({ error: "Security verification is not configured" }, 503);
@@ -257,10 +257,7 @@ async function logout(request, env) {
   if (session) await env.AUTH_DB.prepare("UPDATE auth_sessions SET revoked_at = ? WHERE token_hash = ?").bind(Date.now(), session.tokenHash).run();
   return json({ ok: true }, 200, { "set-cookie": SESSION_COOKIE + "=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict" });
 }
-function challengePage() {
-  const html = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>Verify access · LeadMASTER</title><style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f7f7f5;color:#171717;font:15px system-ui,-apple-system,sans-serif}.panel{width:min(92vw,440px);padding:34px;border:1px solid #e4e4e1;border-radius:18px;background:#fff;box-shadow:0 24px 80px #17171712}.mark{color:#171717;font-weight:700;letter-spacing:.12em;font-size:12px}.panel h1{font-size:24px;margin:12px 0 8px}.muted{color:#666;line-height:1.55}.widget{margin:24px 0 12px;min-height:65px;display:flex;justify-content:center}.status{font-size:13px;color:#666;min-height:20px}</style><script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script></head><body><main class="panel"><div class="mark">LEADMASTER</div><h1>Verify you are human</h1><p class="muted">Complete this quick security check to continue to LeadMASTER.</p><div class="widget"><div class="cf-turnstile" data-sitekey="' + SITEKEY + '" data-theme="light" data-action="managed" data-callback="verified" data-error-callback="failed"></div></div><div class="status" id="status" role="status" aria-live="polite"></div></main><script>async function verified(token){const s=document.getElementById("status");s.textContent="Verifying…";try{const returnTo=location.pathname+location.search;const r=await fetch("/_turnstile/verify",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({token,returnTo})});if(!r.ok)throw new Error("Verification failed");const d=await r.json();location.replace(d.redirect||"/")}catch(e){s.textContent="Verification could not be completed. Please refresh and try again.";if(window.turnstile)turnstile.reset()}}function failed(){document.getElementById("status").textContent="Security check failed. Please try again."}</script></body></html>';
-  return new Response(html, { status: 200, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", "referrer-policy": "strict-origin-when-cross-origin" } });
-}
+
 async function handle(request, env) {
   const url = new URL(request.url);
 
@@ -272,7 +269,7 @@ async function handle(request, env) {
   if (url.pathname === "/api/v1/webhooks" || url.pathname.startsWith("/api/v1/webhooks/")) return webhookRoute(request, env);
   if (url.pathname === "/api/v1/emails") return developerEmailRoute(request, env, connect);
   if (url.pathname.startsWith("/api/v1/emails/")) return developerEmailStatus(request, env);
-  if (url.pathname === "/api/auth/config") return authConfig(request);
+  if (url.pathname === "/api/auth/config") return authConfig(request, env);
   if (url.pathname === "/api/auth/login") return login(request, env);
   if (url.pathname === "/api/auth/verify") return verifyOtp(request, env);
   if (url.pathname === "/api/auth/logout") return logout(request, env);
