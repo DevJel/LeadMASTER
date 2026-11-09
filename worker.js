@@ -202,6 +202,7 @@ async function login(request, env) {
       connect,
       env,
       to: adminEmail,
+      fromName: "LeadMaster",
       subject: "Your LeadMASTER sign-in code",
       text: "Your LeadMASTER verification code is " + code + ". It expires in 10 minutes. If you did not request this code, you can ignore this email.",
       html: await renderEmailTemplate("/email-otpformat.html", { USER_NAME: "Admin", OTP_CODE: code, EXPIRY_MINUTES: "10" })
