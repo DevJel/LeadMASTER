@@ -35,4 +35,4 @@ Unit tests do not prove live Turnstile, SES inbox delivery or webhook callback r
 - Removed underlying infrastructure/provider details from the public landing and login copy; refreshed privacy and terms language to describe service providers generically. Legal processor disclosures still require operator review for applicable law and actual data flows.
 - Added root agent rules and handover requirements for vendor-neutral UI, least-privilege agent access, truthful capability claims and synchronized documentation.
 - Added `llms.txt` and `robots.txt` to the generated production asset map.
-- Production Worker version `5ce0609c-ecbb-43f5-9a0d-4c4638511e03` (version 133) deployed at 100%; external HTTP smoke checks are blocked by the connected tool's outbound-domain policy, and the unit test suite was not run in this session.
+- Production Worker version `050eacd1-e8e6-4f4b-935e-b202390dcf2c` (version 137) deployed at 100%; external HTTP smoke checks are blocked by the connected tool's outbound-domain policy, and the unit test suite was not run in this session.
