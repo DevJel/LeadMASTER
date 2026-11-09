@@ -143,7 +143,7 @@ curl -X POST "https://leadmaster.jelvan.pro/api/v1/accounts/$LEADMASTER_ACCOUNT_
   }'
 ```
 
-The response includes a `signing_secret` exactly once. Copy it into your server's secret manager. It is encrypted at rest by the Worker using the configured `SESSION_SECRET`; do not put it in client code or logs.
+The response includes a `signing_secret` exactly once. Copy it into your server's secret manager. LeadMASTER protects stored signing secrets with application encryption; do not put them in client code or logs.
 
 Supported events:
 - `email.accepted` — the downstream email provider accepted the submission.
@@ -227,12 +227,12 @@ Delivery events describe email submission outcomes only. They are not SES bounce
 - Use TLS, validate event signatures and timestamps, deduplicate event IDs, and return 2xx promptly.
 - Rotate keys by deploying a replacement before revoking the old key.
 - Validate consent and suppression in your application before sending.
-- provider account status, account quotas and inbox delivery are separate operational checks. The configured sender identity `hello@work.jelvan.pro` is verified and already used by another application; this does not replace a LeadMASTER-specific delivery test.
+- Account quotas and inbox delivery are separate operational checks. A configured sender identity does not replace a LeadMASTER-specific delivery test.
 - Do not assume attachments, bulk campaigns, scheduled sends, retries, bounce events or delivery analytics are available.
 
 ## 9. Release checklist
 
-Deployment completed: the Worker has `AUTH_DB`, LeadMASTER's configured email service, sender, Turnstile, administrator and session-secret bindings; the D1 schema includes the developer API and webhook tables. The configured sender identity is verified and used by another application. Public route checks passed. Remaining release verification: use an authorized administrator session to create/revoke a scoped key, submit a controlled email to an approved test mailbox, register a controlled HTTPS webhook, validate HMAC signatures and inspect delivery logs. Until those authenticated end-to-end tests pass, do not claim verified LeadMASTER inbox delivery or fully tested webhook callbacks.
+The account-scoped changes in this branch are not yet a production release. Apply the migration in a controlled release, run cross-account tests, verify account-owned key creation and revocation, submit a controlled message to an approved test mailbox, register a controlled HTTPS callback, validate signatures and inspect account-owned delivery history. Do not claim verified inbox delivery or fully tested webhook callbacks until these checks pass.
 
 
 ## Agent security boundary
