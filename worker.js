@@ -463,8 +463,8 @@ async function adminSendRoute(request,env,session){
  const recipients=[...new Set(toList.map(x=>String(x||"").trim().toLowerCase()).filter(Boolean))];
  if(!recipients.length||recipients.length>500||recipients.some(x=>x.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x)))return json({error:"Enter between 1 and 500 valid email addresses."},400);
  const from=String(b.fromEmail||"hello@work.jelvan.pro").trim().toLowerCase(),domain=from.split("@")[1]||"";
- const verifiedDomains=new Set(["jelvan.pro","leadmaster.jelvan.pro","work.jelvan.pro","operavaglobal.com"]);
- if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(from)||!verifiedDomains.has(domain))return json({error:"Choose a verified LeadMASTER sender address."},400);
+ const verifiedDomain=domain==="jelvan.pro"||domain.endsWith(".jelvan.pro")||domain==="operavaglobal.com"||domain.endsWith(".operavaglobal.com");
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(from)||!verifiedDomain)return json({error:"Choose a sender under a verified jelvan.pro or operavaglobal.com identity."},400);
  const subject=String(b.subject||"").trim(),textBody=String(b.text||"");
  if(!subject||/[\r\n\x00-\x1f\x7f]/.test(subject)||new TextEncoder().encode(subject).length>300||!textBody.trim()||new TextEncoder().encode(textBody).length>200000)return json({error:"Add a subject and message. The message is too long."},400);
  const name=from==="hello@operavaglobal.com"?"Operava":from==="hello@work.jelvan.pro"?"Jelvan Ricolcol":"LeadMASTER";
