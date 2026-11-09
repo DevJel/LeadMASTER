@@ -712,3 +712,10 @@ The production dashboard UI is governed by `src/Mandatory LeadMASTER Dashboard.h
 The mandatory React dashboard is the canonical production UI. Its current live integrations and intentionally unavailable modules are mapped in [src/dashboard-feature-map.md](src/dashboard-feature-map.md). Live features include the authenticated account overview, mailbox and send queue, suppression list, account-scoped API keys and webhooks. Saved templates, contact lists, multi-inbox management, scheduled campaigns, automations, engagement tracking and DNS verification remain unavailable until their backend services exist. This prevents sample data or simulated actions from being presented as real account activity.
 
 The dashboard and Android companion share the same authenticated account context. Android native navigation follows Home, Emails, Audience, Metrics and Profile; the dashboard drawer provides the remaining sections.
+
+
+## Mandatory dashboard feature coverage
+
+The mandatory React dashboard is the canonical production UI. Live integrations and unavailable modules are documented in [src/dashboard-feature-map.md](src/dashboard-feature-map.md). Live features include account overview, mailbox and sending queue, suppression management, API keys, webhooks and sandboxed HTML preview. Saved templates, contacts/segments, multiple inboxes, scheduled campaigns, automations, engagement tracking and DNS verification remain unavailable until their backend services exist. No sample data or simulated success is used for those modules.
+
+Android native navigation mirrors the mandatory dashboard mobile sections: Home, Emails, Audience, Metrics and Profile. Other modules remain available through the dashboard navigation drawer.
