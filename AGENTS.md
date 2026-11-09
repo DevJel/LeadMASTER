@@ -162,3 +162,8 @@ The dashboard header must contain only a compact profile SVG icon aligned at the
 ## Dashboard authentication is mandatory
 
 Every dashboard document and supporting bundle must be protected by a server-validated `lm_session` cookie using `sessionFor()` before static asset lookup or upstream proxying. Normalize and decode URL paths before checking access; reject malformed paths, case variants, encoded separators and trailing-slash aliases. Unauthenticated dashboard requests must redirect to `/login.html`; never rely on React/client-side checks or hidden navigation. Keep the dashboard's HTML, JS, CSS, preview scripts and DOMPurify asset protected. Add regression tests whenever routes or assets change. Never proxy an unknown dashboard-like path to the preview upstream.
+
+
+## Dashboard authentication is mandatory
+
+Every dashboard document and supporting bundle must be protected by a server-validated `lm_session` cookie using `sessionFor()` before static asset lookup or upstream proxying. Normalize and decode URL paths before checking access; reject malformed paths, case variants, encoded separators and trailing-slash aliases. Unauthenticated dashboard requests must redirect to `/login.html`; never rely on React/client-side checks or hidden navigation. Keep the dashboard's HTML, JS, CSS, preview scripts and DOMPurify asset protected. Add regression tests whenever routes or assets change. Never proxy an unknown dashboard-like path to the preview upstream.
