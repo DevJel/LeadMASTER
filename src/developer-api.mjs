@@ -45,7 +45,7 @@ export async function developerEmailRoute(request,env,connect,accountId){
  if(!env.AUTH_DB)return json({error:"Service unavailable"},503);
  const auth=request.headers.get("authorization")||"", m=/^Bearer (lm_live_[A-Za-z0-9_-]{43,})$/.exec(auth);
  if(!m)return json({error:"Unauthorized"},401,{"www-authenticate":"Bearer"});
- const row=await env.AUTH_DB.prepare("SELECT id,key_hash,scopes,revoked_at,account_id FROM developer_api_keys WHERE key_prefix=?").bind(m[1].slice(0,16)).first();
+ const row=await env.AUTH_DB.prepare("SELECT id,key_hash,scopes,revoked_at,account_id,created_by FROM developer_api_keys WHERE key_prefix=?").bind(m[1].slice(0,16)).first();
  if(!row||row.account_id!==accountId)return json({error:"Not found"},404);
  if(row.revoked_at||!(await crypto.subtle.digest("SHA-256",enc.encode(m[1])).then(b=>{const h=Array.from(new Uint8Array(b),x=>x.toString(16).padStart(2,"0")).join("");return h===row.key_hash})))return json({error:"Unauthorized"},401);
  const scopes=JSON.parse(row.scopes||"[]");if(!scopes.includes("email:send"))return json({error:"Insufficient scope"},403);
@@ -59,11 +59,18 @@ export async function developerEmailRoute(request,env,connect,accountId){
  const prior=await env.AUTH_DB.prepare("SELECT id,status,created_at FROM developer_email_requests WHERE api_key_id=? AND idempotency_key=?").bind(row.id,idem).first();
  if(prior)return json({id:prior.id,status:prior.status,created_at:prior.created_at,replayed:true},prior.status==="accepted"?200:202);
  const id=crypto.randomUUID(),now=Date.now();
- try{await env.AUTH_DB.prepare("INSERT INTO developer_email_requests (id,api_key_id,idempotency_key,recipient,subject,status,created_at,updated_at,error_code,account_id) VALUES (?,?,?,?,?,'sending',?,?,NULL,?)").bind(id,row.id,idem,body.to,body.subject,now,now,accountId).run();}
+ const account=await env.AUTH_DB.prepare("SELECT name,owner_email FROM accounts WHERE id=?").bind(accountId).first();
+ const registeredEmail=String(row.created_by||account?.owner_email||"").trim().toLowerCase();
+ const accountName=String(account?.name||"").trim();
+ const fallbackName=(registeredEmail.split("@")[0]||"user").replace(/[._-]+/g," ").replace(/\\b[a-z]/g,x=>x.toUpperCase());
+ const senderName=accountName&&accountName!=="My LeadMASTER workspace"?accountName:fallbackName;
+ const senderLocal=(senderName.toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,48)||"user");
+ const senderEmail=senderLocal+"@leadmaster.jelvan.pro";
+ try{await env.AUTH_DB.prepare("INSERT INTO developer_email_requests (id,api_key_id,idempotency_key,recipient,subject,status,created_at,updated_at,error_code,account_id,from_email,sender_name,reply_to) VALUES (?,?,?,?,?,'sending',?,?,NULL,?,?,?,?)").bind(id,row.id,idem,body.to,body.subject,now,now,accountId,senderEmail,senderName,registeredEmail).run();}
  catch{return json({error:"Request already submitted or could not be recorded; retry with the same idempotency key"},409);}
  await env.AUTH_DB.prepare("UPDATE developer_api_keys SET last_used_at=? WHERE id=?").bind(now,row.id).run();
  try{
-  await sendSesEmail({connect,env,to:body.to,subject:body.subject,text:body.text,...(body.html===undefined?{}:{html:body.html})});
+  await sendSesEmail({connect,env,to:body.to,subject:body.subject,text:body.text,fromEmail:senderEmail,fromName:senderName,replyTo:registeredEmail,...(body.html===undefined?{}:{html:body.html})});
   await env.AUTH_DB.prepare("UPDATE developer_email_requests SET status='accepted',updated_at=? WHERE id=?").bind(Date.now(),id).run();
   try{await deliverWebhookEvent(env,"email.accepted",{request_id:id,recipient:body.to,subject:body.subject},row.id,accountId)}catch{}
   return json({id,status:"accepted",message:"LeadMASTER accepted the message for processing. This is not proof of inbox delivery."},200);
