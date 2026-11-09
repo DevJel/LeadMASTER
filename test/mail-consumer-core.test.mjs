@@ -7,7 +7,7 @@ const id='12345678-1234-4123-8123-123456789abc';
 function message(source='admin') {return {body:{id,source},acks:0,retries:[],ack(){this.acks++},retry(v){this.retries.push(v)}}}
 function setup(source='admin') {
  const sql=new DatabaseSync(':memory:');
- sql.exec(`CREATE TABLE admin_sent_mail (id TEXT PRIMARY KEY,recipient TEXT,subject TEXT,text_body TEXT,status TEXT,from_email TEXT,from_name TEXT,reply_to TEXT,queue_status TEXT,batch_id TEXT,updated_at INTEGER,error_code TEXT);
+ sql.exec(`CREATE TABLE admin_sent_mail (id TEXT PRIMARY KEY,recipient TEXT,subject TEXT,text_body TEXT,html_body TEXT,status TEXT,from_email TEXT,from_name TEXT,reply_to TEXT,queue_status TEXT,batch_id TEXT,updated_at INTEGER,error_code TEXT);
  CREATE TABLE developer_email_requests (id TEXT PRIMARY KEY,recipient TEXT,subject TEXT,text_body TEXT,html_body TEXT,status TEXT,from_email TEXT,sender_name TEXT,reply_to TEXT,api_key_id TEXT,account_id TEXT,updated_at INTEGER,error_code TEXT);
  CREATE TABLE workspace_activity (id TEXT,actor_email TEXT,action TEXT,summary TEXT,target_id TEXT,created_at INTEGER);
  CREATE TABLE mail_notifications (id TEXT,type TEXT,title TEXT,message TEXT,target_id TEXT,created_at INTEGER);`);
@@ -51,3 +51,5 @@ test('a claim left by a crashed process blocks another SMTP attempt',async()=>{
  const s=setup();s.sql.prepare("INSERT INTO mail_send_claims (source,request_id,state,claimed_at) VALUES (?,?,'started',?)").run('admin',id,123);
  let sends=0;const a=message();await consumer(async()=>{sends++}).queue({messages:[a]},s.env);assert.equal(sends,0);assert.equal(a.acks,1);assert.equal(s.status(),'sending');assert.equal(s.claim(),'started');
 });
+
+test('admin HTML reaches the transport with its plain-text alternative',async()=>{const s=setup();s.sql.prepare('UPDATE admin_sent_mail SET html_body=? WHERE id=?').run('<p>hello</p>',id);let sent;await consumer(async x=>{sent=x}).queue({messages:[message()]},s.env);assert.equal(sent.html,'<p>hello</p>');assert.equal(sent.text,'body');assert.equal(s.status(),'accepted')});
