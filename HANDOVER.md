@@ -139,5 +139,13 @@ Tests use local/mock boundaries. They do not prove live Turnstile, OTP receipt, 
 ### Rollback
 Use Cloudflare Worker versions/deployments to route traffic to the last known-good version. Verify the selected version and traffic percentage, then repeat route and landing smoke checks. Do not delete D1, rotate secrets or revert schema migrations as a first-line rollback.
 
-## 11. Handover status
+## 11. Latest deployment record — 2026-11-09
+- Cloudflare Worker version: **113**.
+- Version ID: `74522785-4f5f-43be-bd53-c70c4d8092bf`.
+- Deployment ID: `8a552314-390a-42e2-b5be-89105ef86c69`.
+- Traffic assignment reported by Cloudflare: **100%** to version 113.
+- Cloudflare bundle inspection confirmed the root-to-`/index.html` mapping, integrated documentation markup, production status copy, documentation search logic, and compatibility redirect assets are present in the uploaded Worker bundle.
+- Automated `npm test` was **not run** in this execution environment. No real browser sign-in, SES inbox delivery or webhook callback acceptance test was performed.
+
+## 12. Handover status
 Authentication, API-key, email and webhook route implementations are deployed. Landing-page documentation is the canonical public destination. Queue and MCP remain experimental/not deployed. Dashboard remains a shell. Real authenticated browser, SES inbox and webhook callback acceptance tests remain outstanding.
