@@ -31,6 +31,11 @@
       "binding": "SES_SMTP_PASSWORD",
       "store_id": "1a77c40addba476788aea7c043ca33db",
       "secret_name": "SES_SMTP_PASSWORD"
+    },
+    {
+      "binding": "SESSION_SECRET",
+      "store_id": "1a77c40addba476788aea7c043ca33db",
+      "secret_name": "ADMIN_JWT_TOKEN"
     }
   ],
   "queues": {
