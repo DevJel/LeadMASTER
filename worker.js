@@ -572,7 +572,10 @@ async function handle(request, env) {
   const asset = staticAssets[assetPath];
   if (asset) {
     const isHtml = asset.contentType.startsWith("text/html");
-    return new Response(asset.body, { status: 200, headers: {
+    const assetBody = asset.encoding === "base64"
+      ? Uint8Array.from(atob(asset.body), character => character.charCodeAt(0))
+      : asset.body;
+    return new Response(assetBody, { status: 200, headers: {
       "content-type": asset.contentType,
       "cache-control": isHtml ? "no-store" : "public, max-age=300",
       "x-content-type-options": "nosniff",
