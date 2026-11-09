@@ -75,3 +75,15 @@ Mocked unit tests do not prove live Turnstile, SES inbox delivery, browser login
 - AI agents must use documented LeadMASTER REST APIs with least-privilege API keys. Human administrator login, visual security verification, passwords and email OTP are never agent authentication. Never scrape, solve, bypass, replay or disclose challenge tokens or site keys.
 - Never claim MCP is available. The current prototype is not mounted in production; reserve `/mcp` with an explicit unavailable response and document the REST API as the supported integration.
 - Keep `llms.txt` and `robots.txt` aligned with the deployed API, feature matrix, MCP status, limits and security boundaries. Remember robots directives are crawler preferences, not access controls.
+
+
+## Account-first context and strict tenant isolation
+- Every user-facing action must use the current user's authenticated LeadMASTER account context and its current saved information. Never use operator, platform-wide, shared, internal, test or another user's account access.
+- Obtain account IDs and generated API/webhook endpoint URLs only from the authenticated account session, account console or that account's API-key creation response. Never guess, enumerate or substitute IDs.
+- Every integration credential and resource must have an explicit account owner. Add account predicates to every database read, update, delete, list and dispatch query. Validate both account ownership and API-key ownership on every request.
+- Never fetch resources globally and filter in UI code. Never rely on an unguessable ID as authorization.
+- API, webhook and future MCP interfaces must be account-specific. No platform-wide key or unscoped integration route is allowed. A future MCP tool must derive account context from its authenticated principal, not a caller-supplied account argument.
+- Cross-account attempts must fail without revealing whether the resource exists. Add negative tests for account A accessing account B's email requests, webhooks, secrets and delivery history.
+- The current login rollout still supports one configured administrator identity; do not advertise self-service sign-up, team invitations or multi-member access as live.
+- Human login security verification is not agent authentication. Agents must never scrape, solve, bypass, replay or request its tokens.
+- Public UI, public docs and customer-facing responses must refer to the product as LeadMASTER and not reveal internal platform/provider/transport/database/deployment details. Legal processor disclosures must remain accurate where required.
