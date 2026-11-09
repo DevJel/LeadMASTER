@@ -5,7 +5,8 @@
   "compatibility_date": "2026-11-04",
   "compatibility_flags": [],
   "vars": {
-    "SES_FROM_EMAIL": "hello@work.jelvan.pro"
+    "SES_FROM_EMAIL": "hello@work.jelvan.pro",
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAF5KTL83dA8wIZQH"
   },
   "d1_databases": [
     {
@@ -16,14 +17,41 @@
     }
   ],
   "secrets_store_secrets": [
-    { "binding": "SES_SMTP_HOST", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "SES_SMTP_HOST" },
-    { "binding": "SES_SMTP_USERNAME", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "SES_SMTP_USERNAME" },
-    { "binding": "SES_SMTP_PASSWORD", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "SES_SMTP_PASSWORD" },
-    { "binding": "ADMIN_EMAIL", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "ADMIN_EMAIL" },
-    { "binding": "ADMIN_PASSWORD", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "ADMIN_PASSWORD" },
-    { "binding": "SESSION_SECRET", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "ADMIN_JWT_TOKEN" },
-    { "binding": "TURNSTILE_SITE_KEY", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "TURNSTILE_SITE_KEY" },
-    { "binding": "TURNSTILE_SECRET", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "TURNSTILE_SECRET_KEY" }
+    {
+      "binding": "SES_SMTP_HOST",
+      "store_id": "1a77c40addba476788aea7c043ca33db",
+      "secret_name": "SES_SMTP_HOST"
+    },
+    {
+      "binding": "SES_SMTP_USERNAME",
+      "store_id": "1a77c40addba476788aea7c043ca33db",
+      "secret_name": "SES_SMTP_USERNAME"
+    },
+    {
+      "binding": "SES_SMTP_PASSWORD",
+      "store_id": "1a77c40addba476788aea7c043ca33db",
+      "secret_name": "SES_SMTP_PASSWORD"
+    },
+    {
+      "binding": "ADMIN_EMAIL",
+      "store_id": "1a77c40addba476788aea7c043ca33db",
+      "secret_name": "ADMIN_EMAIL"
+    },
+    {
+      "binding": "ADMIN_PASSWORD",
+      "store_id": "1a77c40addba476788aea7c043ca33db",
+      "secret_name": "ADMIN_PASSWORD"
+    },
+    {
+      "binding": "SESSION_SECRET",
+      "store_id": "1a77c40addba476788aea7c043ca33db",
+      "secret_name": "ADMIN_JWT_TOKEN"
+    },
+    {
+      "binding": "TURNSTILE_SECRET",
+      "store_id": "1a77c40addba476788aea7c043ca33db",
+      "secret_name": "TURNSTILE_SECRET_KEY"
+    }
   ],
   "observability": {
     "enabled": true,
