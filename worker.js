@@ -374,7 +374,7 @@ async function adminNotificationsRoute(request,env,session){
  if(!session||session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
  const url=new URL(request.url),id=url.pathname.split("/").filter(Boolean).at(-1);
  if(request.method==="GET"){const rows=await env.AUTH_DB.prepare("SELECT id,type,title,message,target_id,created_at,read_at FROM mail_notifications ORDER BY created_at DESC LIMIT 50").all();return json({items:rows.results||[],unread:(rows.results||[]).filter(x=>!x.read_at).length});}
- if(request.method==="POST"&&id&&sameOrigin(request)){await env.AUTH_DB.prepare("UPDATE mail_notifications SET read_at=? WHERE id=?").bind(Date.now(),id).run();return json({ok:true});}
+ if(request.method==="POST"&&id&&sameOrigin(request)){const n=await env.AUTH_DB.prepare("SELECT title FROM mail_notifications WHERE id=?").bind(id).first();await env.AUTH_DB.prepare("UPDATE mail_notifications SET read_at=? WHERE id=?").bind(Date.now(),id).run();if(n)await logWorkspaceAction(env,session.email,"notification_viewed","Viewed an update: "+n.title,id);return json({ok:true});}
  return json({error:"Not found"},404);
 }
 function decodeMailBody(raw){
@@ -428,6 +428,7 @@ async function adminMailboxRoute(request,env,session){
   const email=String(b.email||"").trim().toLowerCase(),reason=String(b.reason||"Manual suppression").slice(0,240);
   if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))return json({error:"Enter a valid email address"},400);
   await env.AUTH_DB.prepare("INSERT OR IGNORE INTO email_unsubscribes (id,email,source,created_at,reason) VALUES (?,?,?,?,?)").bind(crypto.randomUUID(),email,"manual",Date.now(),reason).run();
+  await logWorkspaceAction(env,session.email,"contact_unsubscribed","Marked "+email+" as Do not contact.");
   return json({ok:true,email});
  }
  if(request.method==="GET"&&url.pathname==="/api/admin/mail"){
