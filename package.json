@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "build:assets": "node scripts/build-static-assets.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",
