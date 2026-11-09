@@ -29,6 +29,7 @@
   render();
 
   async function verifySession(){
+    if (typeof fetch !== 'function') return;
     try {
       const response=await fetch('/api/auth/session',{credentials:'same-origin',cache:'no-store'});
       if(!response.ok) throw new Error('session-check-failed');
