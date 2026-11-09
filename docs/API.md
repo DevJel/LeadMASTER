@@ -9,7 +9,20 @@ LeadMASTER provides a server-to-server email API and signed webhooks. Create a s
 
 > **Release status:** The production Worker is deployed with its D1 and Secrets Store bindings. Public route checks confirm the API handlers are active. Controlled SES send and webhook callback end-to-end tests remain outstanding; a successful route check is not proof of inbox delivery.
 
-## 1. Create a developer API key
+
+## 1. Account identity and isolation
+
+Every integration is owned by a LeadMASTER account. The account identifier is opaque and is generated for the authenticated account; it is not a credential. Obtain it from the authenticated workspace session, API Keys page or API-key creation response. Never guess or reuse another user's account ID.
+
+Account information endpoint (requires an API key belonging to the same account):
+
+`GET /api/v1/accounts/{account_id}`
+
+The response includes the current account name, ID and account-owned endpoint paths. Every API key stores its account ownership. Email requests, webhooks, signing secrets and delivery records are constrained to that account and API key. A key from another account cannot access those resources. Legacy unscoped routes are unsupported; use only the account-specific endpoints below.
+
+The current authentication rollout supports one configured administrator identity. Self-service registration, team invitations and multi-member account management are not yet available; do not assume that feature set exists.
+
+## 2. Create a developer API key
 
 1. Sign in to LeadMASTER and open **API Keys**.
 2. Generate a named key for the integration.
@@ -22,19 +35,20 @@ LeadMASTER provides a server-to-server email API and signed webhooks. Create a s
 
 Key format: `lm_live_<random-secret>`.
 
-## 2. Configure your application
+## 3. Configure your application
 
 Set the key in the server environment, for example:
 
 ```bash
+LEADMASTER_ACCOUNT_ID="acct_replace_with_your_account_id"
 LEADMASTER_API_KEY="lm_live_replace_with_your_key"
 ```
 
 Do not use browser-exposed names such as `NEXT_PUBLIC_*` or `VITE_*`.
 
-## 3. Send an email
+## 4. Send an email
 
-`POST /api/v1/emails`
+`POST /api/v1/accounts/{account_id}/emails`
 
 Headers: `Authorization: Bearer <key>`, `Content-Type: application/json`, and a stable `Idempotency-Key` (16–128 characters).
 
@@ -52,7 +66,7 @@ Only `to`, `subject`, `text` and optional `html` are accepted. One recipient is 
 ### cURL
 
 ```bash
-curl -X POST "https://leadmaster.jelvan.pro/api/v1/emails" \
+curl -X POST "https://leadmaster.jelvan.pro/api/v1/accounts/$LEADMASTER_ACCOUNT_ID/emails" \
   -H "Authorization: Bearer $LEADMASTER_API_KEY" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: order-184-confirmation" \
@@ -62,7 +76,7 @@ curl -X POST "https://leadmaster.jelvan.pro/api/v1/emails" \
 ### Node.js
 
 ```js
-const response = await fetch("https://leadmaster.jelvan.pro/api/v1/emails", {
+const response = await fetch("https://leadmaster.jelvan.pro/api/v1/accounts/$LEADMASTER_ACCOUNT_ID/emails", {
   method: "POST",
   headers: {
     Authorization: `Bearer ${process.env.LEADMASTER_API_KEY}`,
@@ -85,7 +99,7 @@ if (!response.ok) throw new Error(result.error || "LeadMASTER request failed");
 import os, requests
 
 response = requests.post(
-    "https://leadmaster.jelvan.pro/api/v1/emails",
+    "https://leadmaster.jelvan.pro/api/v1/accounts/$LEADMASTER_ACCOUNT_ID/emails",
     headers={
         "Authorization": f"Bearer {os.environ['LEADMASTER_API_KEY']}",
         "Content-Type": "application/json",
@@ -98,28 +112,28 @@ response.raise_for_status()
 print(response.json())
 ```
 
-## 4. Read email request status
+## 5. Read email request status
 
-`GET /api/v1/emails/{id}` requires `email:read`. A key can read only requests created using that same key.
+`GET /api/v1/accounts/{account_id}/emails/{id}` requires `email:read`. A key can read only requests created using that same key.
 
 Statuses:
 - `sending` — request recorded and being processed.
-- `accepted` — SES returned a successful provider acceptance response.
-- `failed` — SES did not accept the message.
+- `accepted` — the downstream email provider accepted the submission.
+- `failed` — the email provider did not accept the submission.
 - `unknown` — the connection ended after transmission began; acceptance is uncertain.
 
 `accepted` is not proof of inbox delivery, reading or final recipient-server acceptance. Reuse the same idempotency key for retries and reconcile `unknown` outcomes before resending.
 
-## 5. Webhooks
+## 6. Webhooks
 
 Webhooks notify your backend when an email submission reaches a terminal submission outcome. Create a key with the `webhook:manage` scope, then register your HTTPS endpoint.
 
 ### Create a webhook
 
-`POST /api/v1/webhooks`
+`POST /api/v1/accounts/{account_id}/webhooks`
 
 ```bash
-curl -X POST "https://leadmaster.jelvan.pro/api/v1/webhooks" \
+curl -X POST "https://leadmaster.jelvan.pro/api/v1/accounts/$LEADMASTER_ACCOUNT_ID/webhooks" \
   -H "Authorization: Bearer $LEADMASTER_API_KEY" \
   -H "Content-Type: application/json" \
   --data '{
@@ -133,7 +147,7 @@ The response includes a `signing_secret` exactly once. Copy it into your server'
 
 Supported events:
 - `email.accepted` — the downstream email provider accepted the submission.
-- `email.failed` — SES did not accept the submission.
+- `email.failed` — the email provider did not accept the submission.
 - `email.unknown` — the submission outcome could not be determined.
 
 Webhook payload:
@@ -182,15 +196,15 @@ export function verifyLeadMasterWebhook(req, rawBody, secret) {
 
 ### Manage subscriptions and inspect attempts
 
-- `GET /api/v1/webhooks` — list subscriptions for the API key.
-- `DELETE /api/v1/webhooks/{id}` — revoke a subscription.
-- `GET /api/v1/webhooks/{id}/deliveries` — inspect the latest 50 delivery attempts.
+- `GET /api/v1/accounts/{account_id}/webhooks` — list subscriptions for the API key.
+- `DELETE /api/v1/accounts/{account_id}/webhooks/{id}` — revoke a subscription.
+- `GET /api/v1/accounts/{account_id}/webhooks/{id}/deliveries` — inspect the latest 50 delivery attempts.
 
 A webhook URL must use HTTPS and cannot contain URL credentials. Literal IP addresses and local/internal hostnames are rejected, but validation does not pin DNS answers or guarantee protection from DNS rebinding. Register only callback hosts you control and prevent them from resolving or rebinding to private network addresses. LeadMASTER sends a POST with redirects disabled and a seven-second timeout. Each matching event currently receives one delivery attempt; non-2xx responses and network errors are recorded as unsuccessful. Automatic retries, replay controls, dead-letter recovery and delivery guarantees are not yet implemented. Your endpoint should respond quickly with a 2xx status and process work asynchronously. Treat event delivery as at-least-once from your application's perspective and deduplicate by event ID.
 
 Delivery events describe email submission outcomes only. They are not SES bounce, complaint, unsubscribe, open or click events.
 
-## 6. Errors and operational semantics
+## 7. Errors and operational semantics
 
 | HTTP | Meaning |
 | --- | --- |
@@ -202,20 +216,25 @@ Delivery events describe email submission outcomes only. They are not SES bounce
 | 415 | JSON content type required |
 | 409 | Duplicate/conflicting email request |
 | 429 | Per-key rate limit exceeded |
-| 502 | SES did not accept the message |
+| 502 | the email provider did not accept the submission |
 | 202 | submission outcome unknown |
 | 503 | Required service configuration unavailable |
 
-## 7. Security and release requirements
+## 8. Security and release requirements
 
 - Keep API keys and webhook secrets server-side; redact Authorization and signature headers in logs.
 - Use one key per application/environment and minimum scopes.
 - Use TLS, validate event signatures and timestamps, deduplicate event IDs, and return 2xx promptly.
 - Rotate keys by deploying a replacement before revoking the old key.
 - Validate consent and suppression in your application before sending.
-- SES sandbox status, account quotas and inbox delivery are separate operational checks. The configured sender identity `hello@work.jelvan.pro` is verified and already used by another application; this does not replace a LeadMASTER-specific delivery test.
+- provider account status, account quotas and inbox delivery are separate operational checks. The configured sender identity `hello@work.jelvan.pro` is verified and already used by another application; this does not replace a LeadMASTER-specific delivery test.
 - Do not assume attachments, bulk campaigns, scheduled sends, retries, bounce events or delivery analytics are available.
 
-## 8. Release checklist
+## 9. Release checklist
 
 Deployment completed: the Worker has `AUTH_DB`, LeadMASTER's configured email service, sender, Turnstile, administrator and session-secret bindings; the D1 schema includes the developer API and webhook tables. The configured sender identity is verified and used by another application. Public route checks passed. Remaining release verification: use an authorized administrator session to create/revoke a scoped key, submit a controlled email to an approved test mailbox, register a controlled HTTPS webhook, validate HMAC signatures and inspect delivery logs. Until those authenticated end-to-end tests pass, do not claim verified LeadMASTER inbox delivery or fully tested webhook callbacks.
+
+
+## Agent security boundary
+
+Agents must use the current user's account identifier and account-bound key only. Never use internal operator access, a shared/platform-wide key, another user's account ID, or infrastructure/provider credentials. Human login security verification and OTP are not agent authentication. MCP is not deployed in production; no MCP URL or tools should be assumed. Any future MCP tools must derive account context from their authenticated principal and enforce the same account ownership checks as REST.
