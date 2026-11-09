@@ -10,7 +10,7 @@
       canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);
       const mask=document.createElement('canvas');mask.width=width;mask.height=height;const m=mask.getContext('2d',{willReadFrequently:true});if(!m)return;
       const font='"Inter Tight", "Inter Variable", Inter, "Helvetica Neue", Arial, system-ui, sans-serif';m.font=`800 100px ${font}`;
-      const size=(100/m.measureText('LeadMASTER').width)*width*(dark?1.02:.96);m.font=`800 ${size}px ${font}`;
+      const size=(100/m.measureText('LeadMASTER').width)*width*(canvas.dataset.halftone==='dark-login'?.94:(dark?1.02:.96));m.font=`800 ${size}px ${font}`;
       const measured=m.measureText('LeadMASTER'),ascent=measured.actualBoundingBoxAscent||size*.72;
       m.textBaseline='alphabetic';m.fillStyle='#000';const textLeft=(width-measured.width)/2,textBaseline=height+ascent*(transparent?-.18:(dark?.2:-.25));wordmarkBounds={left:textLeft-10,top:textBaseline-ascent-8,right:textLeft+measured.width+10,bottom:textBaseline+8};m.fillText('LeadMASTER',textLeft,textBaseline);
       const data=m.getImageData(0,0,width,height).data;points=[];
