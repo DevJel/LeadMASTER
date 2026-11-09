@@ -525,6 +525,23 @@ async function adminSendRoute(request,env,session){
 
 async function handle(request, env) {
   const url = new URL(request.url);
+  let decodedPath;
+  try { decodedPath = decodeURIComponent(url.pathname); } catch { return new Response("Bad request", { status: 400, headers: { "cache-control": "no-store" } }); }
+  const normalizedPath = decodedPath.replace(/\\/+$/, "") || "/";
+  const routePath = normalizedPath.toLowerCase();
+
+  // Enforce the dashboard gate before API routing, static asset lookup or upstream proxying.
+  // This also closes case, percent-encoding and trailing-slash variants of dashboard URLs.
+  const dashboardRoute = routePath === "/dashboard" || routePath.startsWith("/dashboard/") || routePath.startsWith("/dashboard.");
+  const dashboardAssets = new Set(["/dashboard.js", "/dashboard.css", "/developer-api-keys.html", "/html-preview.js", "/html-preview.css", "/assets/vendor/dompurify.min.js"]);
+  if (dashboardRoute || dashboardAssets.has(routePath)) {
+    const session = await sessionFor(request, env);
+    if (!session) return Response.redirect(new URL("/login.html", request.url), 302);
+    if (routePath === "/dashboard") return Response.redirect(new URL("/dashboard.html" + url.search, request.url), 302);
+    if (routePath === "/dashboard.html" && url.pathname !== "/dashboard.html") return Response.redirect(new URL("/dashboard.html" + url.search, request.url), 302);
+    if (dashboardRoute && !["/dashboard.html", "/dashboard.js", "/dashboard.css"].includes(routePath)) return new Response("Not found", { status: 404, headers: { "cache-control": "no-store", "x-content-type-options": "nosniff" } });
+    if (dashboardAssets.has(routePath) && url.pathname !== routePath) return Response.redirect(new URL(routePath + url.search, request.url), 302);
+  }
 
   if (url.pathname === "/api/aws/ses-events") return sesSnsEvents(request,env);
   const adminSession=await sessionFor(request,env);
@@ -559,16 +576,6 @@ async function handle(request, env) {
     return json({ authenticated: Boolean(session), email: session?.email || null, account: session ? { id: session.accountId, name: session.accountName, owner_name: session.ownerName, api_base_url: "https://leadmaster.jelvan.pro/api/v1/accounts/" + session.accountId, endpoints: { account: "/api/v1/accounts/" + session.accountId, emails: "/api/v1/accounts/" + session.accountId + "/emails", webhooks: "/api/v1/accounts/" + session.accountId + "/webhooks" } } : null });
   }
 
-  if (url.pathname === "/dashboard") {
-    const session = await sessionFor(request, env);
-    if (!session) return Response.redirect(new URL("/login.html", request.url), 302);
-    return Response.redirect(new URL("/dashboard.html", request.url), 302);
-  }
-  const protectedPaths = ["/dashboard.html", "/developer-api-keys.html", "/dashboard.js", "/dashboard.css", "/html-preview.js", "/html-preview.css", "/assets/vendor/dompurify.min.js"];
-  if (protectedPaths.includes(url.pathname)) {
-    const session = await sessionFor(request, env);
-    if (!session) return Response.redirect(new URL("/login.html", request.url), 302);
-  }
   if (url.pathname === "/logout" && request.method === "GET") return Response.redirect(new URL("/login.html", request.url), 302);
 
   if (url.pathname === "/mcp" || url.pathname.startsWith("/mcp/")) return json({ error: "MCP is not available in production. Use the documented LeadMASTER REST API." }, 404);
@@ -611,7 +618,7 @@ export default {
     try {
       if (!env.AUTH_DB || !env.ADMIN_EMAIL || !env.ADMIN_PASSWORD || !env.SESSION_SECRET || !env.TURNSTILE_SITE_KEY || !env.TURNSTILE_SECRET || !env.SES_SMTP_HOST || !env.SES_SMTP_USERNAME || !env.SES_SMTP_PASSWORD || !env.SES_FROM_EMAIL) {
         // Public pages remain available while auth fails closed.
-        const p = new URL(request.url).pathname;
+        const p = new URL(request.url).pathname.toLowerCase();
         if (p.startsWith("/api/auth/") || p.startsWith("/dashboard")) return json({ error: "Authentication service is not configured" }, 503);
       }
       return await handle(request, env);
