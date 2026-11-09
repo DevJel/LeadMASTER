@@ -183,7 +183,7 @@ export function verifyLeadMasterWebhook(req, rawBody, secret) {
 - `DELETE /api/v1/webhooks/{id}` — revoke a subscription.
 - `GET /api/v1/webhooks/{id}/deliveries` — inspect the latest 50 delivery attempts.
 
-A webhook URL must use HTTPS and cannot contain URL credentials. LeadMASTER sends a POST with redirects disabled and a seven-second timeout. Each matching event currently receives one delivery attempt; non-2xx responses and network errors are recorded as unsuccessful. Automatic retries, replay controls, dead-letter recovery and delivery guarantees are not yet implemented. Your endpoint should respond quickly with a 2xx status and process work asynchronously. Treat event delivery as at-least-once from your application's perspective and deduplicate by event ID.
+A webhook URL must use HTTPS and cannot contain URL credentials. Literal IP addresses and local/internal hostnames are rejected, but validation does not pin DNS answers or guarantee protection from DNS rebinding. Register only callback hosts you control and prevent them from resolving or rebinding to private network addresses. LeadMASTER sends a POST with redirects disabled and a seven-second timeout. Each matching event currently receives one delivery attempt; non-2xx responses and network errors are recorded as unsuccessful. Automatic retries, replay controls, dead-letter recovery and delivery guarantees are not yet implemented. Your endpoint should respond quickly with a 2xx status and process work asynchronously. Treat event delivery as at-least-once from your application's perspective and deduplicate by event ID.
 
 Delivery events describe SMTP submission outcomes only. They are not SES bounce, complaint, unsubscribe, open or click events.
 
