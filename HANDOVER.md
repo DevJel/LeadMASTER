@@ -376,8 +376,13 @@ Authentication, API-key, email and webhook route implementations are deployed. L
 - Production deployment and unauthenticated HTTP behavior must be verified after deployment completes.
 
 
-## Pending branch: inbound deletion safety
+## Inbound deletion safety
 
-The feature branch introduces `migrations/0008_inbound_deletion_claim.sql` and a persistent deletion claim. Only already-soft-deleted inbound messages can be claimed; restoration is blocked while pending, and retries repeat idempotent object cleanup before deleting the row. A 503 means the operation requires retry/reconciliation, not that the object is intact. Check and monitor pending records after rollout. Never deploy the code before the migration is applied. Migration is additive; rolling back the Worker must not revive a pending row whose object may have been deleted. Staging rehearsal and a rollback strategy that accounts for pending claims are release gates.
+The merged change introduces `migrations/0008_inbound_deletion_claim.sql` and a persistent deletion claim. Only already-soft-deleted inbound messages can be claimed; restoration is blocked while pending, and retries repeat idempotent object cleanup before deleting the row. A 503 means the operation requires retry/reconciliation, not that the object is intact. Check and monitor pending records after rollout. The code was observed in the live Worker before migration 0008 was applied on 2026-11-09; the migration is now recorded in D1. Live delete/restore behavior has not been tested. Migration is additive; rolling back the Worker must not revive a pending row whose object may have been deleted. A staging rehearsal and a rollback strategy that accounts for pending claims remain release gates for subsequent changes.
 
 This branch has not been deployed and did not change the UI, Android source or public API contract. The shared Android WebView must be checked for delete/restore behavior. Queue partial failure and the other finalization work remain outstanding.
+
+
+## Pending suppression validation and dashboard audit
+
+A feature branch fixes over-escaped server-side suppression email validation and introduces regression tests. `docs/DASHBOARD_CONTROL_AUDIT.md` records the initial control inventory and known gaps. No UI or schema change; validate the shared Android workflow when deployed. This branch is not deployed.
