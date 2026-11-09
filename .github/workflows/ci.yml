@@ -37,9 +37,13 @@ jobs:
       - name: Syntax-check account and route modules
         run: |
           node --check worker.js
+          node --check src/email-coordinator.mjs
+          node --check src/email-coordinator-client.mjs
+          node --check src/email-queue-core.mjs
           node --check src/developer-api.mjs
           node --check src/developer-webhooks.mjs
           node --check workers/mail-queue-consumer.js
+          node --check test/email-coordinator-config.test.mjs
           node --check workers/mail-failed-consumer.js
           node --check workers/inbound-mail.js
           node --check test/account-isolation.test.mjs
