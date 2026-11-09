@@ -2,7 +2,7 @@ import { connect } from "cloudflare:sockets";
 import { sendSesEmail } from "./src/ses-smtp.mjs";
 import { emailOtpTemplate, emailSecurityAlertTemplate } from "./src/email-templates.mjs";
 import { staticAssets } from "./src/static-assets.mjs";
-import { developerAdminRoute, developerEmailRoute, developerEmailStatus } from "./src/developer-api.mjs";
+import { developerAdminRoute, developerEmailRoute, developerEmailStatus, developerAccountInfo } from "./src/developer-api.mjs";
 import { webhookRoute } from "./src/developer-webhooks.mjs";
 import { verifyTurnstile } from "./src/turnstile.mjs";
 
@@ -143,13 +143,32 @@ async function passwordMatches(supplied, configured) {
   }
   return equal(await sha256(supplied), await sha256(configured));
 }
+async function accountForEmail(env, email) {
+  const ownerEmail = String(email || "").trim().toLowerCase();
+  if (!ownerEmail) throw new Error("Account identity unavailable");
+  let account = await env.AUTH_DB.prepare("SELECT id,name,created_at,updated_at FROM accounts WHERE owner_email=?").bind(ownerEmail).first();
+  if (!account) {
+    const id = "acct_" + randomToken(16);
+    const now = Date.now();
+    await env.AUTH_DB.prepare("INSERT INTO accounts (id,name,owner_email,created_at,updated_at) VALUES (?, 'My LeadMASTER workspace', ?, ?, ?) ON CONFLICT(owner_email) DO NOTHING").bind(id,ownerEmail,now,now).run();
+    account = await env.AUTH_DB.prepare("SELECT id,name,created_at,updated_at FROM accounts WHERE owner_email=?").bind(ownerEmail).first();
+  }
+  if (!account) throw new Error("Account could not be initialized");
+  await env.AUTH_DB.prepare("INSERT OR IGNORE INTO account_members (account_id,email,role,created_at) VALUES (?,?, 'owner', ?)").bind(account.id,ownerEmail,Date.now()).run();
+  // Adopt legacy integrations only when their recorded owner exactly matches this signed-in identity.
+  await env.AUTH_DB.prepare("UPDATE developer_api_keys SET account_id=? WHERE account_id IS NULL AND lower(trim(created_by))=?").bind(account.id,ownerEmail).run();
+  await env.AUTH_DB.prepare("UPDATE developer_email_requests SET account_id=? WHERE account_id IS NULL AND api_key_id IN (SELECT id FROM developer_api_keys WHERE account_id=?)").bind(account.id,account.id).run();
+  await env.AUTH_DB.prepare("UPDATE developer_webhooks SET account_id=? WHERE account_id IS NULL AND api_key_id IN (SELECT id FROM developer_api_keys WHERE account_id=?)").bind(account.id,account.id).run();
+  return account;
+}
 async function sessionFor(request, env) {
   const token = cookieValue(request, SESSION_COOKIE);
   if (!token || token.length > 200) return null;
   const tokenHash = await sha256(token);
   const row = await env.AUTH_DB.prepare("SELECT email, expires_at, revoked_at FROM auth_sessions WHERE token_hash = ?").bind(tokenHash).first();
   if (!row || row.revoked_at || row.expires_at <= Date.now()) return null;
-  return { email: row.email, tokenHash };
+  const account = await accountForEmail(env,row.email);
+  return { email: row.email, tokenHash, accountId: account.id, accountName: account.name };
 }
 async function authConfig(request, env) {
   if (request.method !== "GET") return json({ error: "Method not allowed" }, 405, { allow: "GET" });
@@ -266,16 +285,21 @@ async function handle(request, env) {
     const session = await sessionFor(request, env);
     return developerAdminRoute(request, env, session);
   }
-  if (url.pathname === "/api/v1/webhooks" || url.pathname.startsWith("/api/v1/webhooks/")) return webhookRoute(request, env);
-  if (url.pathname === "/api/v1/emails") return developerEmailRoute(request, env, connect);
-  if (url.pathname.startsWith("/api/v1/emails/")) return developerEmailStatus(request, env);
+  const accountApi = url.pathname.match(/^\/api\/v1\/accounts\/(acct_[A-Za-z0-9_-]{20,64})(?:\/(emails|webhooks)(?:\/([0-9a-f-]{36})(?:\/(deliveries))?)?)?$/i);
+  if (accountApi) {
+    const accountId = accountApi[1], resource = accountApi[2], resourceId = accountApi[3], suffix = accountApi[4];
+    if (!resource) return developerAccountInfo(request,env,accountId);
+    if (resource === "emails" && !resourceId) return developerEmailRoute(request,env,connect,accountId);
+    if (resource === "emails" && resourceId) return developerEmailStatus(request,env,accountId);
+    if (resource === "webhooks") return webhookRoute(request,env,accountId);
+  }
   if (url.pathname === "/api/auth/config") return authConfig(request, env);
   if (url.pathname === "/api/auth/login") return login(request, env);
   if (url.pathname === "/api/auth/verify") return verifyOtp(request, env);
   if (url.pathname === "/api/auth/logout") return logout(request, env);
   if (url.pathname === "/api/auth/session" && request.method === "GET") {
     const session = await sessionFor(request, env);
-    return json({ authenticated: Boolean(session), email: session?.email || null });
+    return json({ authenticated: Boolean(session), email: session?.email || null, account: session ? { id: session.accountId, name: session.accountName, api_base_url: "https://leadmaster.jelvan.pro/api/v1/accounts/" + session.accountId, endpoints: { account: "/api/v1/accounts/" + session.accountId, emails: "/api/v1/accounts/" + session.accountId + "/emails", webhooks: "/api/v1/accounts/" + session.accountId + "/webhooks" } } : null });
   }
 
   if (url.pathname === "/dashboard") {
