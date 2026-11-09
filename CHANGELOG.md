@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-09 — Dashboard account context and branded OTP sender
+
+- Replaced the misleading unavailable-workspace message with an authenticated account summary showing the current account ID and API base URL.
+- Added a direct route from the dashboard overview to the account's developer API-key console.
+- Clarified that email API and webhook integrations use account-scoped API keys while mailbox, campaigns, audiences, templates and analytics remain incomplete dashboard modules.
+- Added safe sender display-name support to the SMTP transport and set the human sign-in OTP sender to **LeadMaster** without changing the verified sender address or SMTP envelope sender.
+- Added regression coverage for the visible From header and preserved SMTP envelope sender.
+
+# Changelog
+
 ## 2026-11-09 — Documentation consolidation and maintainer handover
 
 - Integrated product, authentication, developer API, webhook, queue, MCP and operations documentation into the landing-page Documentation tab.
