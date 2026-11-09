@@ -78,21 +78,38 @@ export async function sendSesEmail({ connect, env, to, subject, text, html, from
   if (!HOST.test(host)) throw new Error('SMTP configuration unavailable');
   let socket; let timer; let dataSent = false; let accepted = false;
   try {
-    socket = connect({ hostname: host, port: 465 }, { secureTransport: 'on' });
+    // AWS SES SMTP submission uses STARTTLS on port 587. Begin with plain TCP,
+    // negotiate STARTTLS, then discard the original streams and use the upgraded socket.
+    socket = connect({ hostname: host, port: 587 }, { secureTransport: 'starttls' });
     const run = async () => {
       await socket.opened;
-      const reader = socket.readable.getReader(); const writer = socket.writable.getWriter(); const replies = new ReplyReader(reader);
+      let reader = socket.readable.getReader();
+      let writer = socket.writable.getWriter();
+      let replies = new ReplyReader(reader);
       async function expect(allowed) { const code = await replies.reply(); if (!allowed.includes(code)) throw new Error('SMTP request rejected'); }
-      async function command(value, allowed) { await writer.write(encoder.encode(value + '\r\n')); await expect(allowed); }
+      async function command(value, allowed) { await writer.write(encoder.encode(value + '\\r\\n')); await expect(allowed); }
       await expect([220]);
       await command('EHLO leadmaster.local', [250]);
-      await command('AUTH PLAIN ' + utf8b64('\0' + username + '\0' + password), [235]);
+      await command('STARTTLS', [220]);
+
+      // Cloudflare startTls() replaces the socket; old stream locks must be released
+      // and no old reader/writer may be used after the upgrade.
+      reader.releaseLock();
+      writer.releaseLock();
+      socket = socket.startTls();
+      await socket.opened;
+      reader = socket.readable.getReader();
+      writer = socket.writable.getWriter();
+      replies = new ReplyReader(reader);
+
+      await command('EHLO leadmaster.local', [250]);
+      await command('AUTH PLAIN ' + utf8b64('\\0' + username + '\\0' + password), [235]);
       await command(`MAIL FROM:<${from}>`, [250]);
       await command(`RCPT TO:<${to}>`, [250,251]);
       await command('DATA', [354]);
       // A timeout or disconnect from this point is an ambiguous delivery.
       dataSent = true;
-      await writer.write(encoder.encode(message + '.\r\n'));
+      await writer.write(encoder.encode(message + '.\\r\\n'));
       await expect([250]); accepted = true;
       return { status: 'accepted' };
     };
