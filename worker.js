@@ -278,7 +278,45 @@ async function logout(request, env) {
   return json({ ok: true }, 200, { "set-cookie": SESSION_COOKIE + "=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict" });
 }
 
-async function handle(request, env) {
+
+async function adminMailboxRoute(request,env,session){
+ if(!session||session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
+ if(!env.INBOUND_MAIL||!env.AUTH_DB)return json({error:"Mailbox storage unavailable"},503);
+ const url=new URL(request.url),parts=url.pathname.split("/").filter(Boolean),folder=url.searchParams.get("folder")||"inbox",q=(url.searchParams.get("q")||"").trim().slice(0,100),domain=(url.searchParams.get("domain")||"").toLowerCase();
+ const counts={};
+ for(const [k,sql] of Object.entries({inbox:"SELECT COUNT(*) n FROM inbound_mail WHERE archived_at IS NULL",sent:"SELECT COUNT(*) n FROM admin_sent_mail",bounced:"SELECT COUNT(*) n FROM email_delivery_events WHERE status='bounced'",unsuccessful:"SELECT (SELECT COUNT(*) FROM admin_sent_mail WHERE status IN ('failed','unknown'))+(SELECT COUNT(*) FROM developer_email_requests WHERE status IN ('failed','unknown')) n",unsubscribed:"SELECT COUNT(*) n FROM email_unsubscribes"})){const r=await env.AUTH_DB.prepare(sql).first();counts[k]=Number(r?.n||0);}
+ if(request.method==="GET"&&url.pathname==="/api/admin/mail"){
+  if(folder==="counts")return json({counts,storage:true});
+  if(folder==="inbox"){const r=await env.AUTH_DB.prepare("SELECT id,from_address,to_address,subject,received_at,read_at,archived_at,delivery_status,size_bytes FROM inbound_mail WHERE archived_at IS NULL AND (?='' OR lower(from_address||' '||to_address||' '||subject) LIKE ?) AND (?='' OR lower(from_address) LIKE ? OR lower(to_address) LIKE ?) ORDER BY received_at DESC LIMIT 100").bind(q,q?"%"+q.toLowerCase()+"%":"",domain,domain?"%"+domain+"%":"",domain?"%"+domain+"%":"").all();return json({items:r.results||[],counts,storage:true,note:"Dedicated mailbox only. Existing forwarding routes are unchanged."});}
+  if(folder==="sent"){const r=await env.AUTH_DB.prepare("SELECT id,recipient,subject,status,created_at,updated_at,from_email,reply_to FROM admin_sent_mail WHERE (?='' OR lower(recipient||' '||subject) LIKE ?) ORDER BY created_at DESC LIMIT 100").bind(q,q?"%"+q.toLowerCase()+"%":"").all();return json({items:r.results||[],counts,note:"Sent means SES accepted the SMTP submission, not confirmed inbox delivery."});}
+  if(folder==="bounced"){const r=await env.AUTH_DB.prepare("SELECT id,email AS recipient,subject,status,created_at AS received_at,detail FROM email_delivery_events WHERE status='bounced' ORDER BY created_at DESC LIMIT 100").all();return json({items:r.results||[],counts,note:"SES bounce-event destination is not yet connected; this folder will populate when SES events are configured."});}
+  if(folder==="unsuccessful"){const r=await env.AUTH_DB.prepare("SELECT id,recipient,subject,status,created_at,updated_at,error_code FROM admin_sent_mail WHERE status IN ('failed','unknown') UNION ALL SELECT id,recipient,subject,status,created_at,updated_at,error_code FROM developer_email_requests WHERE status IN ('failed','unknown') ORDER BY created_at DESC LIMIT 100").all();return json({items:r.results||[],counts,note:"Failed = SMTP not accepted. Unknown = final SMTP acceptance could not be confirmed."});}
+  if(folder==="unsubscribed"){const r=await env.AUTH_DB.prepare("SELECT id,email,source,created_at,reason AS subject FROM email_unsubscribes ORDER BY created_at DESC LIMIT 100").all();return json({items:r.results||[],counts,note:"Suppression records. No marketing unsubscribe capture endpoint is enabled."});}
+  return json({error:"Unknown folder"},400);
+ }
+ const id=parts[3];
+ if(parts.length===4&&request.method==="GET"&&/^[0-9a-f-]{36}$/i.test(id)){
+  const row=await env.AUTH_DB.prepare("SELECT * FROM inbound_mail WHERE id=?").bind(id).first();
+  if(row){const obj=await env.INBOUND_MAIL.get(row.r2_key);if(!obj)return json({error:"Original message unavailable"},404);const raw=await obj.text(),chunks=raw.split(/\r?\n\r?\n/),headers=chunks.shift()||"",body=chunks.join("\n"),part=body.split(/\r?\n--[^\r\n]+/).find(x=>/content-type:\s*text\/plain/i.test(x));let textBody=(part||body).replace(/^.*?\r?\n\r?\n/s,"");const transfer=(part||"").match(/content-transfer-encoding:\s*([^\r\n]+)/i)?.[1]?.trim().toLowerCase();try{if(transfer==="base64")textBody=atob(textBody.replace(/\s/g,""));else if(transfer==="quoted-printable")textBody=textBody.replace(/=\r?\n/g,"").replace(/=([0-9a-f]{2})/gi,(_,h)=>String.fromCharCode(parseInt(h,16)));}catch{textBody="Message body could not be decoded.";}await env.AUTH_DB.prepare("UPDATE inbound_mail SET read_at=COALESCE(read_at,?) WHERE id=?").bind(Date.now(),id).run();return json({id,from_address:row.from_address,to_address:row.to_address,subject:row.subject,received_at:row.received_at,read_at:row.read_at||Date.now(),text_body:textBody.slice(0,100000),attachments:(body.match(/content-disposition:\s*attachment/gi)||[]).length,download_url:"/api/admin/mail/"+id+"/source"});}
+  const sent=await env.AUTH_DB.prepare("SELECT * FROM admin_sent_mail WHERE id=?").bind(id).first();if(sent)return json({id,sender:sent.from_email,recipient:sent.recipient,subject:sent.subject,created_at:sent.created_at,text_body:sent.text_body||"",status:sent.status});return json({error:"Message not found"},404);
+ }
+ if(parts.length===5&&parts[4]==="source"&&request.method==="GET"){const row=await env.AUTH_DB.prepare("SELECT r2_key FROM inbound_mail WHERE id=?").bind(id).first();if(!row)return json({error:"Not found"},404);const obj=await env.INBOUND_MAIL.get(row.r2_key);if(!obj)return json({error:"Not found"},404);return new Response(obj.body,{headers:{"content-type":"message/rfc822","content-disposition":'attachment; filename="leadmaster-message.eml"',"cache-control":"no-store","x-content-type-options":"nosniff"}});}
+ if(parts.length===4&&request.method==="PATCH"){if(request.headers.get("Origin")!==url.origin)return json({error:"Invalid request"},403);let b;try{b=await readJson(request)}catch{return json({error:"Invalid request"},400)}if(typeof b.read==="boolean")await env.AUTH_DB.prepare("UPDATE inbound_mail SET read_at=? WHERE id=?").bind(b.read?Date.now():null,id).run();if(b.archive===true)await env.AUTH_DB.prepare("UPDATE inbound_mail SET archived_at=? WHERE id=?").bind(Date.now(),id).run();return json({ok:true});}
+ return json({error:"Not found"},404);
+}
+async function adminSendRoute(request,env,session,connect){
+ if(!session||session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
+ if(request.method!=="POST")return json({error:"Method not allowed"},405,{allow:"POST"});
+ if(request.headers.get("Origin")!==new URL(request.url).origin)return json({error:"Invalid request"},403);
+ let b;try{b=await readJson(request)}catch{return json({error:"Invalid request"},400)}
+ const to=String(b.to||"").trim(),from=String(b.fromEmail||"").trim().toLowerCase(),subject=String(b.subject||""),textBody=String(b.text||""),domain=from.split("@")[1]||"";
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(from)||!(domain==="jelvan.pro"||domain.endsWith(".jelvan.pro")||domain==="operavaglobal.com"||domain.endsWith(".operavaglobal.com")))return json({error:"Sender must be under a verified jelvan.pro or operavaglobal.com identity"},400);
+ const id=crypto.randomUUID(),now=Date.now(),name=from==="hello@operavaglobal.com"?"Operava":from==="hello@work.jelvan.pro"?"Jelvan Ricolcol":"LeadMASTER";
+ await env.AUTH_DB.prepare("INSERT INTO admin_sent_mail (id,recipient,subject,status,created_at,updated_at,from_email,from_name,reply_to,text_body,error_code) VALUES (?,?,?,'sending',?,?,?,?,?,?,NULL)").bind(id,to,subject,now,now,from,name,session.email,textBody).run();
+ try{await sendSesEmail({connect,env,to,subject,text:textBody,fromEmail:from,fromName:name,replyTo:session.email});await env.AUTH_DB.prepare("UPDATE admin_sent_mail SET status='accepted',updated_at=? WHERE id=?").bind(Date.now(),id).run();return json({id,status:"accepted",message:"SES accepted the SMTP submission; inbox delivery is not confirmed."});}
+ catch(e){const status=e?.deliveryOutcome==="unknown"?"unknown":"failed";await env.AUTH_DB.prepare("UPDATE admin_sent_mail SET status=?,updated_at=?,error_code=? WHERE id=?").bind(status,Date.now(),status==="unknown"?"delivery_outcome_unknown":"delivery_not_accepted",id).run();return json({id,status,error:"Submission did not complete. See Unsuccessful."},status==="unknown"?202:502);}
+}
+\nasync function handle(request, env) {
   const url = new URL(request.url);
 
 
