@@ -99,3 +99,13 @@ Unit tests do not prove live Turnstile, SES inbox delivery or webhook callback r
 - Connected email folders to the live mailbox endpoints, message detail/delete actions to the mailbox API, compose to the production sending queue, profile save/logout to authenticated endpoints, and API-key list/create to account-scoped key management.
 - Removed sample audience, activity, automation, webhook and campaign records from the initial data collections; unsupported backend features must not be represented as live records.
 - Updated the asset build script, tests, agent instructions and Android navigation parity. Full feature coverage for templates, audience/contact CRUD, campaign scheduling, automation workflows, domain verification, engagement analytics and session-based webhook management remains outstanding.
+
+
+## 2026-11-09 — Mandatory dashboard live feature integration
+
+- Kept the mandatory React dashboard as the canonical visual source and synchronized its public mirror.
+- Connected live suppression list and add-suppression action, account-scoped webhook listing/creation/revocation/delivery history, optional least-privilege webhook API-key scope, live accepted-send list and existing sending composer.
+- Replaced sample template, audience, inbox, campaign, automation, metrics and domain-verification content with real data or explicit unavailable states.
+- Updated Android native navigation to mirror Home, Emails, Audience, Metrics and Profile section IDs.
+- Updated dashboard feature map, agent instructions, README, handover, dashboard tests and desktop/mobile screenshot capture workflow.
+- Build, tests, screenshot review and production browser acceptance are pending CI results; no deployment is claimed by this changelog entry.
