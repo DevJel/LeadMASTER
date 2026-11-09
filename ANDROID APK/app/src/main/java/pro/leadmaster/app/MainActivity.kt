@@ -22,6 +22,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.view.View
 import android.view.Gravity
 import android.view.WindowManager
@@ -35,6 +36,8 @@ import androidx.core.view.WindowCompat
 class MainActivity : ComponentActivity() {
     private lateinit var web: WebView
     private lateinit var nav: LinearLayout
+    private val navButtons = linkedMapOf<String, Button>()
+    private val appSections = setOf("overview", "emails", "logs", "domains", "settings")
     private val appHost = "leadmaster.jelvan.pro"
     private val homeUrl = "https://leadmaster.jelvan.pro/login.html"
     private val channelId = "leadmaster_updates"
@@ -69,17 +72,32 @@ class MainActivity : ComponentActivity() {
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                     val uri = request?.url ?: return true
-                    if (uri.scheme == "https" && uri.host == appHost) return false
-                    if (uri.scheme == "https" || uri.scheme == "http") {
-                        startActivity(Intent(Intent.ACTION_VIEW, uri))
-                        return true
+                    val internal = uri.scheme == "https" && uri.host == appHost &&
+                        (uri.port == -1 || uri.port == 443) && uri.userInfo == null
+                    if (internal) return false
+                    if (uri.scheme == "https" || uri.scheme == "http" ||
+                        uri.scheme == "mailto" || uri.scheme == "tel") {
+                        return try {
+                            val intent = Intent(Intent.ACTION_VIEW, uri)
+                            if (intent.resolveActivity(packageManager) != null) startActivity(intent)
+                            true
+                        } catch (_: Exception) { true }
                     }
                     return true
                 }
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
-                    nav.visibility = if (url?.contains("/dashboard") == true) View.VISIBLE else View.GONE
+                    val onWorkspace = runCatching {
+                        val uri = Uri.parse(url)
+                        uri.scheme == "https" && uri.host == appHost && uri.path?.contains("/dashboard") == true
+                    }.getOrDefault(false)
+                    nav.visibility = if (onWorkspace) View.VISIBLE else View.GONE
+                    updateSelectedNavigation(Uri.parse(url ?: homeUrl).fragment ?: "overview")
                     view?.evaluateJavascript("document.documentElement.style.setProperty('--lm-native-app','1')", null)
+                }
+                override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
+                    super.doUpdateVisitedHistory(view, url, isReload)
+                    updateSelectedNavigation(Uri.parse(url ?: homeUrl).fragment ?: "overview")
                 }
             }
             setDownloadListener(DownloadListener { url, _, contentDisposition, mimeType, _ ->
@@ -103,9 +121,10 @@ class MainActivity : ComponentActivity() {
             elevation = 10f
             visibility = View.GONE
         }
-        addNavButton("Home", "overview")
-        addNavButton("Inbox", "emails")
+        addNavButton("Overview", "overview")
+        addNavButton("Emails", "emails")
         addNavButton("Activity", "logs")
+        addNavButton("Senders", "domains")
         addNavButton("Settings", "settings")
         root.addView(web, LinearLayout.LayoutParams(-1, 0, 1f))
         root.addView(nav, LinearLayout.LayoutParams(-1, dp(58)))
@@ -113,8 +132,15 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState != null) web.restoreState(savedInstanceState) else web.loadUrl(homeUrl)
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (web.url?.contains("/dashboard") == true && web.url?.contains("#") == true) {
-                    web.evaluateJavascript("if(location.hash){location.hash='#overview'}else{location.href='/login.html'}", null)
+                if (web.url?.contains("/dashboard") == true) {
+                    val section = Uri.parse(web.url).fragment
+                    if (!section.isNullOrBlank() && section != "overview") {
+                        web.evaluateJavascript("location.hash='#overview'", null)
+                    } else if (web.canGoBack()) {
+                        web.goBack()
+                    } else {
+                        web.evaluateJavascript("location.href='/login.html'", null)
+                    }
                 } else if (web.canGoBack()) web.goBack() else finish()
             }
         })
@@ -126,15 +152,39 @@ class MainActivity : ComponentActivity() {
     private fun addNavButton(label: String, section: String) {
         val button = Button(this).apply {
             text = label
-            textSize = 11f
+            textSize = 10.5f
             isAllCaps = false
-            setTextColor(Color.rgb(40, 40, 40))
+            minHeight = 0
+            minimumHeight = 0
+            setPadding(dp(2), 0, dp(2), 0)
+            setTextColor(Color.rgb(75, 75, 75))
             setBackgroundColor(Color.TRANSPARENT)
+            contentDescription = label
             setOnClickListener {
-                web.evaluateJavascript("document.querySelector('[data-section=\\\"$section\\\"]')?.click();window.scrollTo(0,0)", null)
+                if (section in appSections) {
+                    web.evaluateJavascript("location.hash='#$section';window.scrollTo(0,0)", null)
+                    updateSelectedNavigation(section)
+                }
             }
         }
+        navButtons[section] = button
         nav.addView(button, LinearLayout.LayoutParams(0, -1, 1f))
+    }
+
+    private fun updateSelectedNavigation(rawSection: String) {
+        val section = rawSection.takeIf { it in appSections } ?: "overview"
+        navButtons.forEach { (key, button) ->
+            val selected = key == section
+            button.setTextColor(if (selected) Color.rgb(20, 20, 20) else Color.rgb(105, 105, 105))
+            button.typeface = android.graphics.Typeface.create(
+                "sans-serif", if (selected) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL
+            )
+            button.background = GradientDrawable().apply {
+                setColor(if (selected) Color.rgb(239, 239, 239) else Color.TRANSPARENT)
+                cornerRadius = dp(9).toFloat()
+            }
+            button.isSelected = selected
+        }
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
