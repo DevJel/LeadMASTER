@@ -88,7 +88,7 @@ Every webhook stores `account_id` and `api_key_id`. Delivery dispatch must filte
 
 ## 5. Human login vs AI agent access
 
-Human administrator login uses password, human security verification and email OTP. It is not an agent integration.
+Human administrator login uses password, human security verification and email OTP. The single configured primary administrator is exempt from IP/email request throttles; Turnstile, password verification, OTP expiry, single-use and the five-incorrect-attempt cap remain enforced. It is not an agent integration.
 
 AI agents:
 - Must not open, automate, scrape, solve, bypass or replay the human security challenge.

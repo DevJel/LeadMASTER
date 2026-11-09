@@ -79,23 +79,6 @@ async function challengeCookieValid(request, env) {
   if (!key) return false;
   return equal(await hmac(key, exp), signature);
 }
-async function rateLimit(env, key, limit, windowMs) {
-  const now = Date.now();
-  const threshold = now - windowMs;
-  const result = await env.AUTH_DB.prepare(
-    "INSERT INTO auth_rate_limits (bucket_key, window_start, count) VALUES (?, ?, 1) " +
-    "ON CONFLICT(bucket_key) DO UPDATE SET " +
-    "count = CASE WHEN auth_rate_limits.window_start <= ? THEN 1 ELSE auth_rate_limits.count + 1 END, " +
-    "window_start = CASE WHEN auth_rate_limits.window_start <= ? THEN excluded.window_start ELSE auth_rate_limits.window_start END " +
-    "RETURNING count, window_start"
-  ).bind(key, now, threshold, threshold).first();
-  const count = Number(result?.count || 0);
-  const windowStart = Number(result?.window_start || now);
-  return {
-    allowed: count <= limit,
-    retryAfter: Math.max(1, Math.ceil((windowStart + windowMs - now) / 1000))
-  };
-}
 async function renderEmailTemplate(path, replacements) {
   const templates = {
     "/email-otpformat.html": emailOtpTemplate,
@@ -182,20 +165,17 @@ async function authConfig(request, env) {
   if (!siteKey || !/^0x4[A-Za-z0-9_-]{20,}$/.test(siteKey)) return json({ error: "Security verification is not configured" }, 503);
   return json({ turnstileSiteKey: siteKey });
 }
+// The current product provisions one primary administrator. That identity is intentionally exempt from
+// email/IP request throttles; Turnstile, password verification and the one-time OTP attempt cap remain active.
 async function login(request, env) {
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405, { allow: "POST" });
   if (!sameOrigin(request)) return json({ error: "Invalid request" }, 403);
   let body;
   try { body = await readJson(request); } catch { return json({ error: "Invalid request" }, 400); }
-  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-  const ipLimit = await rateLimit(env, "ip:" + ip, 10, 15 * 60 * 1000);
-  if (!ipLimit.allowed) return json({ error: "Too many sign-in attempts from this network. Please wait before trying again.", retryAfter: ipLimit.retryAfter }, 429, { "retry-after": String(ipLimit.retryAfter) });
   if (!(await verifyLoginTurnstile(body.turnstileToken, env, "login"))) return json({ error: "Security verification failed. Complete the Cloudflare check and try again." }, 403);
   const identity = typeof body.identity === "string" ? body.identity.trim().toLowerCase() : "";
   const adminEmail = await configuredAdminEmail(env);
   if (!adminEmail || identity !== adminEmail) return json({ error: "Unable to sign in. Check the registered email and password." }, 401);
-  const emailLimit = await rateLimit(env, "email:" + adminEmail, 8, 15 * 60 * 1000);
-  if (!emailLimit.allowed) return json({ error: "Too many sign-in requests for this account. Please wait before requesting another code.", retryAfter: emailLimit.retryAfter }, 429, { "retry-after": String(emailLimit.retryAfter) });
   const configuredPassword = await secret(env.ADMIN_PASSWORD);
   const sessionSecret = await secret(env.SESSION_SECRET);
   if (!configuredPassword || !sessionSecret || !(await passwordMatches(body.password, configuredPassword))) return json({ error: "Unable to sign in" }, 401);
@@ -230,9 +210,6 @@ async function verifyOtp(request, env) {
   if (!sameOrigin(request)) return json({ error: "Invalid request" }, 403);
   let body;
   try { body = await readJson(request); } catch { return json({ error: "Invalid request" }, 400); }
-  const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-  const ipLimit = await rateLimit(env, "verify-ip:" + ip, 12, 15 * 60 * 1000);
-  if (!ipLimit.allowed) return json({ error: "Too many verification attempts from this network. Please wait before trying again.", retryAfter: ipLimit.retryAfter }, 429, { "retry-after": String(ipLimit.retryAfter) });
   const code = typeof body.code === "string" ? body.code.replace(/[^0-9]/g, "").slice(0, 6) : "";
   if (!/^\d{6}$/.test(code)) return json({ error: "Enter the six-digit code from the latest email." }, 400);
   const row = await env.AUTH_DB.prepare("SELECT id,code_hash,expires_at,attempts FROM auth_challenges WHERE email = ? ORDER BY created_at DESC LIMIT 1").bind(adminEmail).first();

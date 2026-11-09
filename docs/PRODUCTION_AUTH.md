@@ -13,7 +13,7 @@
 - D1 database: `leadmaster-auth`, binding `AUTH_DB`
 - Turnstile hostname: `leadmaster.jelvan.pro`
 - Login Turnstile action: `login`
-- SES transport: SMTP over implicit TLS, port 465
+- SES transport: SMTP with STARTTLS, port 587
 
 ## Actual sign-in flow
 
@@ -21,7 +21,7 @@
 2. The login browser widget requests a Turnstile token with action `login`.
 3. `POST /api/auth/login` enforces same-origin, IP/email rate limits, server-side Turnstile Siteverify, expected hostname and action, administrator allowlist, and configured password verification.
 4. A successful password check generates a six-digit OTP, stores an HMAC hash in D1 and sends the code through SES SMTP. The OTP expires after 10 minutes.
-5. `POST /api/auth/verify` validates the code, enforces a maximum of five attempts, consumes it once and creates a 32-byte random opaque session token.
+5. `POST /api/auth/verify` validates the code, enforces expiry, single use and a maximum of five incorrect attempts (without an IP-based verification throttle for the primary administrator), consumes it and creates a 32-byte random opaque session token.
 6. Only the SHA-256 hash of the session token is stored in D1. The cookie is Secure, HttpOnly, SameSite=Strict and expires after eight hours.
 7. `GET /api/auth/session` checks the server-side session. `POST /api/auth/logout` revokes it.
 

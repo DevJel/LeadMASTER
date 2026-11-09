@@ -361,7 +361,7 @@ LeadMASTER is an email workspace and developer email integration service. The cu
 | Database | Cloudflare D1 | Authentication challenges, sessions, rate limits, accounts, API keys, email requests and webhooks |
 | Secret management | Cloudflare Secrets Store | Admin credentials, cryptographic/session secret, Turnstile secret and SES SMTP credentials |
 | Human anti-abuse | Cloudflare Turnstile | Login challenge and server-side Siteverify |
-| Transactional email | Amazon SES SMTP over implicit TLS | OTP, security alerts and authorized email submissions |
+| Transactional email | Amazon SES SMTP over STARTTLS (port 587) | OTP, security alerts and authorized email submissions |
 | Cryptography | Web Crypto API | SHA-256, HMAC-SHA256, PBKDF2 verification and secure random tokens |
 | Static asset pipeline | Generated src/static-assets.mjs from canonical public/ files | Worker-served browser assets |
 | Development and tests | Node.js 20+, npm and Node test runner | Local development and automated tests |
@@ -385,7 +385,7 @@ flowchart TB
   Auth --> Secrets[Cloudflare Secrets Store]
   API --> Secrets
   Auth --> Turnstile[Cloudflare Turnstile Siteverify]
-  Auth --> SES[Amazon SES SMTP over TLS]
+  Auth --> SES[Amazon SES SMTP STARTTLS on port 587]
   API --> SES
   Static --> Browser
 ~~~
@@ -441,7 +441,7 @@ The implemented human login is sequential and server-validated:
 1. Browser requests public login configuration and receives the Turnstile site key.
 2. User completes the Cloudflare Turnstile widget configured for the login action.
 3. Browser submits administrator identity, password and challenge token to the same-origin Worker endpoint.
-4. Worker checks request origin, IP/email rate limits, Turnstile Siteverify, expected hostname/action, configured administrator allowlist and password.
+4. Worker checks request origin, Turnstile Siteverify, expected hostname/action, configured primary administrator allowlist and password. The single configured primary administrator is exempt from IP/email login throttles.
 5. Successful password verification creates a six-digit email OTP. Only an HMAC hash is stored in D1; the OTP expires after ten minutes and allows at most five verification attempts.
 6. Valid OTP is consumed once. Worker creates a random 32-byte opaque session token and stores only its SHA-256 hash.
 7. Browser receives an eight-hour Secure, HttpOnly, SameSite=Strict cookie.
@@ -452,7 +452,7 @@ flowchart TD
   A[Open administrator login] --> B[Load public Turnstile site key]
   B --> C[Complete login challenge]
   C --> D[POST identity, password and token]
-  D --> E{Origin and rate limits valid?}
+  D --> E{Origin valid?}
   E -- No --> X[Reject]
   E -- Yes --> F{Turnstile Siteverify valid?}
   F -- No --> X
@@ -507,7 +507,7 @@ Current source implements the following controls:
 
 - Same-origin checks on human authentication and state-changing administrator operations.
 - Server-side Turnstile Siteverify with expected hostname and action.
-- IP/email login limits and OTP verification limits backed by D1.
+- The single configured primary administrator is not subject to IP/email login throttles. Turnstile, password verification, OTP expiry, single-use and the five-incorrect-attempt cap remain enforced.
 - Administrator allowlist and configured password verification.
 - Single-use, time-limited OTPs stored as HMAC hashes with a five-attempt cap.
 - Cryptographically random opaque sessions; only token hashes are persisted.

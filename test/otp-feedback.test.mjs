@@ -5,11 +5,12 @@ import {readFile} from 'node:fs/promises';
 const worker=await readFile(new URL('../worker.js',import.meta.url),'utf8');
 const login=await readFile(new URL('../public/login.js',import.meta.url),'utf8');
 
-test('authentication rate limits return a retry window instead of a misleading credential error',()=>{
-  assert.match(worker,/RETURNING count, window_start/);
-  assert.match(worker,/emailLimit\.allowed/);
-  assert.match(worker,/Too many sign-in requests for this account/);
-  assert.match(worker,/retry-after/);
+test('primary administrator login is not blocked by IP or email throttles',()=>{
+  assert.doesNotMatch(worker,/rateLimit\(env,\s*["'](?:ip:|email:|verify-ip:)/);
+  assert.doesNotMatch(worker,/emailLimit/);
+  assert.match(worker,/verifyLoginTurnstile/);
+  assert.match(worker,/configuredAdminEmail/);
+  assert.match(worker,/row\.attempts >= 5/);
 });
 
 test('OTP verification distinguishes invalid, expired, locked and network failure cases',()=>{

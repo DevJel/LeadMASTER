@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-09 — Restore continuous product motion and primary administrator sign-in
+
+- Restored looping animations for the landing-page Product Moments concepts, including the message reveal, workflow progress, step highlights and activity bars; reduced-motion preferences remain respected.
+- Restored click-through behavior on the animated LeadMASTER halftone wordmark so selecting the wordmark opens the administrator login page.
+- Removed IP- and email-based request throttles from the single configured primary administrator login and OTP verification flow. Turnstile, password verification, OTP expiry, single-use and the five-incorrect-attempt cap remain in place.
+- Updated authentication documentation, regression tests and the generated static asset bundle.
+
 ## 2026-11-09 — Dashboard account context and branded OTP sender
 
 - Replaced the misleading unavailable-workspace message with an authenticated account summary showing the current account ID and API base URL.

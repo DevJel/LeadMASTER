@@ -4,7 +4,7 @@
   for (const canvas of document.querySelectorAll('[data-halftone]')) {
     const ctx=canvas.getContext('2d'); if(!ctx) continue;
     const dark=canvas.dataset.halftone!=='light', transparent=canvas.dataset.halftone==='login', background=dark?'#0a0a0a':'#fff', ink=dark?[237,232,224]:[10,10,10], warm=[233,118,43];
-    const parent=canvas.parentElement, gap=6, radius=80; let points=[],width=1,height=1,dpr=1,frame=0,visible=true,pointer={x:-1e5,y:-1e5},ring=null;
+    const parent=canvas.parentElement, gap=6, radius=80; let points=[],width=1,height=1,dpr=1,frame=0,visible=true,pointer={x:-1e5,y:-1e5},ring=null,wordmarkBounds=null;
     function resize(){
       const rect=parent.getBoundingClientRect(); width=Math.max(1,Math.round(rect.width));height=Math.max(1,Math.round(rect.height));dpr=Math.min(devicePixelRatio||1,2);
       canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);
@@ -12,7 +12,7 @@
       const font='"Inter Tight", "Inter Variable", Inter, "Helvetica Neue", Arial, system-ui, sans-serif';m.font=`800 100px ${font}`;
       const size=(100/m.measureText('LeadMASTER').width)*width*(dark?1.02:.96);m.font=`800 ${size}px ${font}`;
       const measured=m.measureText('LeadMASTER'),ascent=measured.actualBoundingBoxAscent||size*.72;
-      m.textBaseline='alphabetic';m.fillStyle='#000';m.fillText('LeadMASTER',(width-measured.width)/2,height+ascent*(transparent?-.18:(dark?.2:-.25)));
+      m.textBaseline='alphabetic';m.fillStyle='#000';const textLeft=(width-measured.width)/2,textBaseline=height+ascent*(transparent?-.18:(dark?.2:-.25));wordmarkBounds={left:textLeft-10,top:textBaseline-ascent-8,right:textLeft+measured.width+10,bottom:textBaseline+8};m.fillText('LeadMASTER',textLeft,textBaseline);
       const data=m.getImageData(0,0,width,height).data;points=[];
       for(let y=0;y<height;y+=gap)for(let x=0;x<width;x+=gap){let alpha=0;for(let yy=0;yy<3;yy++)for(let xx=0;xx<3;xx++){const sx=Math.min(width-1,Math.floor(x+(xx+.5)*gap/3)),sy=Math.min(height-1,Math.floor(y+(yy+.5)*gap/3));alpha+=data[(sy*width+sx)*4+3];}const density=alpha/2295;if(density>=.06)points.push({x:x+gap/2,y:y+gap/2,ox:x+gap/2,oy:y+gap/2,vx:0,vy:0,r:Math.sqrt(Math.min(1,density))*gap*.56});}
       draw(performance.now(),true);
@@ -33,7 +33,7 @@
     function pos(event){const r=canvas.getBoundingClientRect();return {x:event.clientX-r.left,y:event.clientY-r.top};}
     canvas.addEventListener('pointermove',event=>{if(!reduced.matches){pointer=pos(event);schedule();}});
     canvas.addEventListener('pointerleave',()=>{pointer={x:-1e5,y:-1e5};schedule();});
-    canvas.addEventListener('click',event=>{if(!reduced.matches){ring={...pos(event),t:performance.now()};schedule();}});
+    canvas.addEventListener('click',event=>{const point=pos(event);if(canvas.dataset.halftone==='dark'&&wordmarkBounds&&point.x>=wordmarkBounds.left&&point.x<=wordmarkBounds.right&&point.y>=wordmarkBounds.top&&point.y<=wordmarkBounds.bottom){window.location.assign('./login.html');return;}if(!reduced.matches){ring={...point,t:performance.now()};schedule();}});
     if('ResizeObserver' in window)new ResizeObserver(resize).observe(parent);else window.addEventListener('resize',resize);
     if('IntersectionObserver' in window)new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;if(visible)schedule();}).observe(parent);
     reduced.addEventListener?.('change',()=>schedule());resize();
