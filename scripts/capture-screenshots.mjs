@@ -100,13 +100,14 @@ try {
   for (const [label,slug] of sections) {
     const tab = page.locator(".tab-link").filter({hasText:label}).first();
     await tab.click();
-    await page.waitForFunction(value => document.querySelector(".tab-link.active")?.textContent?.trim() === value,label,{timeout:10000});
+    await page.waitForFunction(value => document.querySelector(".tab-link.active")?.textContent?.trim().startsWith(value),label,{timeout:10000});
     await page.screenshot({path:output+"/dashboard-"+slug+".png",fullPage:true});
   }
   await page.setViewportSize({width:390,height:844});
-  for (const [label,slug] of [["Homepage","home"],["Audience","audience"],["Webhooks","webhooks"]]) {
-    await page.locator(".tab-link").filter({hasText:label}).first().click();
-    await page.waitForFunction(value => document.querySelector(".tab-link.active")?.textContent?.trim() === value,label,{timeout:10000});
+  await page.screenshot({path:output+"/dashboard-mobile-home.png",fullPage:true});
+  for (const [label,slug] of [["Audience","audience"],["Profile","profile"]]) {
+    await page.locator(".bottom-tab").filter({hasText:label}).first().click();
+    await page.waitForFunction(value => document.querySelector(".bottom-tab.active")?.textContent?.trim().startsWith(value),label,{timeout:10000});
     await page.screenshot({path:output+"/dashboard-mobile-"+slug+".png",fullPage:true});
   }
   await page.setViewportSize({width:1440,height:1000});
