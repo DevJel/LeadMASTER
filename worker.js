@@ -204,7 +204,16 @@ async function login(request, env) {
       text: "Your LeadMASTER verification code is " + code + ". It expires in 10 minutes. If you did not request this code, you can ignore this email.",
       html: await renderEmailTemplate("/email-otpformat.html", { USER_NAME: "Admin", OTP_CODE: code, EXPIRY_MINUTES: "10" })
     });
-  } catch {
+  } catch (error) {
+    // If SMTP acceptance is ambiguous, preserve the challenge so a code that
+    // actually arrived can still be verified. Never generate an automatic resend.
+    if (error?.deliveryOutcome === "unknown") {
+      return json({
+        next: "verify_email",
+        delivery_status: "unknown",
+        message: "Delivery could not be confirmed. Check your inbox before requesting another code."
+      }, 202);
+    }
     await env.AUTH_DB.prepare("DELETE FROM auth_challenges WHERE id = ?").bind(id).run();
     return json({ error: "Email verification is temporarily unavailable" }, 503);
   }
