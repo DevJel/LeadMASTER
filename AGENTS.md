@@ -122,7 +122,7 @@ Do not advertise a web feature as native Android functionality unless it is impl
 - Clearly label synthetic local preview captures; never present them as production evidence.
 - Use an authorized test account for protected screens.
 - Redact personal data, API keys, OTPs, account identifiers and webhook secrets.
-- The current dashboard sections are placeholders. Do not label them as completed product features.
+- Use `src/dashboard-feature-map.md` to distinguish live API-backed dashboard features from unavailable modules; do not label unsupported sections as completed.
 - Record screenshot viewport, environment and whether the image is production or local preview.
 
 ## Completion and reporting
@@ -142,3 +142,8 @@ Before replacing `public/dashboard.html`, read `src/dashboard-feature-map.md`. I
 ## Authoritative LeadMASTER dashboard source
 
 `src/Mandatory LeadMASTER Dashboard.html` is the mandatory source of truth for the production dashboard UI. Preserve its React component tree, embedded styling, layout, spacing, responsive breakpoints, icons and interaction design. Do not redesign or reimplement the dashboard when connecting features. Make the smallest data/API integration changes necessary, then mirror the file to `public/dashboard.html` and regenerate `src/static-assets.mjs` with `npm run build:assets`. The build script performs this synchronization. Keep dashboard features account-scoped and backed by real production APIs. Never display local preview/sample data as production information; where a backend capability is not implemented, present an explicit unavailable state rather than a simulated success. Assess Android companion parity for every dashboard change.
+
+
+## Dashboard integration and Android section contract
+
+Before every dashboard change, read `src/dashboard-feature-map.md`. Treat `src/Mandatory LeadMASTER Dashboard.html` as the canonical UI and preserve its React components and visual output. Keep `public/dashboard.html` identical and regenerate `src/static-assets.mjs` with `npm run build:assets`. Use only the real APIs listed in the feature map. Never display prototype records or report a local-only action as saved. Unsupported features must remain clearly unavailable until a secure account-scoped API exists. The Android bottom navigation must match the mandatory dashboard mobile destinations: `home`, `emails`, `audience`, `metrics`, `profile`; other modules remain reachable through the dashboard navigation drawer. Update Android in the same branch whenever a connected section ID, action or security behavior changes.
