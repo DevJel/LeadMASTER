@@ -21,37 +21,37 @@
   "secrets_store_secrets": [
     {
       "binding": "SES_SMTP_HOST",
-      "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
-      "secret_name": "AWS_SES_SMTP_HOSTNAME"
+      "store_id": "1a77c40addba476788aea7c043ca33db",
+      "secret_name": "SES_SMTP_HOST"
     },
     {
       "binding": "SES_SMTP_USERNAME",
-      "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
-      "secret_name": "AWS_SES_SMTP_USERNAME"
+      "store_id": "1a77c40addba476788aea7c043ca33db",
+      "secret_name": "SES_SMTP_USERNAME"
     },
     {
       "binding": "SES_SMTP_PASSWORD",
-      "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
-      "secret_name": "AWS_SES_SMTP_PASSPWORD"
+      "store_id": "1a77c40addba476788aea7c043ca33db",
+      "secret_name": "SES_SMTP_PASSWORD"
     },
     {
       "binding": "ADMIN_EMAIL",
-      "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
-      "secret_name": "ADMIN_EMAIL_1"
+      "store_id": "1a77c40addba476788aea7c043ca33db",
+      "secret_name": "ADMIN_EMAIL"
     },
     {
       "binding": "ADMIN_PASSWORD",
-      "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
-      "secret_name": "ADMIN_PASSWORD_1"
+      "store_id": "1a77c40addba476788aea7c043ca33db",
+      "secret_name": "ADMIN_PASSWORD"
     },
     {
       "binding": "SESSION_SECRET",
-      "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
-      "secret_name": "ADMIN_JWT_1"
+      "store_id": "1a77c40addba476788aea7c043ca33db",
+      "secret_name": "ADMIN_JWT_TOKEN"
     },
     {
       "binding": "TURNSTILE_SECRET",
-      "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
+      "store_id": "1a77c40addba476788aea7c043ca33db",
       "secret_name": "TURNSTILE_SECRET_KEY"
     }
   ],
