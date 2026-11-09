@@ -38,3 +38,12 @@ test('proposed Secrets Store aliases resolve to the SMTP binding names',async()=
 });
 
 test('uses the configured branded display name without changing the envelope sender',async()=>{const s=server();await sendSesEmail({...input,fromName:'LeadMaster',connect:s.connect});const message=s.commands.at(-1);assert.match(message,/From: LeadMaster <sender@example\.com>/);assert.ok(s.commands.some(command=>command==='MAIL FROM:<sender@example.com>\r\n'));});
+
+test('adds a private message reference and delivery event tag for SES updates',async()=>{
+ const s=server(),id='a1234567-b123-c123-d123-e123456789ab';
+ await sendSesEmail({...input,messageId:id,env:{...env,SES_CONFIGURATION_SET:'leadmaster-events'},connect:s.connect});
+ const data=s.commands.at(-1);
+ assert.match(data,new RegExp('X-LeadMASTER-Message-ID: '+id));
+ assert.match(data,new RegExp('X-SES-MESSAGE-TAGS: leadmaster_message_id='+id));
+ assert.match(data,/X-SES-CONFIGURATION-SET: leadmaster-events/);
+});
