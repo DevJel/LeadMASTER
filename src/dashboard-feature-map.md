@@ -19,10 +19,10 @@ The mandatory file is currently a local preview, not a production-ready dashboar
 | Emails / receiving | `GET /api/admin/mail?folder=inbox`, `GET /api/admin/mail/:id`, `PATCH /api/admin/mail/:id` | Dedicated inbound mailbox, message detail, read/archive/delete/restore and source download. |
 | Email delivery folders | `GET /api/admin/mail?folder=counts|bounced|unsuccessful|archived|deleted` | Operational delivery and mailbox states; accepted is not equivalent to delivered. |
 | AI reply assistance | `POST /api/admin/mail/:id/suggest` | Uses the configured Cloudflare AI binding and account-owned correspondence context. |
-| Suppressions | `POST /api/admin/unsubscribes`, `GET /api/admin/mail?folder=unsubscribed` | Add suppression and list suppressed entries through the mail folder. There is no general contact-list service. |
+| Suppressions | `GET/POST /api/admin/unsubscribes`, `GET /api/admin/mail?folder=unsubscribed` | Add suppression and list suppressed entries through the mail folder. There is no general contact-list service. |
 | API keys | `GET/POST /api/developer/keys`, `DELETE /api/developer/keys/:id` | Real account-scoped key creation, listing and revocation. Full secret is shown once. |
 | Email API | `/api/v1/accounts/:accountId/emails` | One recipient per developer API request, API-key scoped, idempotency supported. |
-| Webhooks | `/api/v1/accounts/:accountId/webhooks` | API-key scoped create/list/revoke and delivery history. No admin-session dashboard adapter yet. |
+| Webhooks | `/api/v1/accounts/:accountId/webhooks` | API-key scoped create/list/revoke and delivery history. Dashboard session adapter now supports `GET/POST /api/admin/webhooks`, `DELETE /api/admin/webhooks/:id` and `GET /api/admin/webhooks/:id/deliveries`, account-scoped and secret-safe. |
 | Profile / settings | `GET/PATCH /api/account/profile`, `GET /api/auth/session` | Only the account owner's display name is editable through this profile API. Email, team and timezone are not editable here. |
 | Activity / logs | `GET /api/admin/activity` | Workspace audit events, not opens/clicks or a full provider event analytics stream. |
 
