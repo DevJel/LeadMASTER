@@ -34,6 +34,10 @@
       if(!response.ok) throw new Error('session-check-failed');
       const data=await response.json();
       if(data.authenticated!==true) location.replace('/login.html');
+      const name=document.getElementById('workspace-name');
+      const email=document.getElementById('workspace-email');
+      if(name&&data.account?.name)name.textContent=data.account.name;
+      if(email&&data.email)email.textContent=data.email;
     } catch { location.replace('/login.html'); }
   }
   const logout=el('logout-link');
