@@ -697,7 +697,7 @@ See [LOGIN_UI.md](LOGIN_UI.md) for the login layout, responsive behavior and aut
 
 ## Android companion
 
-The `ANDROID APK/` project provides the LeadMASTER Android companion. It uses the same authenticated web workspace and server-side account rules rather than maintaining a separate email or account backend. Native navigation maps to the live dashboard sections: Overview, Emails, Activity, Sending addresses and Settings. App connections and other shared workspace routes remain available through the WebView.
+The `ANDROID APK/` project provides the LeadMASTER Android companion. It uses the same authenticated web workspace and server-side account rules rather than maintaining a separate email or account backend. Native navigation mirrors the mandatory dashboard mobile sections: Home, Emails, Audience, Metrics and Profile. Other modules remain available through the dashboard navigation drawer. App connections and other shared workspace routes remain available through the WebView.
 
 Build instructions, security boundaries, and the web/Android feature-parity protocol are documented in [ANDROID APK/README.md](ANDROID%20APK/README.md) and [AGENTS.md](AGENTS.md). Relevant web changes must be checked against Android entry points; update the companion only when a connected surface is affected.
 
@@ -705,3 +705,10 @@ Build instructions, security boundaries, and the web/Android feature-parity prot
 ## Mandatory production dashboard
 
 The production dashboard UI is governed by `src/Mandatory LeadMASTER Dashboard.html`. This file is the canonical React design source; `public/dashboard.html` is its generated deployment mirror. Run `npm run build:assets` to synchronize the mandatory UI and regenerate the Worker static asset bundle. Preserve the React components, styling, layout and responsive behavior when connecting backend features. Only production API-backed data may be presented as live workspace data; unsupported capabilities must be clearly identified instead of simulated.
+
+
+## Dashboard feature coverage
+
+The mandatory React dashboard is the canonical production UI. Its current live integrations and intentionally unavailable modules are mapped in [src/dashboard-feature-map.md](src/dashboard-feature-map.md). Live features include the authenticated account overview, mailbox and send queue, suppression list, account-scoped API keys and webhooks. Saved templates, contact lists, multi-inbox management, scheduled campaigns, automations, engagement tracking and DNS verification remain unavailable until their backend services exist. This prevents sample data or simulated actions from being presented as real account activity.
+
+The dashboard and Android companion share the same authenticated account context. Android native navigation follows Home, Emails, Audience, Metrics and Profile; the dashboard drawer provides the remaining sections.
