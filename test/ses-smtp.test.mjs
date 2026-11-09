@@ -6,18 +6,18 @@ function server({ rejectRcpt = false, failAfterData = false } = {}) {
   const commands = []; let closed = false; let optionsSeen;
   function makeSocket(secure) {
     let controller;
-    const readable = new ReadableStream({ start(c) { controller=c; if (!secure) c.enqueue(new TextEncoder().encode('220 SES ready\\r\\n')); } });
+    const readable = new ReadableStream({ start(c) { controller=c; if (!secure) c.enqueue(new TextEncoder().encode('220 SES ready\r\n')); } });
     const writable = new WritableStream({ write(bytes) {
       const s = new TextDecoder().decode(bytes); commands.push(s);
-      if (s.startsWith('EHLO') && !secure) controller.enqueue(new TextEncoder().encode('250-SES\\r\\n250-STARTTLS\\r\\n250 AUTH PLAIN\\r\\n'));
-      else if (s.startsWith('STARTTLS')) controller.enqueue(new TextEncoder().encode('220 Ready to start TLS\\r\\n'));
-      else if (s.startsWith('EHLO') && secure) controller.enqueue(new TextEncoder().encode('250-SES\\r\\n250 AUTH PLAIN\\r\\n'));
-      else if (s.startsWith('AUTH')) controller.enqueue(new TextEncoder().encode('235 authenticated\\r\\n'));
-      else if (s.startsWith('MAIL')) controller.enqueue(new TextEncoder().encode('250 sender ok\\r\\n'));
-      else if (s.startsWith('RCPT')) controller.enqueue(new TextEncoder().encode(rejectRcpt ? '550 denied\\r\\n' : '250 recipient ok\\r\\n'));
-      else if (s.startsWith('DATA')) controller.enqueue(new TextEncoder().encode('354 continue\\r\\n'));
+      if (s.startsWith('EHLO') && !secure) controller.enqueue(new TextEncoder().encode('250-SES\r\n250-STARTTLS\r\n250 AUTH PLAIN\r\n'));
+      else if (s.startsWith('STARTTLS')) controller.enqueue(new TextEncoder().encode('220 Ready to start TLS\r\n'));
+      else if (s.startsWith('EHLO') && secure) controller.enqueue(new TextEncoder().encode('250-SES\r\n250 AUTH PLAIN\r\n'));
+      else if (s.startsWith('AUTH')) controller.enqueue(new TextEncoder().encode('235 authenticated\r\n'));
+      else if (s.startsWith('MAIL')) controller.enqueue(new TextEncoder().encode('250 sender ok\r\n'));
+      else if (s.startsWith('RCPT')) controller.enqueue(new TextEncoder().encode(rejectRcpt ? '550 denied\r\n' : '250 recipient ok\r\n'));
+      else if (s.startsWith('DATA')) controller.enqueue(new TextEncoder().encode('354 continue\r\n'));
       else if (failAfterData) controller.close();
-      else controller.enqueue(new TextEncoder().encode('250 accepted\\r\\n'));
+      else controller.enqueue(new TextEncoder().encode('250 accepted\r\n'));
     }});
     return {
       opened:Promise.resolve(), readable, writable,
