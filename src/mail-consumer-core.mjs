@@ -12,17 +12,24 @@ export function createMailConsumer({send, deliverWebhook, sleep = ms => new Prom
    : 'SELECT id,recipient,subject,text_body,html_body,status,from_email,from_name,reply_to,queue_status,batch_id FROM admin_sent_mail WHERE id=?';
   const row=await db.prepare(sql).bind(id).first();
   if(!row || row.status!=='sending'){message.ack();return;}
+  // Fail before claiming if the suppression table cannot be read; a retry can
+  // then try again safely. Re-check after claiming to narrow the race window.
+  await db.prepare('SELECT 1 FROM email_unsubscribes WHERE lower(email)=lower(?) LIMIT 1').bind(row.recipient).first();
   // INSERT is atomic across consumers. The status predicate closes the read/claim gap.
   const claim=await db.prepare(`INSERT OR IGNORE INTO mail_send_claims (source,request_id,state,claimed_at) SELECT ?,?,'started',? WHERE EXISTS (SELECT 1 FROM ${table} WHERE id=? AND status='sending')`).bind(source,id,clock(),id).run();
   if(Number(claim.meta?.changes||0)!==1){message.ack();return;}
-  let outcome='accepted';
-  try {
+  // If this read fails after claiming, no SMTP call occurs. The started claim
+  // stays fenced and needs reconciliation; never silently retry it as a send.
+  const suppressed=await db.prepare('SELECT 1 FROM email_unsubscribes WHERE lower(email)=lower(?) LIMIT 1').bind(row.recipient).first();
+  let outcome=suppressed?'failed':'accepted', errorCode=suppressed?'suppressed_at_dispatch':null;
+  if(!suppressed)try {
    await send({env,to:row.recipient,subject:row.subject,text:row.text_body||'',...(row.html_body?{html:row.html_body}:{}),fromEmail:row.from_email,fromName:source==='developer'?row.sender_name:row.from_name,replyTo:row.reply_to,messageId:id});
   } catch(error) {
    // Only the transport can prove non-acceptance. Everything else is ambiguous.
    outcome=error?.deliveryOutcome==='not_accepted'?'failed':'unknown';
+   errorCode=outcome==='failed'?'delivery_not_accepted':'delivery_outcome_unknown';
   }
-  const now=clock(), errorCode=outcome==='failed'?'delivery_not_accepted':outcome==='unknown'?'delivery_outcome_unknown':null;
+  const now=clock();
   const update=source==='developer'
    ? db.prepare('UPDATE developer_email_requests SET status=?,updated_at=?,error_code=? WHERE id=? AND status=\'sending\'').bind(outcome,now,errorCode,id)
    : db.prepare('UPDATE admin_sent_mail SET status=?,queue_status=?,updated_at=?,error_code=? WHERE id=? AND status=\'sending\'').bind(outcome,outcome==='accepted'?'complete':outcome,now,errorCode,id);
@@ -37,7 +44,7 @@ export function createMailConsumer({send, deliverWebhook, sleep = ms => new Prom
   } else if(outcome==='unknown') {
    await bestEffort(()=>db.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at) VALUES (?,?,'email_unknown','The sending result could not be confirmed.',?,?)").bind(crypto.randomUUID(),row.reply_to,id,now).run());
   } else {
-   await bestEffort(()=>db.prepare("INSERT INTO mail_notifications (id,type,title,message,target_id,created_at) VALUES (?,'failed','Message not sent',?,?,?)").bind(crypto.randomUUID(),'LeadMASTER could not send a message to '+row.recipient+'.',id,now).run());
+   await bestEffort(()=>db.prepare("INSERT INTO mail_notifications (id,type,title,message,target_id,created_at) VALUES (?,'failed','Message not sent',?,?,?)").bind(crypto.randomUUID(),suppressed?'A queued message was skipped because its recipient is on the do-not-contact list.':'LeadMASTER could not send a message to '+row.recipient+'.',id,now).run());
   }
  }
  return {async queue(batch,env){
