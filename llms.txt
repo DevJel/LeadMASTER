@@ -220,3 +220,8 @@ Use `src/Mandatory LeadMASTER Dashboard.html` as the canonical dashboard UI. Pre
 ## Mandatory dashboard source and UI preservation
 
 For LeadMASTER dashboard work, `src/Mandatory LeadMASTER Dashboard.html` is authoritative. Keep its React components, embedded design system, layout, spacing, icons, responsive breakpoints and interactions unchanged unless explicitly requested. Connect existing components to real account-scoped production APIs; do not substitute a new dashboard design. Synchronize it to `public/dashboard.html` and regenerate `src/static-assets.mjs` with `npm run build:assets`. Remove prototype/sample records from production rendering. Never simulate unsupported backend features or claim a local-only action succeeded. Assess Android companion parity on every connected change.
+
+
+## Mandatory dashboard integration and Android section contract
+
+Before every dashboard change, read `src/dashboard-feature-map.md`. Treat `src/Mandatory LeadMASTER Dashboard.html` as the canonical UI and preserve its React components and visual output. Keep `public/dashboard.html` identical and regenerate `src/static-assets.mjs` with `npm run build:assets`. Use only the real APIs listed in the feature map. Never display prototype records or report a local-only action as saved. Unsupported features must remain clearly unavailable until a secure account-scoped API exists. The Android bottom navigation must match the mandatory dashboard mobile destinations: `home`, `emails`, `audience`, `metrics`, `profile`; other modules remain reachable through the dashboard navigation drawer. Update Android in the same branch whenever a connected section ID, action or security behavior changes.
