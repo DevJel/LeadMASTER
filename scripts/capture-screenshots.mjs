@@ -103,11 +103,21 @@ try {
     await page.waitForFunction(value => document.querySelector(".tab-link.active")?.textContent?.trim().startsWith(value),label,{timeout:10000});
     await page.screenshot({path:output+"/dashboard-"+slug+".png",fullPage:true});
   }
+  await page.locator(".tab-link").filter({hasText:"Emails"}).first().click();
+  await page.getByRole("button",{name:"HTML preview"}).first().click();
+  await page.waitForFunction(()=>document.getElementById("html-preview") && !document.getElementById("html-preview").hidden,null,{timeout:5000});
+  await page.screenshot({path:output+"/dashboard-email-html-preview.png",fullPage:true});
+  await page.locator("#preview-close").click();
+  await page.locator(".tab-link").filter({hasText:"Templates"}).first().click();
+  await page.getByRole("button",{name:"HTML preview"}).first().click();
+  await page.waitForFunction(()=>document.getElementById("html-preview") && !document.getElementById("html-preview").hidden,null,{timeout:5000});
+  await page.screenshot({path:output+"/dashboard-template-html-preview.png",fullPage:true});
+  await page.locator("#preview-close").click();
   await page.setViewportSize({width:390,height:844});
   await page.screenshot({path:output+"/dashboard-mobile-home.png",fullPage:true});
   for (const [label,slug] of [["Audience","audience"],["Profile","profile"]]) {
     await page.locator(".bottom-tab").filter({hasText:label}).first().click();
-    await page.waitForFunction(value => document.querySelector(".bottom-tab.active")?.textContent?.trim().startsWith(value),label,{timeout:10000});
+    await page.waitForTimeout(300);
     await page.screenshot({path:output+"/dashboard-mobile-"+slug+".png",fullPage:true});
   }
   await page.setViewportSize({width:1440,height:1000});
