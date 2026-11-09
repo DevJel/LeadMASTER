@@ -6,14 +6,16 @@ function decodeSubject(value){
 export default {
  async email(message,env,ctx){
   if(!env.AUTH_DB||!env.INBOUND_MAIL)throw new Error("Mailbox storage is not available");
-  const maxBytes=25*1024*1024,rawSize=Number(message.rawSize||0);
+  const maxBytes=25*1024*1024,advertisedSize=Number(message.rawSize||0);
+  if(advertisedSize>maxBytes){message.setReject("Message is larger than the LeadMASTER mailbox limit.");return;}
+  const raw=await new Response(message.raw).arrayBuffer(),rawSize=raw.byteLength;
   if(rawSize>maxBytes){message.setReject("Message is larger than the LeadMASTER mailbox limit.");return;}
   const id=crypto.randomUUID(),received=Date.now(),from=clean(message.from,254).toLowerCase(),to=clean(message.to,254).toLowerCase();
   if(!from||!to)throw new Error("Message sender or recipient is missing");
   const subject=decodeSubject(header(message.headers,"subject")).slice(0,998);
   const messageId=header(message.headers,"message-id").slice(0,998)||null;
   const key="inbox/"+new Date(received).toISOString().slice(0,10)+"/"+id+".eml";
-  await env.INBOUND_MAIL.put(key,message.raw,{httpMetadata:{contentType:"message/rfc822"},customMetadata:{from,to,received_at:String(received),message_id:messageId||""}});
+  await env.INBOUND_MAIL.put(key,raw,{httpMetadata:{contentType:"message/rfc822"},customMetadata:{from,to,received_at:String(received),message_id:messageId||""}});
   try{
    await env.AUTH_DB.prepare("INSERT INTO inbound_mail (id,from_address,to_address,subject,message_id,received_at,r2_key,size_bytes,delivery_status,parse_status) VALUES (?,?,?,?,?,?,?,?,'received','raw_stored')").bind(id,from,to,subject,messageId,received,key,rawSize).run();
    await env.AUTH_DB.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at) VALUES (?,?,'email_received',?,?,?)").bind(crypto.randomUUID(),"system","Received a new email from "+from,id,received).run();
