@@ -449,6 +449,7 @@ async function adminMailboxRoute(request,env,session){
   if(!inbound&&!sent&&!developer)return json({error:"Message not found"},404);
   if(action==="read"&&inbound){await env.AUTH_DB.prepare("UPDATE inbound_mail SET read_at=? WHERE id=?").bind(b.read?now:null,id).run();await logWorkspaceAction(env,session.email,"email_read",b.read?"Marked a message as read.":"Marked a message as unread.",id);}
   else if(action==="archive"&&inbound){await env.AUTH_DB.prepare("UPDATE inbound_mail SET archived_at=? WHERE id=?").bind(now,id).run();await logWorkspaceAction(env,session.email,"email_archived","Archived a message.",id);}
+  else if(action==="unarchive"&&inbound){await env.AUTH_DB.prepare("UPDATE inbound_mail SET archived_at=NULL WHERE id=?").bind(id).run();await logWorkspaceAction(env,session.email,"email_unarchived","Moved a message back to the inbox.",id);}
   else if(action==="delete"){
    if(inbound)await env.AUTH_DB.prepare("UPDATE inbound_mail SET deleted_at=? WHERE id=?").bind(now,id).run();
    else if(sent)await env.AUTH_DB.prepare("UPDATE admin_sent_mail SET deleted_at=? WHERE id=?").bind(now,id).run();
