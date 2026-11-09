@@ -23,3 +23,12 @@ The login backend is deployed, but a real end-to-end test still requires the adm
 ## Branding assets
 
 The original full logo, icon and gray favicon are organized under `public/assets/brand/`. The full logo appears on the login page in both light and dark contexts; CSS inverts it for the dark panel. The login HTML references the gray SVG favicon. The source artwork is otherwise unchanged. See [README.md](README.md) and [docs/API.md](docs/API.md) for current implementation status and contracts.
+
+
+## Login-page brand and footer layout
+
+The login page uses the exact shared landing-page artwork at `public/assets/brand/leadmaster-full.svg` for the upper-left brand position. On the charcoal panel, CSS inverts the dark SVG artwork for legible contrast; the source SVG is not altered. The animated halftone LeadMASTER wordmark remains a separate, existing element and continues to use the shared halftone renderer.
+
+The split layout includes a **Data Privacy** link in the left-panel footer pointing to the canonical `public/privacy.html` notice, and a **Secured Login** indicator below the right-panel sign-in card. Both footer elements remain visible in the responsive stacked layout. These are presentation and navigation elements only; they do not replace or change the actual authentication controls or server-side security checks.
+
+The login page retains its existing password entry, Cloudflare Turnstile challenge, email OTP verification, error/loading states, keyboard accessibility and reduced-motion behavior. No product feature or authentication flow is removed by this presentation update.
