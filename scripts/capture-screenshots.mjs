@@ -72,10 +72,10 @@ try {
   await page.goto("http://127.0.0.1:"+port+"/dashboard.html#overview",{waitUntil:"domcontentloaded"});
   await mark();
   await page.waitForFunction(()=>document.querySelector("#workspace-name")?.textContent==="Preview workspace",null,{timeout:5000});
-  for (const section of ["overview","emails","logs","broadcasts","audiences","templates","domains","webhooks","settings"]) {
+  for (const section of ["overview","emails","logs","domains","settings"]) {
     await page.goto("http://127.0.0.1:"+port+"/dashboard.html#"+section,{waitUntil:"domcontentloaded"});
     await mark();
-    await page.waitForFunction(value=>document.querySelector("#section-title")?.textContent?.toLowerCase()===value,section,{timeout:5000});
+    await page.waitForFunction(value=>document.querySelector("#section-title")?.textContent?.toLowerCase()===value,section,{timeout:10000});
     await page.screenshot({path:output+"/dashboard-"+section+".png",fullPage:true});
   }
 
