@@ -3,6 +3,8 @@ import { extname, join, resolve } from "node:path";
 
 const root = resolve(process.cwd());
 const publicDir = join(root, "public");
+const mandatoryDashboard = await readFile(join(root, "src", "Mandatory LeadMASTER Dashboard.html"), "utf8");
+await writeFile(join(publicDir, "dashboard.html"), mandatoryDashboard, "utf8");
 const output = join(root, "src", "static-assets.mjs");
 const allowlist = [
   "index.html", "landing-halftone.css", "landing-halftone.js", "halftone.js",
