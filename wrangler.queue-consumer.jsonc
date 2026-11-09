@@ -1,0 +1,61 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "leadmaster-mail-queue-consumer",
+  "main": "workers/mail-queue-consumer.js",
+  "compatibility_date": "2026-11-04",
+  "compatibility_flags": [],
+  "vars": {
+    "SES_FROM_EMAIL": "noreply@leadmaster.jelvan.pro",
+    "SES_CONFIGURATION_SET": "leadmaster-events"
+  },
+  "d1_databases": [
+    {
+      "binding": "AUTH_DB",
+      "database_name": "leadmaster-auth",
+      "database_id": "e2ea3d34-1fca-46a9-b70e-1ca07d78f48e",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "secrets_store_secrets": [
+    {
+      "binding": "SES_SMTP_HOST",
+      "store_id": "1a77c40addba476788aea7c043ca33db",
+      "secret_name": "SES_SMTP_HOST"
+    },
+    {
+      "binding": "SES_SMTP_USERNAME",
+      "store_id": "1a77c40addba476788aea7c043ca33db",
+      "secret_name": "SES_SMTP_USERNAME"
+    },
+    {
+      "binding": "SES_SMTP_PASSWORD",
+      "store_id": "1a77c40addba476788aea7c043ca33db",
+      "secret_name": "SES_SMTP_PASSWORD"
+    }
+  ],
+  "queues": {
+    "consumers": [
+      {
+        "queue": "leadmaster-mail-send",
+        "max_batch_size": 10,
+        "max_batch_timeout": 1,
+        "max_retries": 3,
+        "max_concurrency": 1,
+        "dead_letter_queue": "leadmaster-mail-send-failed"
+      }
+    ]
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+      "persist": true
+    },
+    "traces": {
+      "enabled": false,
+      "persist": true
+    }
+  }
+}
