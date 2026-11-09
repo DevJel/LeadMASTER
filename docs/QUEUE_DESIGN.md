@@ -1,5 +1,8 @@
 # Email queue and rate-control implementation
 
+> **Public documentation hub:** [LeadMASTER landing page → Documentation](https://leadmaster.jelvan.pro/#documentation). This file is the repository's detailed engineering reference; the public product guide is maintained in the landing page, not on a separate public documentation site.
+
+
 **Status: implementation in progress; not deployed or production-ready.** The repository contains a Queue consumer adapter, a Durable Object coordinator and a trusted enqueue helper. An experimental, single-key HTTP producer exists behind a disabled-by-default flag, but there is no production-ready producer, Cloudflare binding configuration, operator recovery interface, runtime integration test or deployed queue. Do not use these modules for production until the gates below pass.
 
 ## Requested behavior
