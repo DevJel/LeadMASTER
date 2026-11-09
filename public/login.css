@@ -57,3 +57,32 @@
  .hero-animation{width:min(92%,560px);height:96px}
 }
 @media(prefers-reduced-motion:reduce){.hero-animation canvas{animation:none}}
+
+
+/* Keep all original login-panel information; place the animated wordmark at its bottom edge. */
+.hero-content{min-height:100vh;padding:40px;display:flex;flex-direction:column;justify-content:space-between;align-items:stretch}
+.hero-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.hero-center{max-width:480px;padding:48px 0}
+.hero-center .tag{display:inline-flex}
+.hero-center h1{font-size:40px;line-height:1.04;letter-spacing:-.035em;margin:25px 0 20px;font-weight:750}
+.hero-center>p{color:#a5a5a5;line-height:1.65;font-size:14.5px;margin:0;max-width:460px}
+.hero-footer{display:flex;justify-content:flex-start;align-items:flex-end;max-width:480px;margin-top:24px}
+.login-wordmark{position:relative;width:min(100%,480px);height:76px;margin:0;opacity:.78}
+.login-wordmark canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:pan-y}
+.login-wordmark .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:900px){
+ .hero{min-height:auto}
+ .hero-content{min-height:auto;padding:24px;gap:0}
+ .hero-top .pill{display:inline-flex}
+ .hero-center{padding:36px 0 24px}
+ .hero-center h1{font-size:34px;margin:18px 0 12px}
+ .hero-center>p{font-size:13px;line-height:1.55}
+ .hero-footer{display:flex;margin-top:12px;padding-top:0}
+ .login-wordmark{display:block;height:64px;width:min(100%,420px)}
+}
+@media(max-width:420px){
+ .hero-content{padding:20px}
+ .hero-center{padding:28px 0 18px}
+ .hero-center h1{font-size:32px}
+ .login-wordmark{height:58px}
+}
