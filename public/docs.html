@@ -65,7 +65,7 @@ print(r.status_code, r.json())</code></div><div class="docs-code"><span>RESPONSE
   &quot;signing_secret&quot;: &quot;whsec_…&quot;,
   &quot;created_at&quot;: 1767916800000,
   &quot;warning&quot;: &quot;Copy the signing secret now. It is shown only once.&quot;
-}</code></div><p>The <code>signing_secret</code> is shown once. The URL must be public HTTPS on port 443, without credentials; IP addresses and local or internal hostnames are rejected.</p><div class="docs-code"><span>EVENT PAYLOAD</span><code style="white-space:pre-wrap;display:block">{
+}</code></div><p>The <code>signing_secret</code> is shown once. The URL must be public HTTPS on port 443, without credentials; IP addresses and local or internal hostnames are rejected. This is basic hostname validation, not DNS pinning; only register callback hosts you control and ensure they cannot resolve or rebind to private network addresses.</p><div class="docs-code"><span>EVENT PAYLOAD</span><code style="white-space:pre-wrap;display:block">{
   &quot;id&quot;: &quot;event-uuid&quot;,
   &quot;type&quot;: &quot;email.accepted&quot;,
   &quot;created_at&quot;: &quot;2026-11-09T00:00:00.000Z&quot;,
