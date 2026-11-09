@@ -13,7 +13,7 @@
 - A key from another account must never be used to read, send, list, change, revoke or inspect the current user's resources. Cross-account requests are rejected.
 - Never use platform-wide, operator, developer, internal, test, shared or another user's credentials, endpoint IDs, webhook secrets, account IDs or saved information.
 - Do not access internal databases, provider consoles, deployment accounts, secret stores, environment variables or internal tools. Use only the current user's LeadMASTER account information and documented LeadMASTER endpoints.
-- Never expose internal infrastructure, hosting, database, email transport, SMTP, provider, account or deployment details in product UI or customer-facing output. Refer to the service as LeadMASTER.
+- Never expose internal infrastructure, hosting, database, email transport, email transport provider, account or deployment details in product UI or customer-facing output. Refer to the service as LeadMASTER.
 - Do not infer that a connector or platform account is the same as the user's LeadMASTER account. The user must explicitly select and authorize the correct LeadMASTER account.
 
 ## Human login is not agent authentication
