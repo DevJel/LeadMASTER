@@ -37,9 +37,9 @@ class MainActivity : ComponentActivity() {
     private lateinit var web: WebView
     private lateinit var nav: LinearLayout
     private val navButtons = linkedMapOf<String, Button>()
-    private val appSections = setOf("overview", "emails", "logs", "domains", "settings")
-    private var currentSection = "overview"
-    private val sectionLabels = mapOf("overview" to "Homepage", "emails" to "Emails", "logs" to "Logs", "domains" to "Domains", "settings" to "Settings")
+    private val appSections = setOf("home", "emails", "audience", "metrics", "profile")
+    private var currentSection = "home"
+    private val sectionLabels = mapOf("home" to "Homepage", "emails" to "Emails", "audience" to "Audience", "metrics" to "Metrics", "profile" to "Profile")
     private val appHost = "leadmaster.jelvan.pro"
     private val homeUrl = "https://leadmaster.jelvan.pro/login.html"
     private val channelId = "leadmaster_updates"
@@ -124,11 +124,11 @@ class MainActivity : ComponentActivity() {
             elevation = 10f
             visibility = View.GONE
         }
-        addNavButton("Overview", "overview")
+        addNavButton("Home", "home")
         addNavButton("Emails", "emails")
-        addNavButton("Activity", "logs")
-        addNavButton("Senders", "domains")
-        addNavButton("Settings", "settings")
+        addNavButton("Audience", "audience")
+        addNavButton("Metrics", "metrics")
+        addNavButton("Profile", "profile")
         root.addView(web, LinearLayout.LayoutParams(-1, 0, 1f))
         root.addView(nav, LinearLayout.LayoutParams(-1, dp(58)))
         setContentView(root)
@@ -136,8 +136,8 @@ class MainActivity : ComponentActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (web.url?.contains("/dashboard") == true) {
-                    if (currentSection != "overview") {
-                        navigateToSection("overview")
+                    if (currentSection != "home") {
+                        navigateToSection("home")
                     } else if (web.canGoBack()) {
                         web.goBack()
                     } else {
@@ -184,7 +184,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun updateSelectedNavigation(rawSection: String) {
-        val section = rawSection.takeIf { it in appSections } ?: "overview"
+        val section = rawSection.takeIf { it in appSections } ?: "home"
         currentSection = section
         navButtons.forEach { (key, button) ->
             val selected = key == section
