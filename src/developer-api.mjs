@@ -7,10 +7,11 @@ const token = () => "lm_live_"+b64(crypto.getRandomValues(new Uint8Array(32)));
 const hash = async value => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",enc.encode(value))),b=>b.toString(16).padStart(2,"0")).join("");
 const email = /^[A-Za-z0-9.!#$%&'*+/=?^`_{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$/;
 function validMessage(v){
- if(!v||typeof v!=="object"||Array.isArray(v)||Object.keys(v).some(k=>!["to","subject","text","html"].includes(k)))return false;
+ if(!v||typeof v!=="object"||Array.isArray(v)||Object.keys(v).some(k=>!["to","subject","text","html","sender_name"].includes(k)))return false;
  if(typeof v.to!=="string"||v.to.length>254||!email.test(v.to)||v.to.includes(".."))return false;
  if(typeof v.subject!=="string"||!v.subject.trim()||/[\r\n\x00-\x1f\x7f]/.test(v.subject)||enc.encode(v.subject).length>300)return false;
  if(typeof v.text!=="string"||!v.text.trim()||enc.encode(v.text).length>200000)return false;
+ if(v.sender_name!==undefined&&(typeof v.sender_name!=="string"||!/^[A-Za-z][A-Za-z .'-]{1,79}$/.test(v.sender_name.trim())))return false;
  return v.html===undefined||(typeof v.html==="string"&&!!v.html.trim()&&enc.encode(v.html).length<=200000);
 }
 async function readBody(req,max=250000){const raw=await req.text();if(enc.encode(raw).length>max)throw Error("large");const v=JSON.parse(raw);if(!v||typeof v!=="object"||Array.isArray(v))throw Error("invalid");return v;}
@@ -65,7 +66,9 @@ export async function developerEmailRoute(request,env,connect,accountId){
  const registeredEmail=String(account?.owner_email||row.created_by||"").trim().toLowerCase();
  const accountName=String(account?.name||"").trim();
  const fallbackName=(registeredEmail.split("@")[0]||"user").replace(/[._-]+/g," ").replace(/\\b[a-z]/g,x=>x.toUpperCase());
- const senderName=String(account?.owner_name||"").trim()|| (accountName&&accountName!=="My LeadMASTER workspace"?accountName:fallbackName);
+ const requestedName=String(body.sender_name||"").trim();
+ const senderName=requestedName||String(account?.owner_name||"").trim()|| (accountName&&accountName!=="My LeadMASTER workspace"?accountName:fallbackName);
+ if(requestedName&&requestedName!==account?.owner_name)await env.AUTH_DB.prepare("UPDATE accounts SET owner_name=?,updated_at=? WHERE id=?").bind(requestedName,now,accountId).run();
  const senderLocal=(senderName.toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,48)||"user");
  const senderEmail=senderLocal+"@leadmaster.jelvan.pro";
  try{await env.AUTH_DB.prepare("INSERT INTO developer_email_requests (id,api_key_id,idempotency_key,recipient,subject,status,created_at,updated_at,error_code,account_id,from_email,sender_name,reply_to,text_body,html_body) VALUES (?,?,?,?,?,'sending',?,?,NULL,?,?,?,?,?,?)").bind(id,row.id,idem,body.to,body.subject,now,now,accountId,senderEmail,senderName,registeredEmail,body.text,body.html??null).run();}
@@ -100,7 +103,7 @@ export async function developerAccountInfo(request,env,accountId){
  if(!m)return json({error:"Unauthorized"},401,{"www-authenticate":"Bearer"});
  const key=await env.AUTH_DB.prepare("SELECT id,key_hash,scopes,revoked_at,account_id FROM developer_api_keys WHERE key_prefix=?").bind(m[1].slice(0,16)).first();
  if(!key||key.revoked_at||key.account_id!==accountId||await hash(m[1])!==key.key_hash)return json({error:"Unauthorized"},401);
- const account=await env.AUTH_DB.prepare("SELECT id,name,created_at,updated_at FROM accounts WHERE id=?").bind(accountId).first();
+ const account=await env.AUTH_DB.prepare("SELECT id,name,owner_name,created_at,updated_at FROM accounts WHERE id=?").bind(accountId).first();
  if(!account)return json({error:"Not found"},404);
  return json({account:{...account,api_base_url:"https://leadmaster.jelvan.pro/api/v1/accounts/"+accountId,endpoints:{account:"/api/v1/accounts/"+accountId,email:"/api/v1/accounts/"+accountId+"/emails",email_status:"/api/v1/accounts/"+accountId+"/emails/{id}",webhooks:"/api/v1/accounts/"+accountId+"/webhooks",webhook_deliveries:"/api/v1/accounts/"+accountId+"/webhooks/{id}/deliveries"}},key:{id:key.id,scopes:JSON.parse(key.scopes||"[]")}});
 }
