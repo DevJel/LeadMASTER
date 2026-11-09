@@ -80,3 +80,13 @@ Unit tests do not prove live Turnstile, SES inbox delivery or webhook callback r
 - Verified the configured SES sender identity is verified and sending-enabled; left sender and all existing secrets unchanged.
 - No Worker code upload was necessary because the active version already contained the account-scoped routes.
 - Remaining acceptance checks: authenticated browser login and Turnstile/OTP, controlled email inbox delivery, webhook callback delivery, account-isolation negative tests and external HTTP smoke tests. Webhook callback URL validation still requires stronger DNS/private-address and redirect protections before full SSRF-resistance can be claimed.
+
+
+## 2026-11-09 — Android companion navigation and web parity
+
+- Aligned native bottom navigation with live dashboard sections: Overview, Emails, Activity, Sending addresses and Settings.
+- Added active-section highlighting and synchronization for hash navigation.
+- Improved system Back behavior so nested dashboard sections return to Overview before leaving the workspace.
+- Restricted in-app navigation to the exact HTTPS LeadMASTER origin; supported external web, email and telephone links are handed to Android safely.
+- Documented the cross-platform parity rule in AGENTS.md, README.md, the Android README and the public agent guide: relevant web changes must be assessed and aligned in Android, while shared business logic remains in the web/server layer.
+- Android build and device acceptance are pending the workflow result; no production web backend or account behavior was changed.
