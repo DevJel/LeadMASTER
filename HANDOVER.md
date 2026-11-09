@@ -11,7 +11,7 @@
 
 ## 1. Product purpose and truthful status
 
-LeadMASTER is an email workspace and developer integration service. The landing page and integrated documentation are the public product entry point. Human sign-in, API-key management, account-scoped REST routes and webhook code exist. The dashboard remains a navigation shell; campaigns, audiences, persistent templates, domain management and analytics are not complete modules. The email API and webhook paths require controlled authenticated end-to-end acceptance testing before delivery guarantees can be claimed.
+LeadMASTER is an email workspace and developer integration service. The landing page and integrated documentation are the public product entry point. Human sign-in, API-key management, account-scoped REST routes and webhook code exist. The dashboard displays the authenticated account identity and API base URL, and links to the developer console; campaigns, audiences, persistent templates, domain management and analytics are not complete modules. The email API and webhook paths require controlled authenticated end-to-end acceptance testing before delivery guarantees can be claimed.
 
 The current authentication rollout supports one configured administrator identity. Account-scoped data ownership is implemented in the account-isolation branch, but self-service registration, multiple independent users, team invitations, organization switching and delegated membership management are not implemented. Never describe those capabilities as live.
 
