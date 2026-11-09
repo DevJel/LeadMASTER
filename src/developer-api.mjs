@@ -60,7 +60,7 @@ export async function developerEmailRoute(request,env,connect,accountId){
  if(prior)return json({id:prior.id,status:prior.status,created_at:prior.created_at,replayed:true},prior.status==="accepted"?200:202);
  const id=crypto.randomUUID(),now=Date.now();
  const account=await env.AUTH_DB.prepare("SELECT name,owner_email FROM accounts WHERE id=?").bind(accountId).first();
- const registeredEmail=String(row.created_by||account?.owner_email||"").trim().toLowerCase();
+ const registeredEmail=String(account?.owner_email||row.created_by||"").trim().toLowerCase();
  const accountName=String(account?.name||"").trim();
  const fallbackName=(registeredEmail.split("@")[0]||"user").replace(/[._-]+/g," ").replace(/\\b[a-z]/g,x=>x.toUpperCase());
  const senderName=accountName&&accountName!=="My LeadMASTER workspace"?accountName:fallbackName;
