@@ -1,5 +1,8 @@
 # Production authentication and release notes
 
+> **Public documentation hub:** [LeadMASTER landing page → Documentation](https://leadmaster.jelvan.pro/#documentation). This file is the repository's detailed engineering reference; the public product guide is maintained in the landing page, not on a separate public documentation site.
+
+
 ## Deployment and source of truth
 
 - Production hostname: `https://leadmaster.jelvan.pro`
