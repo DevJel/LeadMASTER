@@ -21,7 +21,7 @@
     { "binding": "SES_SMTP_PASSWORD", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "SES_SMTP_PASSWORD" },
     { "binding": "ADMIN_EMAIL", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "ADMIN_EMAIL" },
     { "binding": "ADMIN_PASSWORD", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "ADMIN_PASSWORD" },
-    { "binding": "SESSION_SECRET", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "ADMIN_JWT_TOKEN" },
+    { "binding": "SESSION_SECRET", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "SESSION_SECRET" },
     { "binding": "TURNSTILE_SITE_KEY", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "TURNSTILE_SITE_KEY" },
     { "binding": "TURNSTILE_SECRET", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "TURNSTILE_SECRET_KEY" }
   ],
