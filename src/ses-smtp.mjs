@@ -71,7 +71,7 @@ async function secret(value) {
  * Returns accepted only after SES responds 250 to DATA. 'unknown' errors mean
  * delivery may have occurred: caller MUST reconcile and must not blindly retry.
  */
-export async function sendSesEmail({ connect, env, to, subject, text, html, fromName, fromEmail, replyTo, timeoutMs = 15000 }) {
+export async function sendSesEmail({ connect, env, to, subject, text, html, fromName, fromEmail, replyTo, messageId, timeoutMs = 15000 }) {
   if (!env || typeof connect !== 'function' || !Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 30000) throw new Error('SMTP configuration unavailable');
   const from = mailbox(fromEmail || env.SES_FROM_EMAIL); const configurationSet = typeof env.SES_CONFIGURATION_SET === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(env.SES_CONFIGURATION_SET) ? env.SES_CONFIGURATION_SET : undefined; const message = buildMessage({ from, fromName, replyTo, configurationSet, to, subject, text, html });
   const [host, username, password] = await Promise.all([secret(env.SES_SMTP_HOST), secret(env.SES_SMTP_USERNAME), secret(env.SES_SMTP_PASSWORD)]);
