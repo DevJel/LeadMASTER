@@ -51,3 +51,4 @@ Unit tests do not prove live Turnstile, SES inbox delivery or webhook callback r
 
 - Added account endpoint visibility and copy action to the developer API console.
 - Added reproducible, watermarked local UI screenshot capture for landing, integrated documentation, login, dashboard tabs and API Keys console. Screenshots are delivered as a CI artifact and are explicitly labeled synthetic.
+- Production Worker version `050eacd1-e8e6-4f4b-935e-b202390dcf2c` (version 137) deployed at 100%; external HTTP smoke checks are blocked by the connected tool's outbound-domain policy, and the unit test suite was not run in this session.

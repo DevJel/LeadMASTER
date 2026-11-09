@@ -273,3 +273,56 @@ Screenshots must be captured from the actual rendered UI at a documented viewpor
 ## 13. Current branch and deployment state
 
 This handover accompanies `feature/account-scoped-integrations`. The account migration and account-scoped routes must be tested and applied before release. Do not claim these changes are already active in production until the migration, deployment and live account-isolation checks have succeeded.
+Tests use local/mock boundaries. They do not prove live Turnstile, OTP receipt, browser login, SES inbox delivery, webhook callback receipt or quota behavior.
+
+## 10. Production release checklist
+1. Confirm repository `DevJel/LeadMASTER`, branch `main`, Cloudflare account and Worker.
+2. Inspect `wrangler.jsonc`, bindings, Secrets Store references and D1 migrations.
+3. Update canonical `public/` files.
+4. Run `npm run build:assets`; inspect asset paths/MIME types.
+5. Run `npm ci --ignore-scripts` and `npm test`.
+6. Review complete diff and `git diff --check`.
+7. Deploy with `npx wrangler deploy` from the verified repository/account.
+8. Verify `/`, `/index.html`, `/#documentation`, legacy redirects, `/api/auth/config`, unauthenticated protection, API method/auth behavior and active Worker version.
+9. Record exact deployment/version, checks and blockers in this file and `CHANGELOG.md`.
+
+### Controlled acceptance tests still required
+- Browser Turnstile + password + OTP + dashboard + logout.
+- OTP delivery to the authorized mailbox.
+- API key create/revoke and scope enforcement.
+- Controlled SES API send to an approved mailbox; distinguish SMTP acceptance from inbox receipt.
+- Webhook registration, callback HMAC validation, delivery history and negative/replay tests.
+
+### Rollback
+Use Cloudflare Worker versions/deployments to route traffic to the last known-good version. Verify the selected version and traffic percentage, then repeat route and landing smoke checks. Do not delete D1, rotate secrets or revert schema migrations as a first-line rollback.
+
+## 11. Latest deployment record — 2026-11-09
+- Cloudflare Worker version: **113**.
+- Version ID: `74522785-4f5f-43be-bd53-c70c4d8092bf`.
+- Deployment ID: `8a552314-390a-42e2-b5be-89105ef86c69`.
+- Traffic assignment reported by Cloudflare: **100%** to version 113.
+- Cloudflare bundle inspection confirmed the root-to-`/index.html` mapping, integrated documentation markup, production status copy, documentation search logic, and compatibility redirect assets are present in the uploaded Worker bundle.
+- Automated `npm test` was **not run** in this execution environment. No real browser sign-in, SES inbox delivery or webhook callback acceptance test was performed.
+
+## 12. Handover status
+Authentication, API-key, email and webhook route implementations are deployed. Landing-page documentation is the canonical public destination. Queue and MCP remain experimental/not deployed. Dashboard remains a shell. Real authenticated browser, SES inbox and webhook callback acceptance tests remain outstanding.
+
+
+## 12. AI-agent and public-documentation handover
+- Public machine-readable guide: `/llms.txt`; crawler policy: `/robots.txt`. Both are served from the same production asset bundle as the landing page.
+- The landing page Documentation tab links to the AI-agent guide and contains copy-ready REST API instructions. Agent docs must never expose the human sign-in challenge, challenge tokens, public site key or internal provider details.
+- Agent authentication is a server-to-server LeadMASTER API key with the minimum required scope. Do not automate human administrator login or request an OTP/challenge from the user.
+- MCP is not deployed. `/mcp` returns an explicit 404 with guidance to use the REST API. Do not publish a production MCP URL until a complete authorization, transport, tool, rate-limit, monitoring and end-to-end security release is completed.
+- Public product surfaces must say LeadMASTER and describe product capabilities only. Keep infrastructure/vendor details in internal engineering documents and private configuration; do not expose internal worker names, database bindings, account IDs or provider status in the app UI.
+- Legal privacy notices may need to identify processors depending on applicable law and actual data flows. Do not conceal a legally required processor disclosure; obtain privacy/legal review before publishing changes.
+- Every feature or route change must update `llms.txt`, `robots.txt` where relevant, the landing-page documentation, API reference, README, this handover and the changelog.
+
+
+## 13. Latest deployment record
+- Active Worker version: `050eacd1-e8e6-4f4b-935e-b202390dcf2c` (version 137).
+- Deployment: `a6fa638f-4704-45c4-9bc5-57dd1ba3128a`, 100% traffic.
+- Uploaded module validation: successful; seven Worker modules included.
+- Static bundle: 25 assets, including `/index.html`, `/llms.txt` and `/robots.txt`.
+- Source-level checks: public landing page contains the agent integration section; the public UI no longer names underlying infrastructure vendors; `/mcp` returns an explicit unavailable response in source.
+- External HTTP checks: blocked by the connected tool's outbound-domain policy (403 generated by the tool environment, not a LeadMASTER response). Do not report public HTTP smoke tests as passed until tested from a normal browser or external client.
+- Unit test suite was not run in this tool session. Run `npm ci --ignore-scripts`, `npm run build:assets`, `npm test` from the repository before the next release.
