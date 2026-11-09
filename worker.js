@@ -1,6 +1,7 @@
 import { connect } from "cloudflare:sockets";
 import { permanentlyDeleteInbound, restoreInbound } from "./src/inbound-deletion.mjs";
 import { validSuppressionEmail } from "./src/suppression-validation.mjs";
+import { submitInOrder, writeBestEffort } from "./src/queue-submission.mjs";
 import { sendSesEmail } from "./src/ses-smtp.mjs";
 import { emailOtpTemplate, emailSecurityAlertTemplate } from "./src/email-templates.mjs";
 import { staticAssets } from "./src/static-assets.mjs";
@@ -520,14 +521,19 @@ async function adminSendRoute(request,env,session){
  try{
   await env.AUTH_DB.batch(statements);
   await env.AUTH_DB.prepare("INSERT INTO mail_send_batches (id,created_by,total_count,created_at,status) VALUES (?,?,?,?,'queued')").bind(batchId,session.email,ids.length,now).run();
-  for(let i=0;i<ids.length;i+=100)await env.MAIL_SEND_QUEUE.sendBatch(ids.slice(i,i+100).map(id=>({body:{id,source:"admin"}})));
-  await env.AUTH_DB.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at) VALUES (?,?,'email_queued',?,?,?)").bind(crypto.randomUUID(),session.email,ids.length===1?"Queued an email to "+recipients[0]:"Queued "+ids.length+" emails for sending",batchId,now).run();
-  await env.AUTH_DB.prepare("INSERT INTO mail_notifications (id,type,title,message,target_id,created_at) VALUES (?,'queued','Messages queued',?,?,?)").bind(crypto.randomUUID(),ids.length+" messages were added to the sending list.",batchId,now).run();
-  return json({batch_id:batchId,queued:ids.length,skipped:recipients.length-ids.length,status:"queued",message:"Your messages are queued. LeadMASTER sends no more than 10 messages per second."},202);
- }catch(e){
-  await env.AUTH_DB.prepare("UPDATE admin_sent_mail SET status='failed',queue_status='failed',updated_at=?,error_code='queue_unavailable' WHERE batch_id=? AND status='sending' AND queue_status='queued'").bind(Date.now(),batchId).run();await env.AUTH_DB.prepare("UPDATE mail_send_batches SET status='failed' WHERE id=?").bind(batchId).run();
-  return json({error:"Your messages could not be added to the sending list. Nothing was sent."},503);
+ }catch{
+  // No queue call has been attempted. Orphan records may need reconciliation.
+  return json({batch_id:batchId,error:"Could not prepare messages; no queue submission was attempted. Check the batch before retrying."},503);
  }
+ const operations=[];
+ for(let i=0;i<ids.length;i+=100){const chunk=ids.slice(i,i+100);operations.push(()=>env.MAIL_SEND_QUEUE.sendBatch(chunk.map(id=>({body:{id,source:"admin"}}))));}
+ const submission=await submitInOrder(operations);
+ if(submission.status!=="queued")return json({batch_id:batchId,status:"submission_unconfirmed",error:"The sending result is uncertain: some messages may be queued or sent. Do not resend; contact an administrator to reconcile this batch."},503);
+ await writeBestEffort([
+  ()=>env.AUTH_DB.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at) VALUES (?,?,'email_queued',?,?,?)").bind(crypto.randomUUID(),session.email,ids.length===1?"Queued an email to "+recipients[0]:"Queued "+ids.length+" emails for sending",batchId,now).run(),
+  ()=>env.AUTH_DB.prepare("INSERT INTO mail_notifications (id,type,title,message,target_id,created_at) VALUES (?,'queued','Messages queued',?,?,?)").bind(crypto.randomUUID(),ids.length+" messages were added to the sending list.",batchId,now).run()
+ ]);
+ return json({batch_id:batchId,queued:ids.length,skipped:recipients.length-ids.length,status:"queued",message:"Your messages are queued. LeadMASTER sends no more than 10 messages per second."},202);
 }
 
 async function handle(request, env) {
