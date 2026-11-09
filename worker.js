@@ -202,7 +202,7 @@ async function login(request, env) {
       connect,
       env,
       to: adminEmail,
-      fromName: "LeadMaster",
+      fromName: "LeadMASTER",
       subject: "Your LeadMASTER sign-in code",
       text: "Your LeadMASTER verification code is " + code + ". It expires in 10 minutes. If you did not request this code, you can ignore this email.",
       html: await renderEmailTemplate("/email-otpformat.html", { USER_NAME: "Admin", OTP_CODE: code, EXPIRY_MINUTES: "10" })
@@ -257,6 +257,7 @@ async function verifyOtp(request, env) {
       connect,
       env,
       to: adminEmail,
+      fromName: "LeadMASTER",
       subject: "New login detected — LeadMASTER",
       text: "A new login to your LeadMASTER account was detected. Location: " + details.location +
         ". Time: " + details.time + ". Device: " + details.device + ". Browser: " + details.browser +
@@ -313,6 +314,8 @@ async function sesSnsEvents(request,env){
  const mail=event.mail||{},subject=mail.commonHeaders?.subject||"",timestamp=Date.now();
  const statusMap={BOUNCE:"bounced",COMPLAINT:"complaint",DELIVERY:"delivered",DELIVERY_DELAY:"delayed",REJECT:"rejected",RENDERING_FAILURE:"failed",SEND:"sent",SUBSCRIPTION:"subscription"};
  const status=statusMap[type];if(!status)return json({ok:true,ignored:true});
+ const eventId=String(envelope.MessageId||"");if(eventId){const once=await env.AUTH_DB.prepare("INSERT OR IGNORE INTO mail_event_dedup (event_id,received_at) VALUES (?,?)").bind(eventId,timestamp).run();if((once.meta?.changes||0)===0)return json({ok:true,duplicate:true});}
+ const correlation=String((mail.headers||[]).find(h=>String(h.name||"").toLowerCase()==="x-leadmaster-message-id")?.value||"");
  let recipients=[];
  if(type==="BOUNCE")recipients=(event.bounce?.bouncedRecipients||[]).map(x=>({email:x.emailAddress,detail:x.diagnosticCode||event.bounce?.bounceType||"Bounce"}));
  else if(type==="COMPLAINT")recipients=(event.complaint?.complainedRecipients||[]).map(x=>({email:x.emailAddress,detail:event.complaint?.complaintFeedbackType||"Complaint"}));
@@ -326,10 +329,17 @@ async function sesSnsEvents(request,env){
   const id="ses-"+String(envelope.MessageId||crypto.randomUUID())+"-"+i;
   const detail=JSON.stringify({type,detail:recipients[i].detail,bounceType:event.bounce?.bounceType||null});
   await env.AUTH_DB.prepare("INSERT OR IGNORE INTO email_delivery_events (id,email,subject,status,created_at,detail) VALUES (?,?,?,?,?,?)").bind(id,email,subject,status,timestamp,detail).run();
+  if(correlation){
+   await env.AUTH_DB.prepare("UPDATE admin_sent_mail SET delivery_status=? WHERE id=?").bind(status,correlation).run();
+   await env.AUTH_DB.prepare("UPDATE developer_email_requests SET delivery_status=? WHERE id=?").bind(status,correlation).run();
+  }
   if(type==="COMPLAINT"||(type==="BOUNCE"&&event.bounce?.bounceType==="Permanent")){
    await env.AUTH_DB.prepare("INSERT OR IGNORE INTO email_unsubscribes (id,email,source,created_at,reason) VALUES (?,?,?,?,?)").bind("ses-suppress-"+email.replace(/[^a-z0-9]/g,"-"),email,type==="COMPLAINT"?"ses-complaint":"ses-hard-bounce",timestamp,recipients[i].detail).run();
   }
  }
+ const summary=({delivered:"Email delivered to the receiving mail server.",bounced:"An email could not be delivered.",complaint:"A recipient reported an email as unwanted.",delayed:"Email delivery is taking longer than expected.",rejected:"An email was rejected by the receiving service.",failed:"An email could not be prepared for sending.",sent:"An email was accepted by the sending service."})[status]||"Email status updated.";
+ await env.AUTH_DB.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at) VALUES (?,?,'delivery_update',?,?,?)").bind(crypto.randomUUID(),"system",summary,correlation||eventId, timestamp).run();
+ await env.AUTH_DB.prepare("INSERT INTO mail_notifications (id,type,title,message,target_id,created_at) VALUES (?,?,?,?,?,?)").bind(crypto.randomUUID(),status,status==="delivered"?"Email delivered":"Email status updated",summary,correlation||eventId,timestamp).run();
  return json({ok:true,event:type,recipients:recipients.length});
 }
 
@@ -483,13 +493,13 @@ async function handle(request, env) {
   const url = new URL(request.url);
 
   if (url.pathname === "/api/aws/ses-events") return sesSnsEvents(request,env);
-  if (url.pathname === "/api/admin/mail" || url.pathname.startsWith("/api/admin/mail/") || url.pathname === "/api/admin/unsubscribes") return adminMailboxRoute(request,env,await sessionFor(request,env));
   const adminSession=await sessionFor(request,env);
+  const aiSuggest=url.pathname.match(/^\/api\/admin\/mail\/([0-9a-f-]{36})\/suggest$/i);
+  if (aiSuggest) return adminAiSuggestRoute(request,env,adminSession,aiSuggest[1]);
+  if (url.pathname === "/api/admin/mail" || url.pathname.startsWith("/api/admin/mail/") || url.pathname === "/api/admin/unsubscribes") return adminMailboxRoute(request,env,adminSession);
   if (url.pathname === "/api/admin/send") return adminSendRoute(request,env,adminSession);
   if (url.pathname === "/api/admin/activity") return adminActivityRoute(request,env,adminSession);
   if (url.pathname === "/api/admin/notifications" || url.pathname.startsWith("/api/admin/notifications/")) return adminNotificationsRoute(request,env,adminSession);
-  const aiSuggest=url.pathname.match(/^\/api\/admin\/mail\/([0-9a-f-]{36})\/suggest$/i);
-  if (aiSuggest) return adminAiSuggestRoute(request,env,adminSession,aiSuggest[1]);
 
   if (url.pathname === "/api/developer/keys" || url.pathname.startsWith("/api/developer/keys/")) {
     const session = await sessionFor(request, env);
