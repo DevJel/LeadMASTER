@@ -30,10 +30,16 @@
     }catch{error('login-error','Sign-in is temporarily unavailable. Please try again.');}
     finally{busy=false;loginButton.textContent='Log in';turnstileReady=false;loginButton.disabled=true;if(window.turnstile&&widgetId!==undefined)window.turnstile.reset(widgetId);}
   });
+  $('code').addEventListener('input',()=>{$('code').value=$('code').value.replace(/[^0-9]/g,'').slice(0,6);});
   $('otp-form').addEventListener('submit',async event=>{
-    event.preventDefault();if(busy)return;error('otp-error','');setBusy(otpButton,true,'Verify and continue');
-    try{const res=await request('/api/auth/verify',{method:'POST',body:JSON.stringify({code:$('code').value})});if(!res.ok){error('otp-error',res.status===429?'Too many attempts. Please wait and try again.':'Unable to verify the code. Please try again.');return;}const body=await res.json();if(body.authenticated!==true)throw Error();location.assign('/dashboard.html');}
-    catch{error('otp-error','Verification is temporarily unavailable. Please try again.');}
+    event.preventDefault();if(busy)return;error('otp-error','');const code=$('code').value.replace(/[^0-9]/g,'').slice(0,6);$('code').value=code;
+    if(code.length!==6){error('otp-error','Enter all 6 numbers from the latest email.');return;}
+    setBusy(otpButton,true,'Verify and continue');
+    try{
+      const res=await request('/api/auth/verify',{method:'POST',body:JSON.stringify({code})});
+      if(!res.ok){const body=await res.json().catch(()=>({}));const message=res.status===429?'Too many attempts. Please wait before trying again.':res.status===401?'This code is incorrect or has expired. Return to sign in to request a new one.':res.status===400?'Enter the 6-number code from the latest email.':res.status===503?'Email verification is temporarily unavailable. Please try again shortly.':'We could not verify this code. Please try again.';error('otp-error',message);return;}
+      const body=await res.json();if(body.authenticated!==true)throw Error();location.assign('/dashboard.html');
+    }catch{error('otp-error','Verification is temporarily unavailable. Please try again.');}
     finally{setBusy(otpButton,false,'Verify and continue');}
   });
   $('back-button').addEventListener('click',()=>{if(busy)return;$('code').value='';error('otp-error','');$('otp-step').hidden=true;$('login-step').hidden=false;$('identity').focus();});
