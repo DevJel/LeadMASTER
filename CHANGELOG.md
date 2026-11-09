@@ -23,3 +23,16 @@ Unit tests do not prove live Turnstile, SES inbox delivery or webhook callback r
 - Automated `npm test` was not run. Real administrator login, SES inbox delivery and webhook callback acceptance remain unverified.
 
 - Added direct links from the API, production-authentication and queue engineering references to the single public landing-page documentation hub.
+
+
+## 2026-11-09 — AI-agent discovery and public-surface hardening
+
+- Added root and public `llms.txt` with canonical product overview, supported features, API scopes, copy-ready cURL and Node.js examples, webhook signing requirements, agent workflow, feature limits and explicit MCP status.
+- Added `robots.txt` crawler rules to permit public documentation while discouraging indexing of authentication, dashboard, API and private application routes. Robots rules are not access controls.
+- Added landing-page AI-agent integration section, machine-readable guide links and agent-specific REST API instructions.
+- Explicitly prohibited agents from automating human sign-in, using security challenges, requesting OTPs or attempting challenge bypasses.
+- Reserved `/mcp` with an explicit 404 response because MCP is not mounted in production; the REST API remains the supported agent interface.
+- Removed underlying infrastructure/provider details from the public landing and login copy; refreshed privacy and terms language to describe service providers generically. Legal processor disclosures still require operator review for applicable law and actual data flows.
+- Added root agent rules and handover requirements for vendor-neutral UI, least-privilege agent access, truthful capability claims and synchronized documentation.
+- Added `llms.txt` and `robots.txt` to the generated production asset map.
+- Production Worker deployment attempted after bundling; the first validation caught and fixed a source-line escaping issue before successful upload. Final route verification remains pending.
