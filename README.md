@@ -8,6 +8,7 @@ LeadMASTER is an email workspace and developer integration service.
 - **Crawler policy:** https://leadmaster.jelvan.pro/robots.txt
 - **Detailed API reference:** [docs/API.md](docs/API.md)
 - **Engineering handover:** [HANDOVER.md](HANDOVER.md)
+- **Production mail workflow:** [docs/MAIL_WORKFLOW.md](docs/MAIL_WORKFLOW.md)
 
 ## Product status
 
@@ -19,12 +20,64 @@ LeadMASTER is an email workspace and developer integration service.
 | Developer API keys | Deployed | Account-owned; shown once; scoped by permission |
 | Account-specific email API | Implemented in this branch | Requires a key from the same account and its exact account ID |
 | Account-specific webhooks | Implemented in this branch | Owned by the account and creating API key; one synchronous delivery attempt |
-| Email delivery | Existing production route | Controlled authenticated end-to-end delivery verification remains outstanding |
-| Dashboard | Authenticated account summary and developer-console entry point | Email activity, audiences, campaigns, templates, domains and analytics are not complete functional modules |
+| Email sending | Deployed through AWS SES SMTP and a dedicated sending queue | Dashboard bulk sends support up to 500 recipients per request; the queue releases no more than 10 messages per second |
+| Dedicated inbox | Deployed for `inbound@inbound.leadmaster.jelvan.pro` | Only this new address is captured. Existing `jelvan.pro` and `operavaglobal.com` forwarding rules are unchanged |
+| SES delivery updates | Deployed through a separate LeadMASTER configuration set and SNS event destination | Tracks sent, delivered, bounced, complaints, delays, rejects and sending failures; delivery is not the same as inbox placement |
+| Dashboard | Deployed for the configured superadmin | Inbox, Sent, Archived, Bounced, Unsuccessful, Deleted, Unsubscribed, Activity, sender settings and notifications |
+| AI reply suggestions | Deployed with Workers AI | Suggestions use related sent and received messages where available; a person reviews and sends the reply |
+| Sound and device alerts | Deployed while the dashboard is open | Browser audio starts after user interaction; background push when the dashboard is closed is not configured |
+| Email attachments | Original message is retained | Attachments remain inside the downloadable original email; separate attachment extraction is not yet available |
 | HTML preview | Browser-local preview | Not a send or template-persistence feature |
 | MCP | Experimental read-only prototype only | Not mounted in production; no public endpoint or send tool |
 
 Do not describe planned dashboard sections as available. Do not equate an accepted email submission with inbox delivery.
+
+
+## Production mail workspace
+
+The superadmin dashboard uses a light, grayscale design and familiar labels. It includes:
+
+- **Emails:** Inbox, Sent, Archived, Bounced, Unsuccessful, Deleted and Unsubscribed.
+- **Activity:** a record of sign-ins, message actions, sending, delivery updates, profile changes and reply suggestions.
+- **Notifications:** new incoming messages and AWS SES sending/delivery updates.
+- **Reply suggestions:** a human-reviewed draft based on the current email and relevant sent/received history.
+- **Sending addresses:** approved superadmin sender choices and the account holder's own name for regular API senders.
+
+### Incoming mail
+
+The dedicated inbox address is `inbound@inbound.leadmaster.jelvan.pro`. Its MX records and one exact-match Cloudflare Email Routing rule point to the `leadmaster-inbound-mail` email Worker. The Worker stores the original email in the dedicated R2 bucket and its searchable details in D1. The inbox notification and activity record are created when storage succeeds.
+
+This is intentionally separate from all existing forwarding. Messages sent to other addresses at `jelvan.pro` or `operavaglobal.com` continue through their existing routes and are not copied into this new inbox.
+
+### Outgoing mail and sending pace
+
+Dashboard messages and account API messages enter the `leadmaster-mail-send` queue. One queue consumer processes a batch of up to 10 messages at a time, with a single active consumer and at least 100 ms between consecutive submissions. This caps the queue at no more than 10 messages per second. A separate failed-message queue records items that exhaust retries.
+
+The dashboard accepts up to 500 unique recipient addresses in one bulk request. The account API remains one recipient per request and keeps its per-key request limit. Login verification codes and security alerts use the same LeadMASTER sender identity and AWS SES SMTP service directly so sign-in is not held behind bulk sending.
+
+### Sender identity
+
+- Login codes and security alerts: `LeadMASTER <noreply@leadmaster.jelvan.pro>`.
+- Superadmin dashboard: `Jelvan Ricolcol <hello@work.jelvan.pro>`, `Operava <hello@operavaglobal.com>`, or another address under a verified LeadMASTER sending domain.
+- Regular account API messages: the account holder's full name as the display name, an address generated under `leadmaster.jelvan.pro`, and the account's registered email as Reply-To. API users can provide `sender_name` to set or update their account name.
+
+Only verified sending identities are accepted. SMTP credentials remain in Cloudflare Secrets Store and are never returned to the browser.
+
+### Delivery status meanings
+
+- **Waiting to send:** stored in the sending list.
+- **Sending:** currently being submitted.
+- **Sent:** AWS SES accepted the message.
+- **Delivered:** the recipient's mail service confirmed receipt.
+- **Delayed:** delivery is taking longer than expected.
+- **Could not deliver:** a bounce was received.
+- **Marked as unwanted:** a complaint was received.
+- **Not sent:** sending failed.
+- **Needs checking:** the final result could not be confirmed.
+
+A delivered event does not guarantee inbox placement, display or reading. Permanent bounces and complaints are added to the do-not-contact list and are skipped by later sends.
+
+See [docs/MAIL_WORKFLOW.md](docs/MAIL_WORKFLOW.md) for the complete flow and deployment map.
 
 ## Account and integration model
 
