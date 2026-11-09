@@ -47,3 +47,7 @@ Unit tests do not prove live Turnstile, SES inbox delivery or webhook callback r
 - Added cross-account negative tests for email, account metadata, webhook access and API-key listing.
 - Updated landing Documentation tab, machine-readable agent instructions, API reference, README and handover with account-first access rules and Mermaid flows.
 - Not deployed: migration application, full test suite, live account-isolation verification, authenticated end-to-end email/webhook checks and genuine authenticated dashboard screenshots remain release gates.
+
+
+- Added account endpoint visibility and copy action to the developer API console.
+- Added reproducible, watermarked local UI screenshot capture for landing, integrated documentation, login, dashboard tabs and API Keys console. Screenshots are delivered as a CI artifact and are explicitly labeled synthetic.
