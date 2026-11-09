@@ -27,6 +27,7 @@ jobs:
           node --check src/developer-api.mjs
           node --check src/developer-webhooks.mjs
           node --check test/account-isolation.test.mjs
+          node --check scripts/capture-screenshots.mjs
 
   screenshots:
     runs-on: ubuntu-latest
