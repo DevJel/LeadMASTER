@@ -36,3 +36,14 @@ Unit tests do not prove live Turnstile, SES inbox delivery or webhook callback r
 - Added root agent rules and handover requirements for vendor-neutral UI, least-privilege agent access, truthful capability claims and synchronized documentation.
 - Added `llms.txt` and `robots.txt` to the generated production asset map.
 - Production Worker version `5ce0609c-ecbb-43f5-9a0d-4c4638511e03` (version 133) deployed at 100%; external HTTP smoke checks are blocked by the connected tool's outbound-domain policy, and the unit test suite was not run in this session.
+
+
+## 2026-11-09 — Account-owned integrations and developer handover (feature branch)
+
+- Added account and membership tables, account ownership backfill for existing developer keys, email requests and webhooks.
+- Added authenticated account resolution and account-specific REST routes for account info, email submission/status and webhook management/delivery history.
+- Bound API key management to the signed-in account; returned account-specific endpoint URLs when creating keys.
+- Enforced account/key ownership in email and webhook authorization/dispatch paths and rejected legacy unscoped API routes.
+- Added cross-account negative tests for email, account metadata, webhook access and API-key listing.
+- Updated landing Documentation tab, machine-readable agent instructions, API reference, README and handover with account-first access rules and Mermaid flows.
+- Not deployed: migration application, full test suite, live account-isolation verification, authenticated end-to-end email/webhook checks and genuine authenticated dashboard screenshots remain release gates.
