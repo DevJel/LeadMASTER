@@ -15,5 +15,5 @@ $("hook-form").addEventListener("submit",async e=>{e.preventDefault();$("hook-fe
 $("hook-copy").addEventListener("click",async()=>{if(webhookSecret){await navigator.clipboard.writeText(webhookSecret);$("hook-feedback").textContent="Signing secret copied."}});
 $("hook-key").addEventListener("change",loadHooks);
 $("hooks").addEventListener("click",async e=>{const revoke=e.target.closest("[data-hook-revoke]"),deliveries=e.target.closest("[data-hook-deliveries]");try{if(revoke){if(!confirm("Revoke this webhook?"))return;await hookApi("/api/v1/webhooks/"+revoke.dataset.hookRevoke,{method:"DELETE"});await loadHooks()}if(deliveries){const d=await hookApi("/api/v1/webhooks/"+deliveries.dataset.hookDeliveries+"/deliveries");$("hook-feedback").textContent=d.deliveries.length?d.deliveries.map(x=>x.event_type+" · HTTP "+(x.http_status??"no response")+" · "+(x.success?"Success":"Failed")+" · "+new Date(x.attempted_at).toLocaleString()).join("\n"):"No attempts recorded."}}catch(err){$("hook-feedback").textContent=err.message}});
-api("/api/auth/session.then(d=>{if(!d.authenticated)location.replace("/login.html")}).catch(()=>location.replace("/login.html"));load();
+api("/api/auth/session").then(d=>{if(!d.authenticated)location.replace("/login.html")}).catch(()=>location.replace("/login.html"));load();
 </script></body></html>
