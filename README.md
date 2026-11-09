@@ -20,7 +20,7 @@ LeadMASTER is an email workspace and developer integration service.
 | Account-specific email API | Implemented in this branch | Requires a key from the same account and its exact account ID |
 | Account-specific webhooks | Implemented in this branch | Owned by the account and creating API key; one synchronous delivery attempt |
 | Email delivery | Existing production route | Controlled authenticated end-to-end delivery verification remains outstanding |
-| Dashboard | Navigation shell | Email activity, audiences, campaigns, templates, domains and analytics are not complete functional modules |
+| Dashboard | Authenticated account summary and developer-console entry point | Email activity, audiences, campaigns, templates, domains and analytics are not complete functional modules |
 | HTML preview | Browser-local preview | Not a send or template-persistence feature |
 | MCP | Experimental read-only prototype only | Not mounted in production; no public endpoint or send tool |
 
@@ -274,7 +274,7 @@ LeadMASTER is an email workspace and developer email integration service. The cu
 - **Product showcase:** illustrative feature/workflow cards. They are concepts, not live campaign activity or delivery metrics.
 - **Integrated documentation:** searchable overview, authentication, API, webhooks, operations, queue roadmap and agent/MCP guidance.
 - **Human administrator sign-in:** password, Cloudflare Turnstile and email one-time passcode.
-- **Dashboard shell:** authenticated navigation framework; not yet a complete mailbox or campaign workspace.
+- **Dashboard:** authenticated account summary with the current account ID and API base URL, plus access to the developer console; not yet a complete mailbox or campaign workspace.
 - **Developer API Keys console:** create named keys, assign scopes, view key metadata and revoke keys. The full key is shown once.
 - **Account-specific email API:** submit one email, inspect eligible request status and manage account-owned webhooks.
 - **Email templates:** branded OTP and new-login security-alert messages.
