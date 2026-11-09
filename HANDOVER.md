@@ -346,3 +346,13 @@ Authentication, API-key, email and webhook route implementations are deployed. L
 - The UI uses honest unavailable states for saved templates, contacts/segments, multiple inboxes, scheduled campaigns, automation workflows, open/click analytics and DNS verification; these have no production backend contract yet.
 - Android native bottom navigation now follows mandatory mobile dashboard section IDs: `home`, `emails`, `audience`, `metrics`, `profile`. Other sections remain available through the dashboard drawer.
 - Do not claim production visual or end-to-end verification until the CI test, screenshot, Android build (if relevant) and authenticated browser smoke tests complete successfully.
+
+
+## Mandatory dashboard integration — 2026-11-09
+
+- Canonical UI: `src/Mandatory LeadMASTER Dashboard.html`; production mirror: `public/dashboard.html`; build via `npm run build:assets`.
+- Live integrations: account/profile, mailbox counts/activity, sending queue, suppression list, account API keys and webhooks. Webhook creation requires `webhook:manage` and reveals its signing secret once.
+- Preserved isolated HTML preview for Emails and Templates using DOMPurify, sandboxed iframe and restrictive CSP.
+- Honest unavailable states remain for template CRUD, contact lists, multiple inboxes, drafts/scheduling, automation, open/click analytics and DNS verification.
+- Android native navigation mirrors `home`, `emails`, `audience`, `metrics`, `profile`.
+- Do not claim production visual or end-to-end verification until CI, screenshots, Android build (if relevant) and authenticated smoke tests pass.
