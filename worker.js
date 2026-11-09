@@ -3,6 +3,7 @@ import { permanentlyDeleteInbound, restoreInbound } from "./src/inbound-deletion
 import { validSuppressionEmail } from "./src/suppression-validation.mjs";
 import { submitInOrder, writeBestEffort } from "./src/queue-submission.mjs";
 import { emailTemplatesRoute } from "./src/email-templates-api.mjs";
+import { audienceRoute } from "./src/audience-api.mjs";
 import { readBoundedJson } from "./src/bounded-json.mjs";
 import { sendSesEmail } from "./src/ses-smtp.mjs";
 import { emailOtpTemplate, emailSecurityAlertTemplate } from "./src/email-templates.mjs";
@@ -568,6 +569,7 @@ async function handle(request, env) {
   if (url.pathname === "/api/account/profile") return accountProfileRoute(request,env,adminSession);
   if (url.pathname === "/api/admin/webhooks" || url.pathname.startsWith("/api/admin/webhooks/")) return adminWebhookRoute(request,env,adminSession);
   if (url.pathname === "/api/admin/templates" || url.pathname.startsWith("/api/admin/templates/")) return emailTemplatesRoute(request,env,adminSession,await configuredAdminEmail(env));
+  if (url.pathname === "/api/admin/audience" || url.pathname.startsWith("/api/admin/audience/")) return audienceRoute(request,env,adminSession,await configuredAdminEmail(env));
   if (url.pathname === "/api/admin/send") return adminSendRoute(request,env,adminSession);
   if (url.pathname === "/api/admin/activity") return adminActivityRoute(request,env,adminSession);
   if (url.pathname === "/api/admin/notifications" || url.pathname.startsWith("/api/admin/notifications/")) return adminNotificationsRoute(request,env,adminSession);
