@@ -67,6 +67,11 @@ Every dashboard document and supporting bundle must be protected by a server-val
 Every dashboard document and supporting bundle must be protected by a server-validated `lm_session` cookie using `sessionFor()` before static asset lookup or upstream proxying. Normalize and decode URL paths before checking access; reject malformed paths, case variants, encoded separators and trailing-slash aliases. Unauthenticated dashboard requests must redirect to `/login.html`; never rely on React/client-side checks or hidden navigation. Keep the dashboard's HTML, JS, CSS, preview scripts and DOMPurify asset protected. Add regression tests whenever routes or assets change. Never proxy an unknown dashboard-like path to the preview upstream.
 
 
-## Pending inbound deletion change (not deployed)
+## Inbound deletion safety
 
-A feature branch requires migration 0008 and prevents restoring an inbound message while permanent deletion is pending; failed cleanup requires retry. No dashboard design or Android navigation changes are included. Validate shared WebView behavior and the full delete/restore confirmation experience before release.
+The deployed Worker contains the deletion-claim code and migration 0008 was applied on 2026-11-09. The code prevents restoring an inbound message while permanent deletion is pending; failed cleanup requires retry. Live end-to-end behavior remains unverified. No dashboard design or Android navigation changes are included. Validate shared WebView behavior and the full delete/restore confirmation experience before release.
+
+
+## Initial control audit (feature branch)
+
+See `docs/DASHBOARD_CONTROL_AUDIT.md`. Email date/status/key filters and export do not affect the live request; message soft deletion lacks confirmation and does not refresh the list; suppression creation locally appends rather than reloading. These are outstanding, not completed features.
