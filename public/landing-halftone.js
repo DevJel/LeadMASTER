@@ -35,10 +35,21 @@
   const search=docs.querySelector('#docs-search');
   const filters=[...docs.querySelectorAll('[data-doc-filter]')];
   const cards=[...docs.querySelectorAll('[data-doc-card]')];
+  const references=[...docs.querySelectorAll('.doc-reference-section')];
   let category='all';
   function filterDocs() {
     const term=search.value.trim().toLocaleLowerCase(); let count=0;
-    for(const card of cards){const visible=(category==='all'||card.dataset.docCategory===category)&&card.textContent.toLocaleLowerCase().includes(term);card.hidden=!visible;if(visible)count++;}
+    for(const card of cards){
+      const href=card.querySelector('a')?.getAttribute('href')||'';
+      const target=href.startsWith('#')?docs.querySelector(href):null;
+      const text=(card.textContent+' '+(target?.textContent||'')).toLocaleLowerCase();
+      const visible=(category==='all'||card.dataset.docCategory===category)&&text.includes(term);
+      card.hidden=!visible;if(visible)count++;
+    }
+    for(const section of references){
+      const visible=(category==='all'||section.dataset.docCategory===category)&&section.textContent.toLocaleLowerCase().includes(term);
+      section.hidden=!visible;
+    }
     docs.querySelector('#docs-count').textContent=`${count} ${count===1?'topic':'topics'} shown`;
     docs.querySelector('#docs-empty').hidden=count!==0;
     for(const filter of filters){const active=filter.dataset.docFilter===category;filter.classList.toggle('active',active);filter.setAttribute('aria-pressed',String(active));}
