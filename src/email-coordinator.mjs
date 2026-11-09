@@ -15,7 +15,7 @@ export class EmailCoordinator {
   async fetch(request) {
     const headers={'cache-control':'no-store','x-content-type-options':'nosniff'};
     if(request.method!=='POST') return new Response(null,{status:405,headers:{...headers,allow:'POST'}});
-    if(!/^application\\/json(?:\\s*;|$)/i.test(request.headers.get('content-type')||'')) {
+    if(!/^application\/json(?:\s*;|$)/i.test(request.headers.get('content-type')||'')) {
       return Response.json({status:'invalid_request'},{status:415,headers});
     }
     const length=Number(request.headers.get('content-length')||0);
