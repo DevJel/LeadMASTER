@@ -57,11 +57,12 @@ Headers: `Authorization: Bearer <key>`, `Content-Type: application/json`, and a 
   "to": "recipient@example.com",
   "subject": "Your order confirmation",
   "text": "Thanks for your order.",
-  "html": "<h1>Thank you</h1><p>Your order is being processed.</p>"
+  "html": "<h1>Thank you</h1><p>Your order is being processed.</p>",
+  "sender_name": "Jane Smith"
 }
 ```
 
-Only `to`, `subject`, `text` and optional `html` are accepted. One recipient is supported. The sender is configured by LeadMASTER and cannot be overridden. Attachments, CC/BCC, multiple recipients, custom sender identities and templates are not in this contract.
+Accepted fields are `to`, `subject`, `text`, optional `html` and optional `sender_name`. One recipient is supported per API request. The sending address is generated from the account holder's full name under `leadmaster.jelvan.pro`; replies go to the registered account email. The optional `sender_name` field sets or updates the account holder's display name. API users cannot choose another sending address. Attachments, CC/BCC, multiple recipients and saved templates are not in this API contract.
 
 ### cURL
 
@@ -117,12 +118,23 @@ print(response.json())
 `GET /api/v1/accounts/{account_id}/emails/{id}` requires `email:read`. A key can read only requests created using that same key.
 
 Statuses:
-- `sending` — request recorded and being processed.
-- `accepted` — the downstream email provider accepted the submission.
-- `failed` — the email provider did not accept the submission.
-- `unknown` — the connection ended after transmission began; acceptance is uncertain.
+- `sending` — the request is waiting in the sending list or is being processed.
+- `accepted` — AWS SES accepted the SMTP submission.
+- `failed` — the message could not be sent after the available attempts.
+- `unknown` — the connection ended after transmission began; the final result is uncertain.
 
-`accepted` is not proof of inbox delivery, reading or final recipient-server acceptance. Reuse the same idempotency key for retries and reconcile `unknown` outcomes before resending.
+The response also includes `delivery_status` when AWS SES reports a later event, such as `sent`, `delivered`, `bounced`, `complaint`, `delayed`, `rejected` or `failed`. `accepted` is not proof of inbox delivery, placement or reading. Reuse the same idempotency key for retries and reconcile `unknown` outcomes before resending.
+
+
+## 5A. Incoming mail and dashboard sending
+
+The superadmin dashboard includes a dedicated inbox at **inbound@inbound.leadmaster.jelvan.pro**. Only mail sent to this exact address is captured by the new LeadMASTER receiving Worker. Existing forwarding rules for jelvan.pro and operavaglobal.com remain unchanged. Original messages are retained in a private R2 bucket; searchable message details are stored in D1. The dashboard can download the original .eml file. Individual attachment extraction is not yet available.
+
+Dashboard sending supports up to 500 unique recipients in one request. Those messages enter the shared queue and are sent at no more than 10 per second. The account API remains one recipient per request.
+
+The superadmin can choose hello@work.jelvan.pro, hello@operavaglobal.com or another sender address under a verified sending identity. Regular account API messages use the account holder's full name as the display name and the registered account email as Reply-To.
+
+AWS SES delivery events are published through a separate LeadMASTER configuration set and SNS destination. The dashboard reports sending, delivery, bounce, complaint, delay and rejection updates. These SES updates are separate from developer webhook events.
 
 ## 6. Webhooks
 
