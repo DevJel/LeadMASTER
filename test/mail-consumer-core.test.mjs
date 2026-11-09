@@ -9,6 +9,7 @@ function setup(source='admin') {
  const sql=new DatabaseSync(':memory:');
  sql.exec(`CREATE TABLE admin_sent_mail (id TEXT PRIMARY KEY,recipient TEXT,subject TEXT,text_body TEXT,html_body TEXT,status TEXT,from_email TEXT,from_name TEXT,reply_to TEXT,queue_status TEXT,batch_id TEXT,updated_at INTEGER,error_code TEXT);
  CREATE TABLE developer_email_requests (id TEXT PRIMARY KEY,recipient TEXT,subject TEXT,text_body TEXT,html_body TEXT,status TEXT,from_email TEXT,sender_name TEXT,reply_to TEXT,api_key_id TEXT,account_id TEXT,updated_at INTEGER,error_code TEXT);
+ CREATE TABLE email_unsubscribes (email TEXT NOT NULL);
  CREATE TABLE workspace_activity (id TEXT,actor_email TEXT,action TEXT,summary TEXT,target_id TEXT,created_at INTEGER);
  CREATE TABLE mail_notifications (id TEXT,type TEXT,title TEXT,message TEXT,target_id TEXT,created_at INTEGER);`);
  sql.exec(readFileSync(new URL('../migrations/0009_mail_send_claims.sql',import.meta.url),'utf8'));
@@ -64,4 +65,30 @@ test('consecutive batches retain a 100ms pause after the last message', async()=
  }
  await c.queue({messages:messages.slice(0,10)},s.env);await c.queue({messages:messages.slice(10)},s.env);
  assert.equal(starts.length,11);for(let i=1;i<starts.length;i++)assert.ok(starts[i]-starts[i-1]>=100,`missing spacing between messages ${i} and ${i+1}`);
+});
+
+test('admin and developer recipients suppressed after enqueue are skipped, not sent',async()=>{
+ for (const source of ['admin','developer']) {
+  const s=setup(source);s.sql.prepare('INSERT INTO email_unsubscribes(email) VALUES (?)').run('Recipient@EXAMPLE.test');let sends=0;
+  const a=message(source);await consumer(async()=>{sends++}).queue({messages:[a]},s.env);
+  const table=source==='admin'?'admin_sent_mail':'developer_email_requests';
+  assert.equal(sends,0);assert.equal(s.status(),'failed');assert.equal(s.claim(),'failed');assert.equal(a.acks,1);
+  assert.equal(s.sql.prepare(`SELECT error_code FROM ${table} WHERE id=?`).get(id).error_code,'suppressed_at_dispatch');
+  await consumer(async()=>{sends++}).queue({messages:[message(source)]},s.env);assert.equal(sends,0);
+ }
+});
+test('missing suppression table fails closed before a claim and retries without sending',async()=>{
+ const s=setup();s.sql.exec('DROP TABLE email_unsubscribes');let sends=0;const a=message();
+ await consumer(async()=>{sends++}).queue({messages:[a]},s.env);assert.equal(sends,0);assert.equal(s.claim(),undefined);assert.equal(a.acks,0);assert.equal(a.retries.length,1);
+});
+test('suppression appearing between precheck and claim is respected by second check',async()=>{
+ const s=setup(),prepare=s.db.prepare.bind(s.db);let reads=0,sends=0;
+ s.db.prepare=(q)=>{const stmt=prepare(q);if(q.includes('SELECT 1 FROM email_unsubscribes')){const first=stmt.first.bind(stmt);stmt.first=async()=>{const r=await first();if(++reads===1)s.sql.prepare('INSERT INTO email_unsubscribes(email) VALUES (?)').run('recipient@example.test');return r}}return stmt};
+ const a=message();await consumer(async()=>{sends++}).queue({messages:[a]},s.env);assert.equal(reads,2);assert.equal(sends,0);assert.equal(s.status(),'failed');assert.equal(a.acks,1);
+});
+test('suppression read failure after claim does not send and remains fenced',async()=>{
+ const s=setup(),prepare=s.db.prepare.bind(s.db);let reads=0,sends=0;
+ s.db.prepare=(q)=>{const stmt=prepare(q);if(q.includes('SELECT 1 FROM email_unsubscribes')){const first=stmt.first.bind(stmt);stmt.first=async()=>{if(++reads===2)throw Error('D1 outage');return first()}}return stmt};
+ const a=message();await consumer(async()=>{sends++}).queue({messages:[a]},s.env);assert.equal(sends,0);assert.equal(s.claim(),'started');assert.equal(a.acks,0);assert.equal(a.retries.length,1);
+ await consumer(async()=>{sends++}).queue({messages:[message()]},s.env);assert.equal(sends,0);
 });
