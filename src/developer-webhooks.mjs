@@ -19,12 +19,12 @@ export async function webhookRoute(req,env,accountId){
  if(!env.AUTH_DB)return json({error:"Service unavailable"},503);
  const key=await auth(req,env);if(!key)return json({error:"Unauthorized"},401);if(key.account_id!==accountId)return json({error:"Not found"},404);
  if(!key.scopes.includes("webhook:manage"))return json({error:"Insufficient scope: webhook:manage"},403);
- const url=new URL(req.url),parts=url.pathname.split("/").filter(Boolean),id=parts[3];
- if(parts.length===3&&req.method==="GET"){
+ const url=new URL(req.url),parts=url.pathname.split("/").filter(Boolean),id=parts[5];
+ if(parts.length===5&&parts[4]==="webhooks"&&req.method==="GET"){
   const rows=await env.AUTH_DB.prepare("SELECT id,name,target_url,events,created_at,revoked_at,last_delivery_at FROM developer_webhooks WHERE api_key_id=? AND account_id=? ORDER BY created_at DESC").bind(key.id,accountId).all();
   return json({webhooks:(rows.results||[]).map(r=>({...r,events:JSON.parse(r.events)}))});
  }
- if(parts.length===3&&req.method==="POST"){
+ if(parts.length===5&&parts[4]==="webhooks"&&req.method==="POST"){
   let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}
   const name=typeof body.name==="string"?body.name.trim():"",target=safeUrl(body.url),events=Array.isArray(body.events)?[...new Set(body.events)]:[];
   if(!name||name.length>80||!target||!events.length||events.some(e=>!EVENTS.includes(e)))return json({error:"Provide a name, public HTTPS URL and supported events"},400);
@@ -33,11 +33,11 @@ export async function webhookRoute(req,env,accountId){
    .bind(id,key.id,name,target.href,await sha(secret),await seal(secret,env),JSON.stringify(events),now,accountId).run();
   return json({id,name,url:target.href,events,signing_secret:secret,created_at:now,warning:"Copy the signing secret now. It is shown only once."},201);
  }
- if(id&&parts.length===4&&req.method==="DELETE"){
+ if(id&&parts.length===6&&parts[4]==="webhooks"&&req.method==="DELETE"){
   const r=await env.AUTH_DB.prepare("UPDATE developer_webhooks SET revoked_at=? WHERE id=? AND api_key_id=? AND account_id=? AND revoked_at IS NULL").bind(Date.now(),id,key.id,accountId).run();
   return (r.meta?.changes||0)?json({revoked:true}):json({error:"Not found"},404);
  }
- if(id&&parts.length===5&&parts[4]==="deliveries"&&req.method==="GET"){
+ if(id&&parts.length===7&&parts[4]==="webhooks"&&parts[6]==="deliveries"&&req.method==="GET"){
   const rows=await env.AUTH_DB.prepare("SELECT d.id,d.event_type,d.event_id,d.http_status,d.attempted_at,d.success FROM developer_webhook_deliveries d INNER JOIN developer_webhooks w ON w.id=d.webhook_id WHERE d.webhook_id=? AND w.api_key_id=? AND w.account_id=? ORDER BY d.attempted_at DESC LIMIT 50").bind(id,key.id,accountId).all();
   const owned=await env.AUTH_DB.prepare("SELECT id FROM developer_webhooks WHERE id=? AND api_key_id=? AND account_id=?").bind(id,key.id,accountId).first();
   return owned?json({deliveries:rows.results||[]}):json({error:"Not found"},404);
