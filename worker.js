@@ -290,7 +290,8 @@ async function handle(request, env) {
   }
   if (url.pathname === "/logout" && request.method === "GET") return Response.redirect(new URL("/login.html", request.url), 302);
 
-  const asset = staticAssets[url.pathname];
+  const assetPath = url.pathname === "/" ? "/index.html" : url.pathname;
+  const asset = staticAssets[assetPath];
   if (asset) {
     const isHtml = asset.contentType.startsWith("text/html");
     return new Response(asset.body, { status: 200, headers: {
