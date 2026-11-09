@@ -67,7 +67,7 @@ try {
 
   await page.goto("http://127.0.0.1:"+port+"/dashboard.html#overview",{waitUntil:"domcontentloaded"});
   await mark();
-  await page.waitForSelector("#workspace-name");
+  await page.waitForFunction(()=>document.querySelector("#workspace-name")?.textContent==="Preview workspace",{timeout:5000});
   for (const section of ["overview","emails","logs","broadcasts","audiences","templates","domains","webhooks","settings"]) {
     await page.goto("http://127.0.0.1:"+port+"/dashboard.html#"+section,{waitUntil:"domcontentloaded"});
     await mark();
