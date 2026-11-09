@@ -61,3 +61,8 @@ Current native navigation maps to the live dashboard hash sections: `overview`, 
 ## Mandatory dashboard parity
 
 The app opens the same production LeadMASTER dashboard defined in `src/Mandatory LeadMASTER Dashboard.html`. Native navigation must activate the matching dashboard tab rather than relying on URL hashes. The live workspace remains the source for email, account and API data. Android-specific navigation and device integrations must not fork business logic or alter the mandatory dashboard UI.
+
+
+## Mandatory dashboard navigation alignment
+
+The native bottom navigation mirrors the mandatory dashboard's own mobile destinations: Home (`home`), Emails (`emails`), Audience (`audience`), Metrics (`metrics`) and Profile (`profile`). Other workspace modules remain available through the dashboard's own navigation drawer. Native Back returns to Home before leaving the workspace. All views continue to use the same authenticated WebView session and account-scoped backend.
