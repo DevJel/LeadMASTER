@@ -21,7 +21,7 @@ test('published legal notices are linked from the landing page and crawlable',as
 
 test('privacy notice identifies the operator and describes deployed data processing',async()=>{
   const privacy=await read('privacy.html');
-  for(const phrase of ['Operava Global Solutions','administrator authentication','email','Cloudflare','Amazon Simple Email Service','AI-assisted reply suggestions','retention','data portability','hello@operavaglobal.com','Republic Act No. 10173']) assert.ok(privacy.toLowerCase().includes(phrase.toLowerCase()),'missing: '+phrase);
+  for(const phrase of ['Operava Global Solutions','administrator','authentication','email','Cloudflare','Amazon Simple Email Service','AI-assisted reply suggestions','retention','data portability','hello@operavaglobal.com','Republic Act No. 10173']) assert.ok(privacy.toLowerCase().includes(phrase.toLowerCase()),'missing: '+phrase);
   assert.ok(!privacy.includes('not operational in the preview'));
   assert.ok(!privacy.includes('Draft'));
 });
