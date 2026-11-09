@@ -1,4 +1,3 @@
-import { connect } from "cloudflare:sockets";
 import { permanentlyDeleteInbound, restoreInbound } from "./src/inbound-deletion.mjs";
 import { validSuppressionEmail } from "./src/suppression-validation.mjs";
 import { submitInOrder, writeBestEffort } from "./src/queue-submission.mjs";
@@ -6,12 +5,13 @@ import { emailTemplatesRoute } from "./src/email-templates-api.mjs";
 import { audienceRoute } from "./src/audience-api.mjs";
 import { batchProgressRoute } from "./src/batch-progress.mjs";
 import { readBoundedJson } from "./src/bounded-json.mjs";
-import { sendSesEmail } from "./src/ses-smtp.mjs";
+import { sendThroughEmailCoordinator } from "./src/email-coordinator-client.mjs";
 import { emailOtpTemplate, emailSecurityAlertTemplate } from "./src/email-templates.mjs";
 import { staticAssets } from "./src/static-assets.mjs";
 import { developerAdminRoute, developerEmailRoute, developerEmailStatus, developerAccountInfo } from "./src/developer-api.mjs";
 import { webhookRoute, adminWebhookRoute } from "./src/developer-webhooks.mjs";
 import { verifyTurnstile } from "./src/turnstile.mjs";
+export { EmailCoordinator } from "./src/email-coordinator.mjs";
 
 const HOSTNAME = "leadmaster.jelvan.pro";
 const UPSTREAM = "https://leadmaster-preview.projects-public-portfolio.workers.dev";
@@ -195,16 +195,25 @@ async function login(request, env) {
     .bind(id, adminEmail, codeHash, now, now + 10 * 60 * 1000).run();
   await logWorkspaceAction(env,adminEmail,"sign_in_code_sent","Requested a sign-in code.");
   try {
-    await sendSesEmail({
-      connect,
-      env,
+    await sendThroughEmailCoordinator(env, {
+      id,
+      messageId: id,
       to: adminEmail,
       fromName: "LeadMASTER",
       subject: "Your LeadMASTER sign-in code",
       text: "Your LeadMASTER verification code is " + code + ". It expires in 10 minutes. If you did not request this code, you can ignore this email.",
       html: await renderEmailTemplate("/email-otpformat.html", { USER_NAME: "Admin", OTP_CODE: code, EXPIRY_MINUTES: "10" })
     });
-  } catch {
+  } catch (error) {
+    // If SMTP acceptance is ambiguous, preserve the challenge so a code that
+    // actually arrived can still be verified. Never generate an automatic resend.
+    if (error?.deliveryOutcome === "unknown") {
+      return json({
+        next: "verify_email",
+        delivery_status: "unknown",
+        message: "Delivery could not be confirmed. Check your inbox before requesting another code."
+      }, 202);
+    }
     await env.AUTH_DB.prepare("DELETE FROM auth_challenges WHERE id = ?").bind(id).run();
     return json({ error: "Email verification is temporarily unavailable" }, 503);
   }
@@ -262,9 +271,10 @@ async function verifyOtp(request, env) {
       browser: details.browser,
       ip_address: details.ip_address
     });
-    await sendSesEmail({
-      connect,
-      env,
+    const alertId = crypto.randomUUID();
+    await sendThroughEmailCoordinator(env, {
+      id: alertId,
+      messageId: alertId,
       to: adminEmail,
       fromName: "LeadMASTER",
       subject: "New login detected — LeadMASTER",

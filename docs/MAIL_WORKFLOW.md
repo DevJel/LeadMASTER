@@ -12,7 +12,8 @@ This document describes the production email workflow deployed for LeadMASTER. U
 | Cloudflare Email Routing | Receives mail addressed to the dedicated LeadMASTER inbox |
 | Inbound email Worker | Stores each message in R2 and records its details in D1 |
 | Cloudflare Queue | Holds outgoing messages until they can be sent |
-| Queue consumer Worker | Sends queued messages through AWS SES SMTP and records the result |
+| Queue consumer Worker | Sends queued messages through the shared SES coordinator and records the result |
+| SES coordinator Durable Object | Serializes OTP, security-alert and queue sends; persists rate reservations and idempotency state before SMTP |
 | Failed-message queue | Holds messages that exhaust retries |
 | Failed-message consumer | Marks exhausted messages as not sent and adds an activity/notification record |
 | AWS SES configuration set | Publishes sending and delivery events |
@@ -55,6 +56,7 @@ sequenceDiagram
   participant D as D1
   participant Q as Sending queue
   participant C as Queue consumer
+  participant R as SES coordinator Durable Object
   participant S as AWS SES SMTP
   U->>W: Submit message and recipient
   W->>W: Check access, address, content and do-not-contact list
@@ -62,8 +64,11 @@ sequenceDiagram
   W->>Q: Add message to queue
   W-->>U: Confirm message was queued
   Q->>C: Deliver up to 10 messages per batch
-  C->>S: Submit through SMTP
-  S-->>C: Accepted or not accepted
+  C->>R: Request stable message ID submission
+  R->>R: Reserve persistent 101 ms rate slot
+  R->>S: Submit through SMTP
+  S-->>R: Accepted or not accepted
+  R-->>C: Confirmed outcome
   C->>D: Update sending result and activity
   C-->>Q: Acknowledge or retry
 ~~~
@@ -72,15 +77,16 @@ sequenceDiagram
 
 The production queue has:
 
-- One active consumer.
+- One active queue consumer.
 - A batch size of up to 10 messages.
-- A 100 ms pause between consecutive messages.
-- Up to three queue attempts for a message before it is marked unsuccessful.
+- A shared SQLite-backed Durable Object coordinator used by administrator OTP, security alerts and queue-driven email.
+- At least 101 ms between persistent send reservations (no more than 10 starts in any rolling second).
+- Up to three queue attempts for queue-processing failures before dead-letter handling; ambiguous SMTP outcomes are fenced and are never automatically resent.
 - A separate failed-message queue and consumer for exhausted queue messages.
 
-This limits queue-driven sending to no more than 10 messages per second. Actual sending may be slower because each SMTP submission takes time. The rate is a LeadMASTER queue limit, not a promise that AWS SES will accept every message.
+This limits all LeadMASTER paths routed through the same coordinator to no more than 10 SMTP submission starts per rolling second. It does not constrain unrelated applications or direct AWS SES clients sharing the same AWS account. Actual sending may be slower because each SMTP submission takes time. The limit is not a promise that AWS SES will accept every message. The coordinator uses persistent per-message idempotency fences and reserves rate slots before submission.
 
-Login verification codes and new-login security notices use the same SES SMTP service and branded system sender, but bypass the bulk queue so sign-in does not wait behind a campaign.
+Login verification codes and new-login security notices use the same SES SMTP service and branded system sender, and bypass the bulk message queue but still pass through the shared coordinator so they share the LeadMASTER sending ceiling.
 
 ## 3. Sender identity
 
