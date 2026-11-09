@@ -7,7 +7,7 @@ Base URL: `https://leadmaster.jelvan.pro`
 
 LeadMASTER provides a server-to-server email API and signed webhooks. Create a separate API key for each application/environment, store it in a server-side secret manager, and never expose it in browser code, a mobile bundle, source control or client-side HTML.
 
-> **Release status:** The production Worker is deployed with its D1 and Secrets Store bindings. Public route checks confirm the API handlers are active. Controlled SES send and webhook callback end-to-end tests remain outstanding; a successful route check is not proof of inbox delivery.
+> **Release status:** LeadMASTER's account-scoped API routes are implemented in this branch. Controlled authenticated email and webhook callback end-to-end tests remain outstanding; a successful route check is not proof of inbox delivery.
 
 
 ## 1. Account identity and isolation
