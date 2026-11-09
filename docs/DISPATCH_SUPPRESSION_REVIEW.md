@@ -1,6 +1,6 @@
 # Dispatch-time suppression review — candidate only
 
-The existing producer checks `email_unsubscribes` when a request is queued. This does not cover an address added to that list while a message waits. This candidate consumer rechecks the same global list immediately before SMTP for both admin and developer sends. A suppressed message is marked `failed` with `suppressed_at_dispatch`; it is not submitted to SMTP. The admin message detail explains why. A duplicate delivery does not resend.
+The existing producer checks `email_unsubscribes` when a request is queued. This does not cover an address added to that list while a message waits. This candidate consumer rechecks the same global list immediately before SMTP for both admin and developer sends. A suppressed message is marked `failed` with `suppressed_at_dispatch`; it is not submitted to SMTP. The admin message-detail API exposes the reason, but the dashboard currently prioritizes the message body over the error and still needs a UI fix. A duplicate delivery does not resend.
 
 The first read occurs before the durable send claim so an unavailable suppression table fails closed and retries without creating a fence. A second read after the claim narrows the check-to-send interval. If that read fails, no SMTP call occurs, but the `started` fence remains for manual reconciliation, like other ambiguous claims. A failed final D1 transaction likewise requires reconciliation, and may leave an unconfirmed record even when no SMTP call occurred. Do not blindly retry.
 
