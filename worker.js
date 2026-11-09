@@ -2,6 +2,8 @@ import { connect } from "cloudflare:sockets";
 import { permanentlyDeleteInbound, restoreInbound } from "./src/inbound-deletion.mjs";
 import { validSuppressionEmail } from "./src/suppression-validation.mjs";
 import { submitInOrder, writeBestEffort } from "./src/queue-submission.mjs";
+import { emailTemplatesRoute } from "./src/email-templates-api.mjs";
+import { readBoundedJson } from "./src/bounded-json.mjs";
 import { sendSesEmail } from "./src/ses-smtp.mjs";
 import { emailOtpTemplate, emailSecurityAlertTemplate } from "./src/email-templates.mjs";
 import { staticAssets } from "./src/static-assets.mjs";
@@ -500,22 +502,24 @@ async function adminSendRoute(request,env,session){
  if(request.method!=="POST")return json({error:"Method not allowed"},405,{allow:"POST"});
  if(!sameOrigin(request))return json({error:"Invalid request"},403);
  if(!env.MAIL_SEND_QUEUE)return json({error:"Sending is temporarily unavailable"},503);
- let b;try{b=await readJson(request)}catch{return json({error:"Invalid request"},400)}
+ let b;try{b=await readBoundedJson(request,1000000)}catch{return json({error:"Invalid request"},400)}
  const toList=Array.isArray(b.recipients)?b.recipients:(typeof b.to==="string"?b.to.split(/[\s,;]+/):[]);
  const recipients=[...new Set(toList.map(x=>String(x||"").trim().toLowerCase()).filter(Boolean))];
  if(!recipients.length||recipients.length>500||recipients.some(x=>x.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x)))return json({error:"Enter between 1 and 500 valid email addresses."},400);
  const from=String(b.fromEmail||"hello@work.jelvan.pro").trim().toLowerCase(),domain=from.split("@")[1]||"";
  const verifiedDomain=domain==="jelvan.pro"||domain.endsWith(".jelvan.pro")||domain==="operavaglobal.com"||domain.endsWith(".operavaglobal.com");
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(from)||!verifiedDomain)return json({error:"Choose a sender under a verified jelvan.pro or operavaglobal.com identity."},400);
- const subject=String(b.subject||"").trim(),textBody=String(b.text||"");
- if(!subject||/[\r\n\x00-\x1f\x7f]/.test(subject)||new TextEncoder().encode(subject).length>300||!textBody.trim()||new TextEncoder().encode(textBody).length>200000)return json({error:"Add a subject and message. The message is too long."},400);
+ const subject=String(b.subject||"").trim(),textBody=String(b.text||""),htmlBody=b.html===undefined||b.html===null?null:b.html;
+ if(!subject||/[\r\n\x00-\x1f\x7f]/.test(subject)||new TextEncoder().encode(subject).length>300||!textBody.trim()||new TextEncoder().encode(textBody).length>200000||(htmlBody!==null&&(typeof htmlBody!=="string"||!htmlBody.trim()||new TextEncoder().encode(htmlBody).length>200000)))return json({error:"Add a subject and message. The message is too long or invalid."},400);
+ if(htmlBody!==null && env.ADMIN_HTML_SEND_ENABLED!=="true")return json({error:"HTML sending is not enabled. No message was submitted."},409);
  const requestedName=String(b.fromName||"").trim();const name=requestedName&&/^[A-Za-z][A-Za-z .'-]{1,63}$/.test(requestedName)?requestedName:(domain==="operavaglobal.com"?"Operava":domain==="work.jelvan.pro"?"Jelvan Ricolcol":"LeadMASTER");
  const batchId=crypto.randomUUID(),now=Date.now(),ids=[],statements=[];
  for(const recipient of recipients){
   const suppressed=await env.AUTH_DB.prepare("SELECT email FROM email_unsubscribes WHERE lower(email)=lower(?)").bind(recipient).first();
   if(suppressed)continue;
   const id=crypto.randomUUID();ids.push(id);
-  statements.push(env.AUTH_DB.prepare("INSERT INTO admin_sent_mail (id,recipient,subject,status,created_at,updated_at,from_email,from_name,reply_to,text_body,error_code,queue_status,batch_id) VALUES (?,?,?,'sending',?,?,?,?,?,?,NULL,'queued',?)").bind(id,recipient,subject,now,now,from,name,session.email,textBody,batchId));
+  if(htmlBody===null)statements.push(env.AUTH_DB.prepare("INSERT INTO admin_sent_mail (id,recipient,subject,status,created_at,updated_at,from_email,from_name,reply_to,text_body,error_code,queue_status,batch_id) VALUES (?,?,?,'sending',?,?,?,?,?,?,NULL,'queued',?)").bind(id,recipient,subject,now,now,from,name,session.email,textBody,batchId));
+  else statements.push(env.AUTH_DB.prepare("INSERT INTO admin_sent_mail (id,recipient,subject,status,created_at,updated_at,from_email,from_name,reply_to,text_body,error_code,queue_status,batch_id,html_body) VALUES (?,?,?,'sending',?,?,?,?,?,?,NULL,'queued',?,?)").bind(id,recipient,subject,now,now,from,name,session.email,textBody,batchId,htmlBody));
  }
  if(!ids.length)return json({error:"All selected recipients are on your do-not-contact list."},409);
  try{
@@ -563,6 +567,7 @@ async function handle(request, env) {
   if (url.pathname === "/api/admin/mail" || url.pathname.startsWith("/api/admin/mail/") || url.pathname === "/api/admin/unsubscribes") return adminMailboxRoute(request,env,adminSession);
   if (url.pathname === "/api/account/profile") return accountProfileRoute(request,env,adminSession);
   if (url.pathname === "/api/admin/webhooks" || url.pathname.startsWith("/api/admin/webhooks/")) return adminWebhookRoute(request,env,adminSession);
+  if (url.pathname === "/api/admin/templates" || url.pathname.startsWith("/api/admin/templates/")) return emailTemplatesRoute(request,env,adminSession,await configuredAdminEmail(env));
   if (url.pathname === "/api/admin/send") return adminSendRoute(request,env,adminSession);
   if (url.pathname === "/api/admin/activity") return adminActivityRoute(request,env,adminSession);
   if (url.pathname === "/api/admin/notifications" || url.pathname.startsWith("/api/admin/notifications/")) return adminNotificationsRoute(request,env,adminSession);

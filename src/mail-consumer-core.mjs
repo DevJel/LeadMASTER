@@ -9,7 +9,7 @@ export function createMailConsumer({send, deliverWebhook, sleep = ms => new Prom
   const table=source==='developer'?'developer_email_requests':'admin_sent_mail';
   const sql=source==='developer'
    ? 'SELECT id,recipient,subject,status,from_email,sender_name,reply_to,api_key_id,account_id,text_body,html_body FROM developer_email_requests WHERE id=?'
-   : 'SELECT id,recipient,subject,text_body,status,from_email,from_name,reply_to,queue_status,batch_id FROM admin_sent_mail WHERE id=?';
+   : 'SELECT id,recipient,subject,text_body,html_body,status,from_email,from_name,reply_to,queue_status,batch_id FROM admin_sent_mail WHERE id=?';
   const row=await db.prepare(sql).bind(id).first();
   if(!row || row.status!=='sending'){message.ack();return;}
   // INSERT is atomic across consumers. The status predicate closes the read/claim gap.

@@ -25,7 +25,7 @@ test('mandatory dashboard connects live account-backed workspace features', asyn
 
 test('unsupported dashboard modules do not fabricate production records', async () => {
  const html = await read('../src/Mandatory LeadMASTER Dashboard.html');
- assert.match(html, /Saved email templates are not enabled/);
+ assert.match(html, /Save and insert account-owned templates/);
  assert.match(html, /Workflow automation is unavailable/);
  assert.match(html, /Opens and clicks are not tracked/);
  assert.match(html, /DNS verification status is not available/);
