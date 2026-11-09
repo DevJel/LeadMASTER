@@ -3,7 +3,7 @@
   const el=id=>document.getElementById(id);
   const section=el('html-preview'), input=el('preview-html'), frame=el('preview-frame');
   const feedback=el('preview-feedback'),empty=el('preview-empty'),canvas=el('preview-canvas');
-  const state={emails:'',templates:''};let current=null;
+  const state={'email-preview':'','template-preview':''};let current=null;
   const policy="default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:; object-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'";
   function message(text,error=false){feedback.textContent=text;feedback.classList.toggle('is-error',error)}
   function resetFrame(){frame.hidden=true;frame.removeAttribute('srcdoc');empty.hidden=false}
@@ -12,8 +12,9 @@
     const next=Object.hasOwn(state,key)?key:null;
     if(next===current)return;
     current=next;section.hidden=!next;el('workspace-panel').hidden=Boolean(next);resetFrame();message('');
-    if(next){input.value=state[next];el('html-preview-title').textContent=next==='emails'?'Compose email · HTML preview':'Template · HTML preview';el('html-preview-description').textContent=next==='emails'?'Preview message HTML before sending.':'Preview reusable template HTML.';}
+    if(next){input.value=state[next];el('html-preview-title').textContent=next==='email-preview'?'Compose email · HTML preview':'Template · HTML preview';el('html-preview-description').textContent=next==='email-preview'?'Preview message HTML before sending.':'Preview reusable template HTML.';}
   }
+  el('preview-close').addEventListener('click',()=>{location.hash=current==='email-preview'?'#emails':'#templates'});
   input.addEventListener('input',()=>{if(current)state[current]=input.value;if(!frame.hidden){resetFrame();message('Content changed. Select Preview HTML to refresh.')}});
   el('preview-clear').addEventListener('click',()=>{input.value='';if(current)state[current]='';resetFrame();message('Preview cleared.');input.focus()});
   el('preview-render').addEventListener('click',()=>{
