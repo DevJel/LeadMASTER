@@ -1,4 +1,5 @@
 import { connect } from "cloudflare:sockets";
+import { permanentlyDeleteInbound, restoreInbound } from "./src/inbound-deletion.mjs";
 import { sendSesEmail } from "./src/ses-smtp.mjs";
 import { emailOtpTemplate, emailSecurityAlertTemplate } from "./src/email-templates.mjs";
 import { staticAssets } from "./src/static-assets.mjs";
@@ -473,14 +474,19 @@ async function adminMailboxRoute(request,env,session){
    await logWorkspaceAction(env,session.email,"email_deleted","Moved a message to Deleted.",id);
    await addMailNotification(env,"deleted","Message deleted","The message was moved to Deleted.",id);
   }else if(action==="restore"){
-   if(inbound)await env.AUTH_DB.prepare("UPDATE inbound_mail SET deleted_at=NULL WHERE id=?").bind(id).run();
+   if(inbound){if(!await restoreInbound(env.AUTH_DB,id))return json({error:"This message cannot be restored while deletion is pending or if it is not in Deleted."},409);}
    else if(sent)await env.AUTH_DB.prepare("UPDATE admin_sent_mail SET deleted_at=NULL WHERE id=?").bind(id).run();
    else await env.AUTH_DB.prepare("UPDATE developer_email_requests SET deleted_at=NULL WHERE id=?").bind(id).run();
    await logWorkspaceAction(env,session.email,"email_restored","Restored a deleted message.",id);
   }else if(action==="permanentDelete"){
-   if(inbound){await env.INBOUND_MAIL.delete(inbound.r2_key);await env.AUTH_DB.prepare("DELETE FROM inbound_mail WHERE id=? AND deleted_at IS NOT NULL").bind(id).run();}
-   else if(sent)await env.AUTH_DB.prepare("DELETE FROM admin_sent_mail WHERE id=? AND deleted_at IS NOT NULL").bind(id).run();
-   else await env.AUTH_DB.prepare("DELETE FROM developer_email_requests WHERE id=? AND deleted_at IS NOT NULL").bind(id).run();
+   if(inbound){
+    const result=await permanentlyDeleteInbound(env.AUTH_DB,env.INBOUND_MAIL,id);
+    if(!result.deleted)return json({error:result.reason==="retry"?"Deletion could not be completed. Retry this action.":"Move the message to Deleted before permanently deleting it."},result.reason==="retry"?503:409);
+   }else{
+    const table=sent?"admin_sent_mail":"developer_email_requests";
+    const result=await env.AUTH_DB.prepare(`DELETE FROM ${table} WHERE id=? AND deleted_at IS NOT NULL`).bind(id).run();
+    if(!(result.meta?.changes||0))return json({error:"Move the message to Deleted before permanently deleting it."},409);
+   }
    await logWorkspaceAction(env,session.email,"email_permanently_deleted","Permanently removed a message.",id);await addMailNotification(env,"deleted","Message permanently deleted","A message was permanently removed.",id);
   }else return json({error:"Unsupported action"},400);
   return json({ok:true});
