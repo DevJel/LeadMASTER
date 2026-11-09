@@ -87,7 +87,7 @@ export async function sendSesEmail({ connect, env, to, subject, text, html, from
       let writer = socket.writable.getWriter();
       let replies = new ReplyReader(reader);
       async function expect(allowed) { const code = await replies.reply(); if (!allowed.includes(code)) throw new Error('SMTP request rejected'); }
-      async function command(value, allowed) { await writer.write(encoder.encode(value + '\\r\\n')); await expect(allowed); }
+      async function command(value, allowed) { await writer.write(encoder.encode(value + '\r\n')); await expect(allowed); }
       await expect([220]);
       await command('EHLO leadmaster.local', [250]);
       await command('STARTTLS', [220]);
@@ -103,13 +103,13 @@ export async function sendSesEmail({ connect, env, to, subject, text, html, from
       replies = new ReplyReader(reader);
 
       await command('EHLO leadmaster.local', [250]);
-      await command('AUTH PLAIN ' + utf8b64('\\0' + username + '\\0' + password), [235]);
+      await command('AUTH PLAIN ' + utf8b64('\0' + username + '\0' + password), [235]);
       await command(`MAIL FROM:<${from}>`, [250]);
       await command(`RCPT TO:<${to}>`, [250,251]);
       await command('DATA', [354]);
       // A timeout or disconnect from this point is an ambiguous delivery.
       dataSent = true;
-      await writer.write(encoder.encode(message + '.\\r\\n'));
+      await writer.write(encoder.encode(message + '.\r\n'));
       await expect([250]); accepted = true;
       return { status: 'accepted' };
     };
