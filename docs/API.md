@@ -210,9 +210,9 @@ Delivery events describe SMTP submission outcomes only. They are not SES bounce,
 - Use TLS, validate event signatures and timestamps, deduplicate event IDs, and return 2xx promptly.
 - Rotate keys by deploying a replacement before revoking the old key.
 - Validate consent and suppression in your application before sending.
-- SES sandbox status, sender verification, account quotas and inbox delivery are separate operational checks.
+- SES sandbox status, account quotas and inbox delivery are separate operational checks. The configured sender identity `hello@work.jelvan.pro` is verified and already used by another application; this does not replace a LeadMASTER-specific delivery test.
 - Do not assume attachments, bulk campaigns, scheduled sends, retries, bounce events or delivery analytics are available.
 
 ## 8. Release checklist
 
-Deployment completed: the Worker has `AUTH_DB`, SES SMTP, sender, Turnstile, administrator and session-secret bindings; the D1 schema includes the developer API and webhook tables. Public route checks passed. Remaining release verification: use an authorized administrator session to create/revoke a scoped key, submit a controlled email to an approved test mailbox, register a controlled HTTPS webhook, validate HMAC signatures and inspect delivery logs. Until those authenticated end-to-end tests pass, do not claim verified inbox delivery or fully tested webhook callbacks.
+Deployment completed: the Worker has `AUTH_DB`, SES SMTP, sender, Turnstile, administrator and session-secret bindings; the D1 schema includes the developer API and webhook tables. The configured sender identity is verified and used by another application. Public route checks passed. Remaining release verification: use an authorized administrator session to create/revoke a scoped key, submit a controlled email to an approved test mailbox, register a controlled HTTPS webhook, validate HMAC signatures and inspect delivery logs. Until those authenticated end-to-end tests pass, do not claim verified LeadMASTER inbox delivery or fully tested webhook callbacks.
