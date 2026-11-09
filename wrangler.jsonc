@@ -6,7 +6,9 @@
   "compatibility_flags": [],
   "vars": {
     "SES_FROM_EMAIL": "noreply@leadmaster.jelvan.pro",
-    "TURNSTILE_SITE_KEY": "0x4AAAAAAF5KTL83dA8wIZQH"
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAF5KTL83dA8wIZQH",
+    "SES_CONFIGURATION_SET": "leadmaster-events",
+    "SES_SNS_TOPIC_ARN": "arn:aws:sns:ap-southeast-2:592505728137:leadmaster-ses-events"
   },
   "d1_databases": [
     {
