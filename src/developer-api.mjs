@@ -68,7 +68,7 @@ export async function developerEmailRoute(request,env,connect,accountId){
  const senderName=accountName&&accountName!=="My LeadMASTER workspace"?accountName:fallbackName;
  const senderLocal=(senderName.toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,48)||"user");
  const senderEmail=senderLocal+"@leadmaster.jelvan.pro";
- try{await env.AUTH_DB.prepare("INSERT INTO developer_email_requests (id,api_key_id,idempotency_key,recipient,subject,status,created_at,updated_at,error_code,account_id,from_email,sender_name,reply_to) VALUES (?,?,?,?,?,'sending',?,?,NULL,?,?,?,?)").bind(id,row.id,idem,body.to,body.subject,now,now,accountId,senderEmail,senderName,registeredEmail).run();}
+ try{await env.AUTH_DB.prepare("INSERT INTO developer_email_requests (id,api_key_id,idempotency_key,recipient,subject,status,created_at,updated_at,error_code,account_id,from_email,sender_name,reply_to,text_body,html_body) VALUES (?,?,?,?,?,'sending',?,?,NULL,?,?,?,?,?,?)").bind(id,row.id,idem,body.to,body.subject,now,now,accountId,senderEmail,senderName,registeredEmail,body.text,body.html??null).run();}
  catch{return json({error:"Request already submitted or could not be recorded; retry with the same idempotency key"},409);}
  await env.AUTH_DB.prepare("UPDATE developer_api_keys SET last_used_at=? WHERE id=?").bind(now,row.id).run();
  try{
