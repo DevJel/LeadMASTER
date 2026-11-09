@@ -17,8 +17,10 @@ function mailbox(value) {
   if (typeof value !== 'string' || value.length > 254 || !EMAIL.test(value) || value.includes('..')) throw new TypeError('Invalid email address');
   return value;
 }
-function buildMessage({ from, to, subject, text, html }) {
+function buildMessage({ from, fromName, to, subject, text, html }) {
   mailbox(from); mailbox(to);
+  if (fromName !== undefined && (typeof fromName !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9 .'-]{0,63}$/.test(fromName))) throw new TypeError('Invalid sender name');
+  const fromHeader = fromName ? `${fromName} <${from}>` : from;
   if (typeof subject !== 'string' || !subject.trim() || /[\r\n\x00-\x1f\x7f]/.test(subject) || encoder.encode(subject).length > 300) throw new TypeError('Invalid subject');
   if (typeof text !== 'string' || !text.trim() || encoder.encode(text).length > 200000) throw new TypeError('Invalid message body');
   if (html !== undefined && (typeof html !== 'string' || !html.trim() || encoder.encode(html).length > 200000)) throw new TypeError('Invalid HTML body');
@@ -31,7 +33,7 @@ function buildMessage({ from, to, subject, text, html }) {
   }
   if (chunk) words.push(chunk);
   const encodedSubject = words.map(word => `=?UTF-8?B?${utf8b64(word)}?=`).join('\r\n ');
-  const headers = [`From: ${from}`, `To: ${to}`, `Subject: ${encodedSubject}`, 'MIME-Version: 1.0'];
+  const headers = [`From: ${fromHeader}`, `To: ${to}`, `Subject: ${encodedSubject}`, 'MIME-Version: 1.0'];
   if (html === undefined) return [...headers, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(utf8b64(text)), ''].join('\r\n');
   // The body is base64 encoded; a random boundary cannot occur in a body line.
   const boundary = 'leadmaster-' + crypto.randomUUID();
@@ -69,9 +71,9 @@ async function secret(value) {
  * Returns accepted only after SES responds 250 to DATA. 'unknown' errors mean
  * delivery may have occurred: caller MUST reconcile and must not blindly retry.
  */
-export async function sendSesEmail({ connect, env, to, subject, text, html, timeoutMs = 15000 }) {
+export async function sendSesEmail({ connect, env, to, subject, text, html, fromName, timeoutMs = 15000 }) {
   if (!env || typeof connect !== 'function' || !Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 30000) throw new Error('SMTP configuration unavailable');
-  const from = mailbox(env.SES_FROM_EMAIL); const message = buildMessage({ from, to, subject, text, html });
+  const from = mailbox(env.SES_FROM_EMAIL); const message = buildMessage({ from, fromName, to, subject, text, html });
   const [host, username, password] = await Promise.all([secret(env.SES_SMTP_HOST), secret(env.SES_SMTP_USERNAME), secret(env.SES_SMTP_PASSWORD)]);
   if (!HOST.test(host)) throw new Error('SMTP configuration unavailable');
   let socket; let timer; let dataSent = false; let accepted = false;
