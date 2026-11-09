@@ -87,9 +87,14 @@ async function rateLimit(env, key, limit, windowMs) {
     "ON CONFLICT(bucket_key) DO UPDATE SET " +
     "count = CASE WHEN auth_rate_limits.window_start <= ? THEN 1 ELSE auth_rate_limits.count + 1 END, " +
     "window_start = CASE WHEN auth_rate_limits.window_start <= ? THEN excluded.window_start ELSE auth_rate_limits.window_start END " +
-    "RETURNING count"
+    "RETURNING count, window_start"
   ).bind(key, now, threshold, threshold).first();
-  return Number(result?.count || 0) <= limit;
+  const count = Number(result?.count || 0);
+  const windowStart = Number(result?.window_start || now);
+  return {
+    allowed: count <= limit,
+    retryAfter: Math.max(1, Math.ceil((windowStart + windowMs - now) / 1000))
+  };
 }
 async function renderEmailTemplate(path, replacements) {
   const templates = {
@@ -183,11 +188,14 @@ async function login(request, env) {
   let body;
   try { body = await readJson(request); } catch { return json({ error: "Invalid request" }, 400); }
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-  if (!(await rateLimit(env, "ip:" + ip, 10, 15 * 60 * 1000))) return json({ error: "Too many attempts" }, 429);
-  if (!(await verifyLoginTurnstile(body.turnstileToken, env, "login"))) return json({ error: "Security verification failed" }, 403);
+  const ipLimit = await rateLimit(env, "ip:" + ip, 10, 15 * 60 * 1000);
+  if (!ipLimit.allowed) return json({ error: "Too many sign-in attempts from this network. Please wait before trying again.", retryAfter: ipLimit.retryAfter }, 429, { "retry-after": String(ipLimit.retryAfter) });
+  if (!(await verifyLoginTurnstile(body.turnstileToken, env, "login"))) return json({ error: "Security verification failed. Complete the Cloudflare check and try again." }, 403);
   const identity = typeof body.identity === "string" ? body.identity.trim().toLowerCase() : "";
   const adminEmail = await configuredAdminEmail(env);
-  if (!adminEmail || identity !== adminEmail || !(await rateLimit(env, "email:" + adminEmail, 8, 15 * 60 * 1000))) return json({ error: "Unable to sign in" }, 401);
+  if (!adminEmail || identity !== adminEmail) return json({ error: "Unable to sign in. Check the registered email and password." }, 401);
+  const emailLimit = await rateLimit(env, "email:" + adminEmail, 8, 15 * 60 * 1000);
+  if (!emailLimit.allowed) return json({ error: "Too many sign-in requests for this account. Please wait before requesting another code.", retryAfter: emailLimit.retryAfter }, 429, { "retry-after": String(emailLimit.retryAfter) });
   const configuredPassword = await secret(env.ADMIN_PASSWORD);
   const sessionSecret = await secret(env.SESSION_SECRET);
   if (!configuredPassword || !sessionSecret || !(await passwordMatches(body.password, configuredPassword))) return json({ error: "Unable to sign in" }, 401);
@@ -223,17 +231,20 @@ async function verifyOtp(request, env) {
   let body;
   try { body = await readJson(request); } catch { return json({ error: "Invalid request" }, 400); }
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
-  if (!(await rateLimit(env, "verify-ip:" + ip, 12, 15 * 60 * 1000))) return json({ error: "Too many attempts" }, 429);
+  const ipLimit = await rateLimit(env, "verify-ip:" + ip, 12, 15 * 60 * 1000);
+  if (!ipLimit.allowed) return json({ error: "Too many verification attempts from this network. Please wait before trying again.", retryAfter: ipLimit.retryAfter }, 429, { "retry-after": String(ipLimit.retryAfter) });
   const code = typeof body.code === "string" ? body.code.replace(/[^0-9]/g, "").slice(0, 6) : "";
-  if (!/^\d{6}$/.test(code)) return json({ error: "Invalid code" }, 400);
+  if (!/^\d{6}$/.test(code)) return json({ error: "Enter the six-digit code from the latest email." }, 400);
   const row = await env.AUTH_DB.prepare("SELECT id,code_hash,expires_at,attempts FROM auth_challenges WHERE email = ? ORDER BY created_at DESC LIMIT 1").bind(adminEmail).first();
-  if (!row || row.expires_at <= Date.now() || row.attempts >= 5) return json({ error: "Invalid or expired code" }, 401);
+  if (!row) return json({ error: "No active code was found. Return to sign in and request a new code." }, 401);
+  if (row.expires_at <= Date.now()) return json({ error: "This code has expired. Return to sign in and request a new one." }, 401);
+  if (row.attempts >= 5) return json({ error: "Too many incorrect codes. Return to sign in and request a new code." }, 429);
   const sessionSecret = await secret(env.SESSION_SECRET);
   if (!sessionSecret) return json({ error: "Service unavailable" }, 503);
   const candidate = await hmac(sessionSecret, "otp:" + row.id + ":" + code);
   if (!equal(candidate, row.code_hash)) {
     await env.AUTH_DB.prepare("UPDATE auth_challenges SET attempts = attempts + 1 WHERE id = ? AND attempts < 5").bind(row.id).run();
-    return json({ error: "Invalid or expired code" }, 401);
+    return json({ error: "That code does not match the latest email. Check all six digits, or return to sign in to request a new code." }, 401);
   }
   const consumed = await env.AUTH_DB.prepare("DELETE FROM auth_challenges WHERE id = ? AND code_hash = ? AND attempts < 5").bind(row.id, row.code_hash).run();
   if ((consumed.meta?.changes || 0) !== 1) return json({ error: "Invalid or expired code" }, 401);
