@@ -215,3 +215,8 @@ For coding agents changing the web application:
 ## Mandatory LeadMASTER dashboard implementation rule
 
 Use `src/Mandatory LeadMASTER Dashboard.html` as the canonical dashboard UI. Preserve its React components, layout, typography, spacing, icons, colors, interactions and responsive behavior exactly while connecting authenticated APIs. Do not ship its local-preview sample data or local-only success actions as production behavior. Build missing account-scoped APIs first or clearly disable/unavailable-mark unsupported areas. Read `src/dashboard-feature-map.md` before dashboard changes; keep a protected rollback dashboard until functional and desktop/mobile visual regression checks pass. Align Android navigation and WebView behavior whenever connected routes change.
+
+
+## Mandatory dashboard source and UI preservation
+
+For LeadMASTER dashboard work, `src/Mandatory LeadMASTER Dashboard.html` is authoritative. Keep its React components, embedded design system, layout, spacing, icons, responsive breakpoints and interactions unchanged unless explicitly requested. Connect existing components to real account-scoped production APIs; do not substitute a new dashboard design. Synchronize it to `public/dashboard.html` and regenerate `src/static-assets.mjs` with `npm run build:assets`. Remove prototype/sample records from production rendering. Never simulate unsupported backend features or claim a local-only action succeeded. Assess Android companion parity on every connected change.
