@@ -12,11 +12,11 @@ The mandatory HTML is the authoritative React dashboard. Preserve its component 
 |---|---|---|
 | Account identity | `GET /api/auth/session`, `GET /api/account/profile` | Authenticated account and owner profile. |
 | Overview | `GET /api/admin/mail?folder=counts`, `GET /api/admin/activity` | Live mailbox/queue counts and workspace activity. |
-| Emails | `GET /api/admin/mail?folder=...`, `GET /api/admin/mail/:id`, `PATCH /api/admin/mail/:id`, `POST /api/admin/send` | Inbound/sent/queued states, message detail, mailbox actions and send composer. |
+| Emails | `GET /api/admin/mail?folder=...`, `GET /api/admin/mail/:id`, `PATCH /api/admin/mail/:id`, `POST /api/admin/send` | Inbound/sent/queued states, message detail, mailbox actions and a full-page plain-text composer. |
 | Reply assistance | `POST /api/admin/mail/:id/suggest` | Existing mailbox reply suggestion flow. |
 | Audience / suppression | `GET/POST /api/admin/unsubscribes` | Real do-not-contact list and manual suppression. Not a contact manager. |
 | Inboxes | Dedicated inbound mailbox | One account mailbox; no inbox provisioning API. |
-| Broadcasts | `GET /api/admin/mail?folder=sent`, `POST /api/admin/send` | Accepted sends plus existing immediate send queue (up to 500 recipients). |
+| Campaigns | `GET /api/admin/mail?folder=sent`, `POST /api/admin/send` | Recent accepted messages and immediate sending to up to 500 addresses; saved groups and scheduling are not yet implemented. |
 | Metrics | `GET /api/admin/mail?folder=counts` | Accepted sends, inbox, queued, unsuccessful, bounce/complaint counts only. |
 | Activity | `GET /api/admin/activity` | Account activity; not open/click tracking. |
 | API keys | `GET/POST /api/developer/keys`, `DELETE /api/developer/keys/:id` | Account-scoped keys; full key shown once. Optional `webhook:manage` scope is explicit and off by default. |
