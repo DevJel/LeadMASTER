@@ -1,5 +1,6 @@
 import { sendSesEmail } from "./ses-smtp.mjs";
 import { deliverWebhookEvent } from "./developer-webhooks.mjs";
+import { submitInOrder, writeBestEffort } from "./queue-submission.mjs";
 const enc = new TextEncoder();
 const json = (body,status=200,headers={}) => Response.json(body,{status,headers:{"cache-control":"no-store","x-content-type-options":"nosniff",...headers}});
 const b64 = bytes => { let s=""; for(const b of bytes)s+=String.fromCharCode(b); return btoa(s).replaceAll("+","-").replaceAll("/","_").replace(/=+$/,""); };
@@ -74,17 +75,14 @@ export async function developerEmailRoute(request,env,connect,accountId){
  try{await env.AUTH_DB.prepare("INSERT INTO developer_email_requests (id,api_key_id,idempotency_key,recipient,subject,status,created_at,updated_at,error_code,account_id,from_email,sender_name,reply_to,text_body,html_body) VALUES (?,?,?,?,?,'sending',?,?,NULL,?,?,?,?,?,?)").bind(id,row.id,idem,body.to,body.subject,now,now,accountId,senderEmail,senderName,registeredEmail,body.text,body.html??null).run();}
  catch{return json({error:"Request already submitted or could not be recorded; retry with the same idempotency key"},409);}
  await env.AUTH_DB.prepare("UPDATE developer_api_keys SET last_used_at=? WHERE id=?").bind(now,row.id).run();
- try{
-  if(!env.MAIL_SEND_QUEUE)throw new Error("queue-unavailable");
-  await env.MAIL_SEND_QUEUE.send({id,source:"developer",apiKeyId:row.id,accountId});
-  await env.AUTH_DB.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at) VALUES (?,?,'email_queued',?,?,?)").bind(crypto.randomUUID(),registeredEmail,"Added a message to the sending list for "+body.to,id,Date.now()).run();
-  return json({id,status:"queued",message:"Your message has been added to the sending list. It will be sent in order, at no more than 10 messages per second."},202);
- }catch(error){
-  const status=error?.deliveryOutcome==="unknown"?"unknown":"failed";
-  await env.AUTH_DB.prepare("UPDATE developer_email_requests SET status=?,updated_at=?,error_code=? WHERE id=?").bind(status,Date.now(),status==="unknown"?"delivery_outcome_unknown":"delivery_not_accepted",id).run();
-  try{await deliverWebhookEvent(env,"email."+status,{request_id:id,recipient:body.to,subject:body.subject},row.id,accountId)}catch{}
-  return json({id,status,error:"Email submission did not complete. Check this request before retrying."},status==="unknown"?202:502);
+ if(!env.MAIL_SEND_QUEUE){
+  await env.AUTH_DB.prepare("UPDATE developer_email_requests SET status='failed',updated_at=?,error_code='queue_unavailable' WHERE id=? AND status='sending'").bind(Date.now(),id).run();
+  return json({id,status:"failed",error:"Sending queue is unavailable; no queue submission was attempted."},503);
  }
+ const submission=await submitInOrder([()=>env.MAIL_SEND_QUEUE.send({id,source:"developer",apiKeyId:row.id,accountId})]);
+ if(submission.status!=="queued")return json({id,status:"submission_unconfirmed",error:"Queue acceptance is uncertain. Do not submit a new request; check this request and reconcile it before retrying."},503);
+ await writeBestEffort([()=>env.AUTH_DB.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at) VALUES (?,?,'email_queued',?,?,?)").bind(crypto.randomUUID(),registeredEmail,"Added a message to the sending list for "+body.to,id,Date.now()).run()]);
+ return json({id,status:"queued",message:"Your message has been added to the sending list. It will be sent in order, at no more than 10 messages per second."},202);
 }
 export async function developerEmailStatus(request,env,accountId){
  if(request.method!=="GET")return json({error:"Method not allowed"},405,{allow:"GET"});
