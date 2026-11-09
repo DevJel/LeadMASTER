@@ -59,6 +59,10 @@ try {
   await mark();
   await page.waitForTimeout(500);
   await page.screenshot({path:output+"/landing.png",fullPage:true});
+  await page.locator("[data-open-tab='documentation']").first().click();
+  await page.waitForSelector("#docs-search");
+  await mark();
+  await page.screenshot({path:output+"/landing-documentation.png",fullPage:true});
 
   await page.goto("http://127.0.0.1:"+port+"/login.html",{waitUntil:"domcontentloaded"});
   await mark();
@@ -77,7 +81,7 @@ try {
 
   await page.goto("http://127.0.0.1:"+port+"/developer-api-keys.html",{waitUntil:"domcontentloaded"});
   await mark();
-  await page.waitForSelector("#keys");
+  await page.waitForFunction(()=>document.querySelector("#account-api-base")?.textContent?.startsWith("https://"),null,{timeout:5000});
   await page.screenshot({path:output+"/dashboard-api-keys.png",fullPage:true});
   console.log("Captured landing, login, nine dashboard sections and API Keys UI into "+output);
 } finally {
