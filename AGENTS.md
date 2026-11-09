@@ -65,3 +65,13 @@ Mocked unit tests do not prove live Turnstile, SES inbox delivery, browser login
 6. Verify landing page, docs tab, legacy redirects, login config, protected routes, API route behavior and active Worker version.
 7. Record deployment/version, checks, remaining blockers and rollback notes in `HANDOVER.md` and `CHANGELOG.md`.
 8. A change is complete only when UI/API/backend/tests/docs/README/handover agree, generated assets are current, and deployment/test claims are truthful.
+
+
+## Public product identity and confidentiality
+- In all user-facing UI, landing pages, login screens, dashboard copy, API docs, `llms.txt`, generated examples and public status text, refer to the product as **LeadMASTER**.
+- Never disclose underlying hosting, database, deployment, infrastructure, email transport, SMTP, provider, account, secret-store, internal worker or vendor names/status in product UI or customer-facing explanations. Describe only LeadMASTER capabilities and observable behavior.
+- Do not expose internal binding names, account IDs, database IDs, secret names, deployment identifiers, provider dashboards or infrastructure diagrams in public product surfaces.
+- This rule does not remove accurate internal detail from private engineering handover, source code, infrastructure configuration or legally required privacy disclosures. Keep those details access-appropriate.
+- AI agents must use documented LeadMASTER REST APIs with least-privilege API keys. Human administrator login, visual security verification, passwords and email OTP are never agent authentication. Never scrape, solve, bypass, replay or disclose challenge tokens or site keys.
+- Never claim MCP is available. The current prototype is not mounted in production; reserve `/mcp` with an explicit unavailable response and document the REST API as the supported integration.
+- Keep `llms.txt` and `robots.txt` aligned with the deployed API, feature matrix, MCP status, limits and security boundaries. Remember robots directives are crawler preferences, not access controls.
