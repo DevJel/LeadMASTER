@@ -8,3 +8,28 @@
 .lm-head-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap}.primary{border:1px solid #222;background:#222;color:#fff;border-radius:7px;min-height:40px;padding:0 15px;font-size:12px;font-weight:650;cursor:pointer}.primary:hover{background:#444}.primary:disabled{opacity:.55;cursor:wait}.lm-email-head .primary{white-space:nowrap}.lm-tabs button:focus-visible,.lm-notice-item:focus-visible{outline:2px solid #555;outline-offset:2px}.lm-stats>div{background:#fff}.lm-account{grid-template-columns:repeat(2,minmax(0,1fr))}.lm-notifications,.lm-logs{padding:18px 20px}.lm-notifications h3,.lm-log-head h3{font-size:14px;margin:0 0 12px}.lm-notification-row,.lm-log-row{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:12px 0;border-top:1px solid #eee;font-size:12px;color:#555}.lm-notification-row{flex-direction:column;gap:4px}.lm-notification-row strong{color:#222}.lm-notification-row span{color:#666}.lm-log-row time{flex:none;color:#888;font-size:11px}.lm-log-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid #eee}.lm-popover{position:absolute;z-index:20;right:32px;top:148px;width:min(390px,calc(100vw - 32px));max-height:70vh;overflow:auto;background:#fff;border:1px solid #ddd;border-radius:10px;box-shadow:0 12px 35px #0002}.lm-popover[hidden]{display:none}.lm-notice-item{display:grid;gap:5px;width:100%;padding:13px 16px;border:0;border-bottom:1px solid #eee;background:#fff;text-align:left;cursor:pointer}.lm-notice-item:hover{background:#fafafa}.lm-notice-item strong{font-size:12px;color:#222}.lm-notice-item span,.lm-notice-item small{font-size:11px;color:#666}.lm-popover>#lm-enable-desktop{margin:12px}.lm-filters button,.lm-actions button,.lm-head-actions button{cursor:pointer}.lm-filters input:focus,.lm-filters select:focus,#lm-dialog input:focus,#lm-dialog textarea:focus{outline:2px solid #777;outline-offset:1px}.lm-tabs{scrollbar-width:thin}.lm-note{line-height:1.5}#lm-detail label{display:block;font-size:12px;color:#555;margin:12px 0 7px}#lm-suggestion{width:100%;border:1px solid #ddd;border-radius:7px;padding:12px;font:13px/1.6 Arial,Helvetica,sans-serif;resize:vertical}#lm-use-suggestion{margin:10px 0 16px}.lm-other{overflow-wrap:anywhere}.lm-other p{margin:0 0 10px}.lm-other a{font-weight:650}.lm-dialog-head p{line-height:1.5}@media(max-width:760px){.lm-head-actions{width:100%;justify-content:space-between}.lm-email-head .primary{width:100%}.lm-account{grid-template-columns:1fr}.lm-log-row{flex-direction:column;gap:5px}.lm-popover{right:12px;top:132px}.lm-actions{justify-content:flex-start}.lm-actions button{min-height:38px}.lm-filters select{flex-basis:100%}}
 
 .lm-profile{padding:20px;display:grid;gap:12px;max-width:540px}.lm-profile h3{font-size:15px;margin:0}.lm-profile p{font-size:12px;color:#666;line-height:1.6;margin:0}.lm-profile label{font-size:12px;color:#555}.lm-profile input{width:100%;min-height:40px;border:1px solid #ddd;border-radius:7px;padding:9px 11px;font:13px Arial,Helvetica,sans-serif}.lm-profile .primary{justify-self:start}
+
+/* Consistent mobile and tablet layout */
+html,body{max-width:100%;overflow-x:hidden}
+.workspace,.content,main,.panel,.panel-header,.lm-email-head,.lm-filters{min-width:0;max-width:100%}
+.lm-table-wrap{max-width:100%;overscroll-behavior-x:contain}
+#lm-dialog{max-width:calc(100vw - 20px);max-height:calc(100dvh - 24px);padding:0}
+#lm-dialog form{padding:clamp(16px,4vw,24px)}
+@media(max-width:760px){
+ main{width:100%;padding:24px 12px 44px}
+ .heading h1{font-size:25px;overflow-wrap:anywhere}
+ .heading p,.notice p,.panel-header p{overflow-wrap:anywhere}
+ .topbar{padding-inline:12px}
+ .crumb{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .top-docs{white-space:nowrap}
+ .lm-stats{gap:8px;padding:12px}
+ .lm-stats>div{padding:12px}
+ .lm-stats strong{font-size:21px}
+ .lm-tabs button{padding:9px 8px}
+ .lm-table{min-width:520px}
+ .lm-popover{right:8px;width:calc(100vw - 16px)}
+ #lm-detail{padding:14px}
+ #lm-detail .lm-actions{gap:6px}
+ #lm-detail .lm-actions button,#lm-detail .lm-actions a{font-size:11px;padding:0 9px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
