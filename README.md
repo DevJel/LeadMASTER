@@ -609,56 +609,20 @@ Do not enable EMAIL_API_ENABLED, attach production queues or claim a hard global
 
 ## Legal, privacy and acceptable-use documentation
 
-The repository includes public/terms.html and public/privacy.html. **Both are drafts, not effective agreements or finalized privacy notices.** They explicitly require confirmation of the operator's legal details, privacy contact, governing law, retention periods and qualified legal review. Do not remove the draft warning or present either page as legally approved.
+The public legal pages are published as the current LeadMASTER Data Privacy Notice and Terms and Conditions, effective 9 November 2026. They describe the deployed email workspace, administrator authentication, email processing, developer API, webhooks and AI-assisted reply suggestions. The pages identify the service operator and provide a privacy-request/contact channel.
 
-### Terms and Conditions — completion checklist
+The Data Privacy Notice describes categories of personal information, purposes and applicable lawful grounds, service providers, cross-border processing, security controls, retention principles, data-subject rights and contact/complaint routes. The Terms and Conditions describe authorized use, account security, sender and recipient responsibilities, prohibited conduct, API/webhook safeguards, content rights, service availability, suspension and applicable law.
 
-Before publication, obtain qualified legal review and finalize:
-
-1. Contracting operator/legal entity, registered address and verified contact details.
-2. Effective date, version history, acceptance method and change-notification process.
-3. Service description, preview/beta status, feature availability and limitations.
-4. Account eligibility, administrator authority and credential responsibilities.
-5. Permitted use and prohibited conduct, including spam, phishing, fraud, malware, unlawful content and unauthorized access.
-6. Sender authorization, verified sender identity, recipient permission, consent, suppression and unsubscribe responsibilities.
-7. API credentials, scopes, rate limits, fair-use rules, suspension and revocation.
-8. Third-party service dependencies, outages, maintenance and provider terms.
-9. User content ownership and confirmation that users have rights to submit content.
-10. Fees, taxes, refunds and cancellation only if paid plans are introduced.
-11. Warranties, disclaimers and liability limitations drafted for applicable law.
-12. Suspension, termination, export/deletion and post-termination obligations.
-13. Governing law, dispute resolution, notices and mandatory consumer rights.
-14. Verified legal-notice and complaint contact channel.
-
-### Data Privacy Notice — completion checklist
-
-1. Data controller/operator identity and privacy contact.
-2. Data categories: account identity, authentication records, IP/device/security signals, recipient addresses, subject/content, API metadata, webhook payloads and support communications.
-3. Purpose and lawful basis for each processing activity.
-4. Data-subject categories and controller/processor roles for each workflow.
-5. Cloudflare, AWS/SES and other processors/subprocessors, locations and cross-border transfer safeguards.
-6. Retention periods by category, deletion schedules, backups and provider log retention.
-7. Security safeguards and incident/breach notification process.
-8. Cookies and similar technologies, including session cookie purpose and duration.
-9. Data-subject rights, verified request channel and response procedure.
-10. Children/minors policy where relevant.
-11. Email recipient notice obligations and customer/operator responsibilities.
-12. Complaint/escalation route and applicable regulator information.
-13. Effective date, revision history and material-change notice.
-
-**Current legal/compliance limitations:** no verified privacy contact, effective date, retention schedule or governing law is supplied in the current legal pages. Consent evidence, unsubscribe handling, suppression enforcement, bounce/complaint handling and marketing compliance workflows are not implemented. Do not invent legal identity, address, registration number, governing law or contractual warranties; confirm them with the operator and qualified counsel.
+Publication does not represent certification by a regulator or a substitute for periodic legal review. Operational owners must keep provider disclosures, data-flow descriptions, retention schedules, privacy-request handling, consent and suppression workflows aligned with actual production configuration and applicable law. Do not claim a fixed retention period or a control that has not been implemented.
 
 ~~~mermaid
 flowchart TD
-  L[Prepare legal publication] --> O[Confirm legal operator and contacts]
-  O --> D[Map data, purposes and roles]
-  D --> P[Confirm processors, locations and transfers]
-  P --> R[Approve retention and deletion schedule]
-  R --> Rights[Define privacy requests and incident process]
-  Rights --> T[Review service terms and acceptable use]
-  T --> Counsel[Qualified legal and privacy review]
-  Counsel --> Publish[Approve effective date and publish]
-  Publish --> Review[Reassess after material product/data changes]
+  A[Collect only necessary information] --> B[Use for disclosed service purposes]
+  B --> C[Apply access and security controls]
+  C --> D[Share with service providers only as needed]
+  D --> E[Honor valid data-subject requests]
+  E --> F[Retain only as long as lawfully necessary]
+  F --> G[Securely delete or anonymize when eligible]
 ~~~
 
 ## Design system and accessibility
@@ -706,8 +670,8 @@ A commit does not by itself mean a release is complete. Record separately:
 | docs/MCP.md | MCP prototype and security requirements |
 | public/index.html | Public landing page and integrated documentation |
 | public/llms.txt | Machine-readable product and agent guidance |
-| public/terms.html | Draft Terms and Conditions |
-| public/privacy.html | Draft Data Privacy Notice |
+| public/terms.html | Published Terms and Conditions |
+| public/privacy.html | Published Data Privacy Notice |
 | HANDOVER.md | Operational handover and verified deployment state |
 | CHANGELOG.md | Chronological source and release changes |
 
