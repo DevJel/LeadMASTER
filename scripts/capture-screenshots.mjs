@@ -53,6 +53,7 @@ await new Promise(resolveListen=>server.listen(port,"127.0.0.1",resolveListen));
 const browser = await chromium.launch({headless:true,args:["--no-sandbox"]});
 try {
   const page = await browser.newPage({viewport:{width:1440,height:1000},deviceScaleFactor:1});
+  page.on("pageerror", error => console.log("Dashboard page error:", error.message));
   const mark = async () => page.addStyleTag({content:watermarkCss});
 
   await page.goto("http://127.0.0.1:"+port+"/",{waitUntil:"domcontentloaded"});
@@ -75,7 +76,11 @@ try {
   for (const section of ["overview","emails","logs","domains","settings"]) {
     await page.goto("http://127.0.0.1:"+port+"/dashboard.html#"+section,{waitUntil:"domcontentloaded"});
     await mark();
-    await page.waitForFunction(value=>document.querySelector("#section-title")?.textContent?.toLowerCase()===value,section,{timeout:10000});
+    try {
+      await page.waitForFunction(value=>document.querySelector("#section-title")?.textContent?.toLowerCase()===value,section,{timeout:10000});
+    } catch {
+      console.warn("Dashboard section did not finish rendering:", section, "Current title:", await page.locator("#section-title").textContent().catch(()=>"unavailable"));
+    }
     await page.screenshot({path:output+"/dashboard-"+section+".png",fullPage:true});
   }
 
