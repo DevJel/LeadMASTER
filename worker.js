@@ -3,7 +3,7 @@ import { sendSesEmail } from "./src/ses-smtp.mjs";
 import { emailOtpTemplate, emailSecurityAlertTemplate } from "./src/email-templates.mjs";
 import { staticAssets } from "./src/static-assets.mjs";
 import { developerAdminRoute, developerEmailRoute, developerEmailStatus, developerAccountInfo } from "./src/developer-api.mjs";
-import { webhookRoute } from "./src/developer-webhooks.mjs";
+import { webhookRoute, adminWebhookRoute } from "./src/developer-webhooks.mjs";
 import { verifyTurnstile } from "./src/turnstile.mjs";
 
 const HOSTNAME = "leadmaster.jelvan.pro";
@@ -420,6 +420,10 @@ async function adminMailboxRoute(request,env,session){
  const url=new URL(request.url),parts=url.pathname.split("/").filter(Boolean),folder=url.searchParams.get("folder")||"inbox",q=(url.searchParams.get("q")||"").trim().slice(0,100),domain=(url.searchParams.get("domain")||"").toLowerCase();
  const counts={};
  for(const [k,sql] of Object.entries({inbox:"SELECT COUNT(*) n FROM inbound_mail WHERE archived_at IS NULL AND deleted_at IS NULL",archived:"SELECT COUNT(*) n FROM inbound_mail WHERE archived_at IS NOT NULL AND deleted_at IS NULL",sent:"SELECT (SELECT COUNT(*) FROM admin_sent_mail WHERE deleted_at IS NULL AND status='accepted' AND COALESCE(delivery_status,'') NOT IN ('bounced','rejected','failed'))+(SELECT COUNT(*) FROM developer_email_requests WHERE deleted_at IS NULL AND status='accepted' AND COALESCE(delivery_status,'') NOT IN ('bounced','rejected','failed')) n",queued:"SELECT (SELECT COUNT(*) FROM admin_sent_mail WHERE queue_status IN ('queued','processing','retrying'))+(SELECT COUNT(*) FROM developer_email_requests WHERE status='sending') n",deleted:"SELECT (SELECT COUNT(*) FROM inbound_mail WHERE deleted_at IS NOT NULL)+(SELECT COUNT(*) FROM admin_sent_mail WHERE deleted_at IS NOT NULL)+(SELECT COUNT(*) FROM developer_email_requests WHERE deleted_at IS NOT NULL) n",bounced:"SELECT COUNT(*) n FROM email_delivery_events WHERE status IN ('bounced','complaint')",unsuccessful:"SELECT (SELECT COUNT(*) FROM admin_sent_mail WHERE status IN ('failed','unknown') OR delivery_status IN ('bounced','rejected','failed'))+(SELECT COUNT(*) FROM developer_email_requests WHERE status IN ('failed','unknown') OR delivery_status IN ('bounced','rejected','failed')) n",unsubscribed:"SELECT COUNT(*) n FROM email_unsubscribes"})){const r=await env.AUTH_DB.prepare(sql).first();counts[k]=Number(r?.n||0);}
+ if(url.pathname==="/api/admin/unsubscribes"&&request.method==="GET"){
+  const rows=await env.AUTH_DB.prepare("SELECT id,email,source,created_at,reason FROM email_unsubscribes ORDER BY created_at DESC LIMIT 500").all();
+  return json({items:rows.results||[],counts,storage:true});
+ }
  if(url.pathname==="/api/admin/unsubscribes"&&request.method==="POST"){
   if(request.headers.get("Origin")!==url.origin)return json({error:"Invalid request"},403);
   let b;try{b=await readJson(request)}catch{return json({error:"Invalid request"},400)}
@@ -528,6 +532,7 @@ async function handle(request, env) {
   if (aiSuggest) return adminAiSuggestRoute(request,env,adminSession,aiSuggest[1]);
   if (url.pathname === "/api/admin/mail" || url.pathname.startsWith("/api/admin/mail/") || url.pathname === "/api/admin/unsubscribes") return adminMailboxRoute(request,env,adminSession);
   if (url.pathname === "/api/account/profile") return accountProfileRoute(request,env,adminSession);
+  if (url.pathname === "/api/admin/webhooks" || url.pathname.startsWith("/api/admin/webhooks/")) return adminWebhookRoute(request,env,adminSession);
   if (url.pathname === "/api/admin/send") return adminSendRoute(request,env,adminSession);
   if (url.pathname === "/api/admin/activity") return adminActivityRoute(request,env,adminSession);
   if (url.pathname === "/api/admin/notifications" || url.pathname.startsWith("/api/admin/notifications/")) return adminNotificationsRoute(request,env,adminSession);
