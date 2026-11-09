@@ -332,7 +332,8 @@ async function sesSnsEvents(request,env){
  }
  return json({ok:true,event:type,recipients:recipients.length});
 }
-\nasync function adminMailboxRoute(request,env,session){
+
+async function adminMailboxRoute(request,env,session){
  if(!session||session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
  if(!env.INBOUND_MAIL||!env.AUTH_DB)return json({error:"Mailbox storage unavailable"},503);
  const url=new URL(request.url),parts=url.pathname.split("/").filter(Boolean),folder=url.searchParams.get("folder")||"inbox",q=(url.searchParams.get("q")||"").trim().slice(0,100),domain=(url.searchParams.get("domain")||"").toLowerCase();
@@ -385,7 +386,8 @@ async function adminSendRoute(request,env,session,connect){
 async function handle(request, env) {
   const url = new URL(request.url);
 
-  if (url.pathname === "/api/aws/ses-events") return sesSnsEvents(request,env);\n  if (url.pathname === "/api/admin/mail" || url.pathname.startsWith("/api/admin/mail/") || url.pathname === "/api/admin/unsubscribes") return adminMailboxRoute(request,env,await sessionFor(request,env));
+  if (url.pathname === "/api/aws/ses-events") return sesSnsEvents(request,env);
+  if (url.pathname === "/api/admin/mail" || url.pathname.startsWith("/api/admin/mail/") || url.pathname === "/api/admin/unsubscribes") return adminMailboxRoute(request,env,await sessionFor(request,env));
   if (url.pathname === "/api/admin/send") return adminSendRoute(request,env,await sessionFor(request,env),connect);
 
   if (url.pathname === "/api/developer/keys" || url.pathname.startsWith("/api/developer/keys/")) {
