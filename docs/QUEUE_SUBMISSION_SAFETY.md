@@ -11,3 +11,7 @@ This branch changes producer outcome reporting, not the SMTP transport or the qu
 - Best-effort activity and notification writes can be lost; operational logging and reconciliation are still needed.
 
 Before deployment, test the dashboard endpoint and queue consumer with fault injection in isolated staging, verify monitoring and rollback, and review API-client handling of the new `submission_unconfirmed` response. No live email should be sent without explicit approval. Existing uncertain or failed production records require individual reconciliation against provider events before remediation.
+
+## Proposed consumer fence
+
+A separate, unreleased consumer change adds a D1-backed per-message send fence; see `docs/CONSUMER_SEND_FENCE.md` for its failure modes and migration/rollout gates. It does not resolve the producer outbox, stale-claim reconciliation or old-consumer overlap.

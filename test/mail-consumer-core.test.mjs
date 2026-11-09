@@ -1,0 +1,53 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { DatabaseSync } from 'node:sqlite';
+import { readFileSync } from 'node:fs';
+import { createMailConsumer } from '../src/mail-consumer-core.mjs';
+const id='12345678-1234-4123-8123-123456789abc';
+function message(source='admin') {return {body:{id,source},acks:0,retries:[],ack(){this.acks++},retry(v){this.retries.push(v)}}}
+function setup(source='admin') {
+ const sql=new DatabaseSync(':memory:');
+ sql.exec(`CREATE TABLE admin_sent_mail (id TEXT PRIMARY KEY,recipient TEXT,subject TEXT,text_body TEXT,status TEXT,from_email TEXT,from_name TEXT,reply_to TEXT,queue_status TEXT,batch_id TEXT,updated_at INTEGER,error_code TEXT);
+ CREATE TABLE developer_email_requests (id TEXT PRIMARY KEY,recipient TEXT,subject TEXT,text_body TEXT,html_body TEXT,status TEXT,from_email TEXT,sender_name TEXT,reply_to TEXT,api_key_id TEXT,account_id TEXT,updated_at INTEGER,error_code TEXT);
+ CREATE TABLE workspace_activity (id TEXT,actor_email TEXT,action TEXT,summary TEXT,target_id TEXT,created_at INTEGER);
+ CREATE TABLE mail_notifications (id TEXT,type TEXT,title TEXT,message TEXT,target_id TEXT,created_at INTEGER);`);
+ sql.exec(readFileSync(new URL('../migrations/0009_mail_send_claims.sql',import.meta.url),'utf8'));
+ if(source==='admin')sql.prepare('INSERT INTO admin_sent_mail (id,recipient,subject,text_body,status,from_email,from_name,reply_to,queue_status) VALUES (?,?,?,?,?,?,?,?,?)').run(id,'recipient@example.test','Hello','body','sending','sender@example.test','Sender','reply@example.test','queued');
+ else sql.prepare('INSERT INTO developer_email_requests (id,recipient,subject,text_body,status,from_email,sender_name,reply_to,api_key_id,account_id) VALUES (?,?,?,?,?,?,?,?,?,?)').run(id,'recipient@example.test','Hello','body','sending','sender@example.test','Sender','reply@example.test','key','account');
+ const db={failBatch:false,failActivity:false,prepare(query){let args=[];return {bind(...a){args=a;return this},async first(){return sql.prepare(query).get(...args)||null},async run(){if(db.failActivity&&query.includes('workspace_activity'))throw Error('activity failed');return {meta:{changes:Number(sql.prepare(query).run(...args).changes)}}},_exec(){return sql.prepare(query).run(...args)}}}, async batch(stmts){if(db.failBatch){db.failBatch=false;throw Error('D1 failed after SMTP acceptance')};sql.exec('BEGIN');try{let result=stmts.map(s=>s._exec());sql.exec('COMMIT');return result}catch(e){sql.exec('ROLLBACK');throw e}}};
+ return {sql,db,env:{AUTH_DB:db},status:()=>sql.prepare(`SELECT status FROM ${source==='admin'?'admin_sent_mail':'developer_email_requests'} WHERE id=?`).get(id).status,claim:()=>sql.prepare('SELECT state FROM mail_send_claims WHERE source=? AND request_id=?').get(source,id)?.state};
+}
+function consumer(send,webhook=async()=>{}) {return createMailConsumer({send,deliverWebhook:webhook,sleep:async()=>{},clock:()=>123});}
+test('successful send records acceptance and duplicate redelivery does not resend',async()=>{
+ const s=setup();let sends=0; const c=consumer(async()=>{sends++});let a=message();await c.queue({messages:[a]},s.env);
+ assert.equal(a.acks,1);assert.equal(s.status(),'accepted');assert.equal(s.claim(),'accepted');let b=message();await c.queue({messages:[b]},s.env);assert.equal(b.acks,1);assert.equal(sends,1);
+});
+test('concurrent deliveries acquire only one claim',async()=>{
+ const s=setup();let sends=0, release;let started;const wait=new Promise(r=>release=r),signal=new Promise(r=>started=r);
+ const c=consumer(async()=>{sends++;started();await wait});let a=message(),b=message();const first=c.queue({messages:[a]},s.env);await signal;await c.queue({messages:[b]},s.env);assert.equal(b.acks,1);release();await first;assert.equal(sends,1);assert.equal(s.status(),'accepted');
+});
+test('D1 failure after SMTP acceptance leaves durable fence and prevents redelivery send',async()=>{
+ const s=setup();let sends=0;const c=consumer(async()=>{sends++;s.db.failBatch=true});const a=message();await c.queue({messages:[a]},s.env);
+ assert.equal(a.acks,0);assert.equal(a.retries.length,1);assert.equal(s.claim(),'started');assert.equal(s.status(),'sending');const b=message();await c.queue({messages:[b]},s.env);assert.equal(b.acks,1);assert.equal(sends,1);assert.equal(s.claim(),'started');
+});
+test('uncertain transport outcome is recorded and never retried automatically',async()=>{
+ const s=setup('developer');let sends=0;const c=consumer(async()=>{sends++;const e=Error('lost response');e.deliveryOutcome='unknown';throw e});const a=message('developer');await c.queue({messages:[a]},s.env);
+ assert.equal(s.status(),'unknown');assert.equal(s.claim(),'unknown');assert.equal(a.acks,1);await c.queue({messages:[message('developer')]},s.env);assert.equal(sends,1);
+});
+test('definite pre-DATA failure is terminal rather than silently resent',async()=>{
+ const s=setup();const c=consumer(async()=>{const e=Error();e.deliveryOutcome='not_accepted';throw e});const a=message();await c.queue({messages:[a]},s.env);
+ assert.equal(s.status(),'failed');assert.equal(s.claim(),'failed');assert.equal(a.acks,1);
+});
+test('ancillary activity failures do not alter accepted outcome',async()=>{
+ const s=setup();s.db.failActivity=true;const a=message();await consumer(async()=>{}).queue({messages:[a]},s.env);assert.equal(s.status(),'accepted');assert.equal(s.claim(),'accepted');assert.equal(a.acks,1);
+});
+test('missing migration fails closed before sending and schedules retry',async()=>{
+ const s=setup();s.sql.exec('DROP TABLE mail_send_claims');let sends=0;const a=message();await consumer(async()=>{sends++}).queue({messages:[a]},s.env);assert.equal(sends,0);assert.equal(a.acks,0);assert.equal(a.retries.length,1);
+});
+test('malformed source and ID are acknowledged without sending',async()=>{
+ const s=setup();let sends=0;const c=consumer(async()=>{sends++});const a=message('bad'),b=message();b.body.id='bad';await c.queue({messages:[a,b]},s.env);assert.equal(a.acks,1);assert.equal(b.acks,1);assert.equal(sends,0);
+});
+test('a claim left by a crashed process blocks another SMTP attempt',async()=>{
+ const s=setup();s.sql.prepare("INSERT INTO mail_send_claims (source,request_id,state,claimed_at) VALUES (?,?,'started',?)").run('admin',id,123);
+ let sends=0;const a=message();await consumer(async()=>{sends++}).queue({messages:[a]},s.env);assert.equal(sends,0);assert.equal(a.acks,1);assert.equal(s.status(),'sending');assert.equal(s.claim(),'started');
+});
