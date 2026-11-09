@@ -33,7 +33,7 @@ function buildMessage({ from, fromName, replyTo, configurationSet, messageId, to
   }
   if (chunk) words.push(chunk);
   const encodedSubject = words.map(word => `=?UTF-8?B?${utf8b64(word)}?=`).join('\r\n ');
-  const headers = [`From: ${fromHeader}`, `To: ${to}`, ...(replyTo ? [`Reply-To: ${mailbox(replyTo)}`] : []), ...(messageId && /^[0-9a-f-]{36}$/i.test(messageId) ? [`X-LeadMASTER-Message-ID: ${messageId}`] : []), ...(configurationSet ? [`X-SES-CONFIGURATION-SET: ${configurationSet}`] : []), `Subject: ${encodedSubject}`, 'MIME-Version: 1.0'];
+  const headers = [`From: ${fromHeader}`, `To: ${to}`, ...(replyTo ? [`Reply-To: ${mailbox(replyTo)}`] : []), ...(messageId && /^[0-9a-f-]{36}$/i.test(messageId) ? [`X-LeadMASTER-Message-ID: ${messageId}`, `X-SES-MESSAGE-TAGS: leadmaster_message_id=${messageId}`] : []), ...(configurationSet ? [`X-SES-CONFIGURATION-SET: ${configurationSet}`] : []), `Subject: ${encodedSubject}`, 'MIME-Version: 1.0'];
   if (html === undefined) return [...headers, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(utf8b64(text)), ''].join('\r\n');
   // The body is base64 encoded; a random boundary cannot occur in a body line.
   const boundary = 'leadmaster-' + crypto.randomUUID();
