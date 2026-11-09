@@ -1,0 +1,28 @@
+name: Generate mailbox control assets once
+on:
+  push:
+    branches: [feature/mailbox-control-audit-20261109]
+permissions:
+  contents: write
+jobs:
+  generate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/mailbox-control-audit-20261109
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Generate assets on this branch only
+        run: |
+          node scripts/apply-mailbox-control-audit.mjs
+          node scripts/build-static-assets.mjs
+          node --test test/mail-controls.test.mjs
+          git rm .github/workflows/generate-mailbox-control-audit-once.yml scripts/apply-mailbox-control-audit.mjs
+          git add 'src/Mandatory LeadMASTER Dashboard.html' public/dashboard.html src/static-assets.mjs
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Generate mailbox control fixes and assets'
+          git push origin HEAD:feature/mailbox-control-audit-20261109
