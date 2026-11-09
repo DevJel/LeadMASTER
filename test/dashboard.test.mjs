@@ -1,23 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-
-test('dashboard includes the authenticated operational email folders', async () => {
-  const html = await readFile(new URL('../public/dashboard.html', import.meta.url), 'utf8');
-  const script = await readFile(new URL('../public/dashboard.js', import.meta.url), 'utf8');
-  for (const folder of ['inbox', 'sent', 'bounced', 'unsuccessful', 'unsubscribed']) {
-    assert.match(script, new RegExp(folder));
-  }
-  assert.match(script, /\/api\/admin\/mail/);
-  assert.match(script, /\/api\/admin\/send/);
-  assert.match(html, /workspace-panel/);
-  assert.match(html, /dashboard\.css/);
+const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
+test('production dashboard mirrors the mandatory React dashboard source', async () => {
+ const [canonical, deployed] = await Promise.all([read('../src/Mandatory LeadMASTER Dashboard.html'), read('../public/dashboard.html')]);
+ assert.equal(deployed, canonical);
+ assert.match(deployed, /id="root"/);
+ assert.match(deployed, /LeadMASTER · Workspace/);
+ assert.doesNotMatch(deployed, /Local preview|Sample data|maya\.chen@example\.com|12,480/);
 });
-
-test('dashboard uses a restrained light grayscale responsive design', async () => {
-  const css = await readFile(new URL('../public/dashboard.css', import.meta.url), 'utf8');
-  assert.match(css, /background:#fff/);
-  assert.match(css, /@media\(max-width:760px\)/);
-  assert.match(css, /#e8e8e8/);
-  assert.doesNotMatch(css, /prefers-color-scheme:\s*dark/i);
+test('mandatory dashboard uses authenticated production APIs for supported features', async () => {
+ const html = await read('../src/Mandatory LeadMASTER Dashboard.html');
+ for (const route of ['/api/auth/session','/api/account/profile','/api/admin/mail','/api/admin/activity','/api/developer/keys','/api/admin/send','/api/auth/logout']) assert.ok(html.includes(route), 'Missing production API integration: '+route);
+ assert.match(html, /liveMail\.map/); assert.match(html, /api_key/);
+});
+test('mandatory dashboard retains responsive embedded styling and navigation components', async () => {
+ const html = await read('../src/Mandatory LeadMASTER Dashboard.html');
+ assert.match(html, /app-shell/); assert.match(html, /app-sidebar/); assert.match(html, /bottom-bar/); assert.match(html, /@media/); assert.match(html, /tab-link/);
 });
