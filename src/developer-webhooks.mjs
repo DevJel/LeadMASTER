@@ -44,10 +44,11 @@ export async function webhookRoute(req,env){
  }
  return json({error:"Not found"},404);
 }
-export async function deliverWebhookEvent(env,eventType,eventData){
- if(!env.AUTH_DB||!EVENTS.includes(eventType))return;
- const hooks=await env.AUTH_DB.prepare("SELECT id,api_key_id,target_url,secret_value FROM developer_webhooks WHERE revoked_at IS NULL AND EXISTS (SELECT 1 FROM json_each(events) WHERE value=?)").bind(eventType).all();
+export async function deliverWebhookEvent(env,eventType,eventData,apiKeyId){
+ if(!env.AUTH_DB||!EVENTS.includes(eventType)||typeof apiKeyId!=="string"||!apiKeyId)return;
+ const hooks=await env.AUTH_DB.prepare("SELECT id,api_key_id,target_url,secret_value FROM developer_webhooks WHERE revoked_at IS NULL AND api_key_id=? AND EXISTS (SELECT 1 FROM json_each(events) WHERE value=?)").bind(apiKeyId,eventType).all();
  for(const hook of hooks.results||[]){
+  try{
   const eventId=crypto.randomUUID(),timestamp=Math.floor(Date.now()/1000),secret=await unseal(hook.secret_value,env),body=JSON.stringify({id:eventId,type:eventType,created_at:new Date().toISOString(),data:eventData});
   const signature=await crypto.subtle.sign("HMAC",await crypto.subtle.importKey("raw",enc.encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]),enc.encode(timestamp+"."+body));
   const sig=Array.from(new Uint8Array(signature),b=>b.toString(16).padStart(2,"0")).join("");
@@ -56,5 +57,6 @@ export async function deliverWebhookEvent(env,eventType,eventData){
   const now=Date.now();
   await env.AUTH_DB.prepare("INSERT INTO developer_webhook_deliveries (id,webhook_id,event_type,event_id,http_status,attempted_at,success) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(),hook.id,eventType,eventId,status,now,success).run();
   await env.AUTH_DB.prepare("UPDATE developer_webhooks SET last_delivery_at=? WHERE id=?").bind(now,hook.id).run();
+  }catch{}
  }
 }
