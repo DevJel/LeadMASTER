@@ -6,15 +6,16 @@ const script=await readFile(new URL('../public/html-preview.js',import.meta.url)
 const html=await readFile(new URL('../public/dashboard.html',import.meta.url),'utf8');
 function setup(){
  function element(){return {attributes:{},handlers:{},classList:{classes:new Set(),toggle(k,v){v?this.classes.add(k):this.classes.delete(k)}},setAttribute(k,v){this.attributes[k]=v},removeAttribute(k){delete this[k]},addEventListener(k,f){this.handlers[k]=f},focus(){this.focused=true},value:'',hidden:false}}
- const ids={};for(const id of ['html-preview','preview-html','preview-frame','preview-feedback','preview-empty','preview-canvas','workspace-panel','html-preview-title','html-preview-description','preview-clear','preview-render','preview-desktop','preview-mobile'])ids[id]=element();
- let options;const window={handlers:{},addEventListener(k,f){this.handlers[k]=f},DOMPurify:{isSupported:true,sanitize(value,opts){options=opts;return value}}};const document={getElementById:id=>ids[id]};const location={hash:'#emails'};
+ const ids={};for(const id of ['html-preview','preview-html','preview-frame','preview-feedback','preview-empty','preview-canvas','workspace-panel','html-preview-title','html-preview-description','preview-clear','preview-render','preview-desktop','preview-mobile','preview-close'])ids[id]=element();
+ let options;const window={handlers:{},addEventListener(k,f){this.handlers[k]=f},DOMPurify:{isSupported:true,sanitize(value,opts){options=opts;return value}}};const document={getElementById:id=>ids[id]};const location={hash:'#email-preview'};
  vm.runInNewContext(script,{document,window,location,Object,Boolean});return {ids,window,location,getOptions:()=>options};
 }
-test('preview is sandboxed and available separately for Emails and Templates',()=>{
+test('sandboxed HTML preview is available separately for Emails and Templates',()=>{
  assert.match(html,/id="preview-frame"[^>]*sandbox/);
  const {ids,window,location}=setup();assert.equal(ids['html-preview'].hidden,false);assert.match(ids['html-preview-title'].textContent,/Compose email/);
- ids['preview-html'].value='<p>Draft</p>';ids['preview-html'].handlers.input();location.hash='#templates';window.handlers.hashchange();assert.equal(ids['preview-html'].value,'');assert.match(ids['html-preview-title'].textContent,/Template/);
- location.hash='#emails';window.handlers.hashchange();assert.equal(ids['preview-html'].value,'<p>Draft</p>');location.hash='#overview';window.handlers.hashchange();assert.equal(ids['html-preview'].hidden,true);
+ ids['preview-html'].value='<p>Draft</p>';ids['preview-html'].handlers.input();location.hash='#template-preview';window.handlers.hashchange();assert.equal(ids['preview-html'].value,'');assert.match(ids['html-preview-title'].textContent,/Template/);
+ location.hash='#email-preview';window.handlers.hashchange();assert.equal(ids['preview-html'].value,'<p>Draft</p>');
+ location.hash='#emails';window.handlers.hashchange();assert.equal(ids['html-preview'].hidden,true);assert.equal(ids['workspace-panel'].hidden,false);
 });
 test('blank input, sanitized preview and clear states',()=>{
  const {ids,getOptions}=setup();ids['preview-render'].handlers.click();assert.match(ids['preview-feedback'].textContent,/Enter HTML/);
