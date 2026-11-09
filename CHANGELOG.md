@@ -108,7 +108,7 @@ Unit tests do not prove live Turnstile, SES inbox delivery or webhook callback r
 - Replaced sample template, audience, inbox, campaign, automation, metrics and domain-verification content with real data or explicit unavailable states.
 - Updated Android native navigation to mirror Home, Emails, Audience, Metrics and Profile section IDs.
 - Updated dashboard feature map, agent instructions, README, handover, dashboard tests and desktop/mobile screenshot capture workflow.
-- Build, tests, screenshot review and production browser acceptance are pending CI results; no deployment is claimed by this changelog entry.
+- LeadMASTER CI and desktop/mobile screenshot capture passed on 2026-11-09 (run 42597803329). The Android debug APK build passed (run 42596263455). Static assets include the canonical dashboard and HTML-preview assets; Cloudflare Worker `leadmaster` deployment `71150f57-564d-48e2-ab24-6fd46b1a4130` has 100% traffic. Authenticated production click-through and real mail delivery smoke tests remain outstanding.
 
 
 ## 2026-11-09 — Mandatory dashboard integration
