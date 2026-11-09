@@ -239,6 +239,10 @@ Every change must review all impacted layers:
 
 If a layer is unaffected, record why. Never update documentation to claim a feature before its backend and acceptance tests support it.
 
+## Screenshot evidence
+
+The CI workflow creates a `leadmaster-ui-screenshots` artifact containing landing, landing Documentation tab, login, dashboard section and account API-key console screenshots. These are watermarked local UI previews with synthetic data, not production evidence. See [docs/screenshots/README.md](docs/screenshots/README.md).
+
 ## Release and verification
 
 Before production release:
