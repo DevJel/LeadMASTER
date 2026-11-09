@@ -58,6 +58,8 @@ export async function developerEmailRoute(request,env,connect,accountId){
  if(Number(limited?.count||0)>30)return json({error:"Rate limit exceeded"},429,{"retry-after":"60"});
  const prior=await env.AUTH_DB.prepare("SELECT id,status,created_at FROM developer_email_requests WHERE api_key_id=? AND idempotency_key=?").bind(row.id,idem).first();
  if(prior)return json({id:prior.id,status:prior.status,created_at:prior.created_at,replayed:true},prior.status==="accepted"?200:202);
+ const suppressed=await env.AUTH_DB.prepare("SELECT email FROM email_unsubscribes WHERE lower(email)=lower(?)").bind(body.to).first();
+ if(suppressed)return json({error:"Recipient is on the LeadMASTER suppression list"},409);
  const id=crypto.randomUUID(),now=Date.now();
  const account=await env.AUTH_DB.prepare("SELECT name,owner_email FROM accounts WHERE id=?").bind(accountId).first();
  const registeredEmail=String(account?.owner_email||row.created_by||"").trim().toLowerCase();
