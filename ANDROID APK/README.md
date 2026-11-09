@@ -56,3 +56,8 @@ When a web feature changes:
 5. Build the debug APK and review the GitHub Actions build result after Android source changes. A successful build is not a substitute for device testing.
 
 Current native navigation maps to the live dashboard hash sections: `overview`, `emails`, `logs`, `domains` and `settings`. App connections remain available through the shared dashboard link. Do not add navigation for planned or unavailable modules.
+
+
+## Mandatory dashboard parity
+
+The app opens the same production LeadMASTER dashboard defined in `src/Mandatory LeadMASTER Dashboard.html`. Native navigation must activate the matching dashboard tab rather than relying on URL hashes. The live workspace remains the source for email, account and API data. Android-specific navigation and device integrations must not fork business logic or alter the mandatory dashboard UI.
