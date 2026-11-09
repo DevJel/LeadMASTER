@@ -21,3 +21,5 @@ Unit tests do not prove live Turnstile, SES inbox delivery or webhook callback r
 - Inspected the uploaded Worker bundle and confirmed the root mapping, integrated documentation markup, updated production capability copy, docs search logic and legacy documentation redirect assets are included.
 - Live browser route inspection was unavailable in this run; Cloudflare deployment/version state was verified through the account API.
 - Automated `npm test` was not run. Real administrator login, SES inbox delivery and webhook callback acceptance remain unverified.
+
+- Added direct links from the API, production-authentication and queue engineering references to the single public landing-page documentation hub.
