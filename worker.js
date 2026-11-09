@@ -383,7 +383,7 @@ async function adminMailboxRoute(request,env,session){
  if(!env.INBOUND_MAIL||!env.AUTH_DB)return json({error:"Mailbox storage unavailable"},503);
  const url=new URL(request.url),parts=url.pathname.split("/").filter(Boolean),folder=url.searchParams.get("folder")||"inbox",q=(url.searchParams.get("q")||"").trim().slice(0,100),domain=(url.searchParams.get("domain")||"").toLowerCase();
  const counts={};
- for(const [k,sql] of Object.entries({inbox:"SELECT COUNT(*) n FROM inbound_mail WHERE archived_at IS NULL",sent:"SELECT COUNT(*) n FROM admin_sent_mail",bounced:"SELECT COUNT(*) n FROM email_delivery_events WHERE status='bounced'",unsuccessful:"SELECT (SELECT COUNT(*) FROM admin_sent_mail WHERE status IN ('failed','unknown'))+(SELECT COUNT(*) FROM developer_email_requests WHERE status IN ('failed','unknown')) n",unsubscribed:"SELECT COUNT(*) n FROM email_unsubscribes"})){const r=await env.AUTH_DB.prepare(sql).first();counts[k]=Number(r?.n||0);}
+ for(const [k,sql] of Object.entries({inbox:"SELECT COUNT(*) n FROM inbound_mail WHERE archived_at IS NULL AND deleted_at IS NULL",sent:"SELECT (SELECT COUNT(*) FROM admin_sent_mail WHERE deleted_at IS NULL)+(SELECT COUNT(*) FROM developer_email_requests WHERE deleted_at IS NULL) n",deleted:"SELECT (SELECT COUNT(*) FROM inbound_mail WHERE deleted_at IS NOT NULL)+(SELECT COUNT(*) FROM admin_sent_mail WHERE deleted_at IS NOT NULL)+(SELECT COUNT(*) FROM developer_email_requests WHERE deleted_at IS NOT NULL) n",bounced:"SELECT COUNT(*) n FROM email_delivery_events WHERE status='bounced'",unsuccessful:"SELECT (SELECT COUNT(*) FROM admin_sent_mail WHERE status IN ('failed','unknown'))+(SELECT COUNT(*) FROM developer_email_requests WHERE status IN ('failed','unknown')) n",unsubscribed:"SELECT COUNT(*) n FROM email_unsubscribes"})){const r=await env.AUTH_DB.prepare(sql).first();counts[k]=Number(r?.n||0);}
  if(url.pathname==="/api/admin/unsubscribes"&&request.method==="POST"){
   if(request.headers.get("Origin")!==url.origin)return json({error:"Invalid request"},403);
   let b;try{b=await readJson(request)}catch{return json({error:"Invalid request"},400)}
@@ -394,11 +394,12 @@ async function adminMailboxRoute(request,env,session){
  }
  if(request.method==="GET"&&url.pathname==="/api/admin/mail"){
   if(folder==="counts")return json({counts,storage:true});
-  if(folder==="inbox"){const r=await env.AUTH_DB.prepare("SELECT id,from_address,to_address,subject,received_at,read_at,archived_at,delivery_status,size_bytes FROM inbound_mail WHERE archived_at IS NULL AND (?='' OR lower(from_address||' '||to_address||' '||subject) LIKE ?) AND (?='' OR lower(from_address) LIKE ? OR lower(to_address) LIKE ?) ORDER BY received_at DESC LIMIT 100").bind(q,q?"%"+q.toLowerCase()+"%":"",domain,domain?"%"+domain+"%":"",domain?"%"+domain+"%":"").all();return json({items:r.results||[],counts,storage:true,note:"Dedicated mailbox only. Existing forwarding routes are unchanged."});}
-  if(folder==="sent"){const r=await env.AUTH_DB.prepare("SELECT id,recipient,subject,status,created_at,updated_at,from_email,reply_to FROM admin_sent_mail WHERE (?='' OR lower(recipient||' '||subject) LIKE ?) UNION ALL SELECT id,recipient,subject,status,created_at,updated_at,from_email,reply_to FROM developer_email_requests WHERE (?='' OR lower(recipient||' '||subject) LIKE ?) ORDER BY created_at DESC LIMIT 100").bind(q,q?"%"+q.toLowerCase()+"%":"",q,q?"%"+q.toLowerCase()+"%":"").all();return json({items:r.results||[],counts,note:"Sent means SES accepted the SMTP submission, not confirmed inbox delivery."});}
+  if(folder==="inbox"){const r=await env.AUTH_DB.prepare("SELECT id,from_address,to_address,subject,received_at,read_at,archived_at,delivery_status,size_bytes FROM inbound_mail WHERE archived_at IS NULL AND deleted_at IS NULL AND (?='' OR lower(from_address||' '||to_address||' '||subject) LIKE ?) AND (?='' OR lower(from_address) LIKE ? OR lower(to_address) LIKE ?) ORDER BY received_at DESC LIMIT 100").bind(q,q?"%"+q.toLowerCase()+"%":"",domain,domain?"%"+domain+"%":"",domain?"%"+domain+"%":"").all();return json({items:r.results||[],counts,storage:true,note:"Dedicated mailbox only. Existing forwarding routes are unchanged."});}
+  if(folder==="sent"){const r=await env.AUTH_DB.prepare("SELECT id,recipient,subject,status,created_at,updated_at,from_email,reply_to FROM admin_sent_mail WHERE deleted_at IS NULL AND (?='' OR lower(recipient||' '||subject) LIKE ?) UNION ALL SELECT id,recipient,subject,status,created_at,updated_at,from_email,reply_to FROM developer_email_requests WHERE deleted_at IS NULL AND (?='' OR lower(recipient||' '||subject) LIKE ?) ORDER BY created_at DESC LIMIT 100").bind(q,q?"%"+q.toLowerCase()+"%":"",q,q?"%"+q.toLowerCase()+"%":"").all();return json({items:r.results||[],counts,note:"Sent means SES accepted the SMTP submission, not confirmed inbox delivery."});}
   if(folder==="bounced"){const r=await env.AUTH_DB.prepare("SELECT id,email AS recipient,subject,status,created_at AS received_at,detail FROM email_delivery_events WHERE status='bounced' ORDER BY created_at DESC LIMIT 100").all();return json({items:r.results||[],counts,note:"SES bounce and complaint events are recorded here for messages sent through the LeadMASTER SES configuration set."});}
   if(folder==="unsuccessful"){const r=await env.AUTH_DB.prepare("SELECT id,recipient,subject,status,created_at,updated_at,error_code FROM admin_sent_mail WHERE status IN ('failed','unknown') UNION ALL SELECT id,recipient,subject,status,created_at,updated_at,error_code FROM developer_email_requests WHERE status IN ('failed','unknown') UNION ALL SELECT id,email AS recipient,subject,status,created_at AS updated_at,status AS error_code FROM email_delivery_events WHERE status IN ('rejected','failed','delayed') ORDER BY created_at DESC LIMIT 100").all();return json({items:r.results||[],counts,note:"Failed = SMTP not accepted. Unknown = final SMTP acceptance could not be confirmed."});}
   if(folder==="unsubscribed"){const r=await env.AUTH_DB.prepare("SELECT id,email,source,created_at,reason AS subject,'unsubscribed' AS status FROM email_unsubscribes ORDER BY created_at DESC LIMIT 100").all();return json({items:r.results||[],counts,note:"Suppression records. No marketing unsubscribe capture endpoint is enabled."});}
+  if(folder==="deleted"){const r=await env.AUTH_DB.prepare("SELECT id,from_address,from_address AS recipient,to_address,subject,received_at,'received' AS kind,'Deleted' AS status FROM inbound_mail WHERE deleted_at IS NOT NULL UNION ALL SELECT id,from_email AS from_address,from_email,recipient,subject,created_at,'sent' AS kind,'Deleted' AS status FROM admin_sent_mail WHERE deleted_at IS NOT NULL UNION ALL SELECT id,from_email AS from_address,from_email,recipient,subject,created_at,'sent' AS kind,'Deleted' AS status FROM developer_email_requests WHERE deleted_at IS NOT NULL ORDER BY received_at DESC LIMIT 100").all();return json({items:r.results||[],counts,note:"Deleted messages remain here until you permanently remove them."});}
   return json({error:"Unknown folder"},400);
  }
  const id=parts[3];
@@ -411,7 +412,35 @@ async function adminMailboxRoute(request,env,session){
   return json({error:"Message not found"},404);
  }
  if(parts.length===5&&parts[4]==="source"&&request.method==="GET"){const row=await env.AUTH_DB.prepare("SELECT r2_key FROM inbound_mail WHERE id=?").bind(id).first();if(!row)return json({error:"Not found"},404);const obj=await env.INBOUND_MAIL.get(row.r2_key);if(!obj)return json({error:"Not found"},404);return new Response(obj.body,{headers:{"content-type":"message/rfc822","content-disposition":'attachment; filename="leadmaster-message.eml"',"cache-control":"no-store","x-content-type-options":"nosniff"}});}
- if(parts.length===4&&request.method==="PATCH"){if(request.headers.get("Origin")!==url.origin)return json({error:"Invalid request"},403);let b;try{b=await readJson(request)}catch{return json({error:"Invalid request"},400)}if(typeof b.read==="boolean")await env.AUTH_DB.prepare("UPDATE inbound_mail SET read_at=? WHERE id=?").bind(b.read?Date.now():null,id).run();if(b.archive===true)await env.AUTH_DB.prepare("UPDATE inbound_mail SET archived_at=? WHERE id=?").bind(Date.now(),id).run();return json({ok:true});}
+ if(parts.length===4&&request.method==="PATCH"){
+  if(!sameOrigin(request))return json({error:"Invalid request"},403);
+  let b;try{b=await readJson(request)}catch{return json({error:"Invalid request"},400)}
+  const now=Date.now(),action=b.action||(typeof b.read==="boolean"?"read":b.archive?"archive":null);
+  const inbound=await env.AUTH_DB.prepare("SELECT id,r2_key,from_address FROM inbound_mail WHERE id=?").bind(id).first();
+  const sent=await env.AUTH_DB.prepare("SELECT id,recipient,reply_to FROM admin_sent_mail WHERE id=?").bind(id).first();
+  const developer=await env.AUTH_DB.prepare("SELECT id,recipient,from_email FROM developer_email_requests WHERE id=?").bind(id).first();
+  if(!inbound&&!sent&&!developer)return json({error:"Message not found"},404);
+  if(action==="read"&&inbound)await env.AUTH_DB.prepare("UPDATE inbound_mail SET read_at=? WHERE id=?").bind(b.read?now:null,id).run();
+  else if(action==="archive"&&inbound)await env.AUTH_DB.prepare("UPDATE inbound_mail SET archived_at=? WHERE id=?").bind(now,id).run();
+  else if(action==="delete"){
+   if(inbound)await env.AUTH_DB.prepare("UPDATE inbound_mail SET deleted_at=? WHERE id=?").bind(now,id).run();
+   else if(sent)await env.AUTH_DB.prepare("UPDATE admin_sent_mail SET deleted_at=? WHERE id=?").bind(now,id).run();
+   else await env.AUTH_DB.prepare("UPDATE developer_email_requests SET deleted_at=? WHERE id=?").bind(now,id).run();
+   await logWorkspaceAction(env,session.email,"email_deleted","Moved a message to Deleted.",id);
+   await addMailNotification(env,"deleted","Message deleted","The message was moved to Deleted.",id);
+  }else if(action==="restore"){
+   if(inbound)await env.AUTH_DB.prepare("UPDATE inbound_mail SET deleted_at=NULL WHERE id=?").bind(id).run();
+   else if(sent)await env.AUTH_DB.prepare("UPDATE admin_sent_mail SET deleted_at=NULL WHERE id=?").bind(id).run();
+   else await env.AUTH_DB.prepare("UPDATE developer_email_requests SET deleted_at=NULL WHERE id=?").bind(id).run();
+   await logWorkspaceAction(env,session.email,"email_restored","Restored a deleted message.",id);
+  }else if(action==="permanentDelete"){
+   if(inbound){await env.INBOUND_MAIL.delete(inbound.r2_key);await env.AUTH_DB.prepare("DELETE FROM inbound_mail WHERE id=? AND deleted_at IS NOT NULL").bind(id).run();}
+   else if(sent)await env.AUTH_DB.prepare("DELETE FROM admin_sent_mail WHERE id=? AND deleted_at IS NOT NULL").bind(id).run();
+   else await env.AUTH_DB.prepare("DELETE FROM developer_email_requests WHERE id=? AND deleted_at IS NOT NULL").bind(id).run();
+   await logWorkspaceAction(env,session.email,"email_permanently_deleted","Permanently removed a message.",id);
+  }else return json({error:"Unsupported action"},400);
+  return json({ok:true});
+ }
  return json({error:"Not found"},404);
 }
 async function adminSendRoute(request,env,session){
