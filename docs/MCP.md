@@ -47,3 +47,8 @@ The Developer Email API is a separate HTTPS integration for server-to-server app
 ## Public documentation location
 
 The public product and integration documentation is consolidated into the Documentation tab on the main landing page: [LeadMASTER documentation](https://leadmaster.jelvan.pro/#documentation). The legacy `/mcp.html` URL redirects to the MCP section of that landing page. This repository file remains the engineering source of truth for MCP implementation and release gates; it is not a separate public documentation destination.
+
+
+## Agent integration policy
+
+AI agents must not use the human administrator sign-in page, security challenge, password or email OTP. The supported agent integration is the LeadMASTER REST API with a least-privilege server-side API key. The canonical machine-readable guide is [`/llms.txt`](https://leadmaster.jelvan.pro/llms.txt). Do not publish or assume a production MCP endpoint until the MCP server is deployed, authenticated, monitored and acceptance-tested.
