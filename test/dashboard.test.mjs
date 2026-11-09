@@ -46,7 +46,8 @@ test('dashboard routes and static bundles are gated by a server-validated sessio
  const upstreamProxy = worker.indexOf('const upstream = new URL(url.pathname + url.search, UPSTREAM)');
  assert.ok(gate >= 0 && gate < apiRouting && gate < staticLookup && gate < upstreamProxy, 'Session gate must run before API, static assets and upstream proxy');
  assert.match(worker, /decodeURIComponent\(url\.pathname\)/);
- assert.match(worker, /const dashboardRoute = routePath === "\\/dashboard" \|\| routePath\.startsWith\("\\/dashboard\\/"\) \|\| routePath\.startsWith\("\\/dashboard\\\."\)/);
- assert.match(worker, /const session = await sessionFor\(request, env\);\s*if \(!session\) return Response\.redirect\(new URL\("\\/login\.html", request\.url\), 302\)/);
- assert.match(worker, /"\\/dashboard\.js", "\\/dashboard\.css", "\\/developer-api-keys\.html", "\\/html-preview\.js", "\\/html-preview\.css", "\\/assets\\/vendor\\/dompurify\.min\.js"/);
+ assert.ok(worker.includes('const dashboardRoute = routePath === "/dashboard" || routePath.startsWith("/dashboard/") || routePath.startsWith("/dashboard.")'));
+ assert.ok(worker.includes('const session = await sessionFor(request, env);'));
+ assert.ok(worker.includes('if (!session) return Response.redirect(new URL("/login.html", request.url), 302);'));
+ for (const path of ["/dashboard.js", "/dashboard.css", "/developer-api-keys.html", "/html-preview.js", "/html-preview.css", "/assets/vendor/dompurify.min.js"]) assert.ok(worker.includes(JSON.stringify(path)), 'Missing protected asset '+path);
 });
