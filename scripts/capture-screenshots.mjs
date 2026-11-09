@@ -29,6 +29,24 @@ const server = createServer(async (req,res) => {
     res.writeHead(503,{"content-type":"application/json","cache-control":"no-store"});
     return res.end(JSON.stringify({error:"Human security verification is not connected in this local preview"}));
   }
+  if (url.pathname === "/api/account/profile") {
+    res.writeHead(200,{"content-type":"application/json","cache-control":"no-store"});
+    return res.end(JSON.stringify({fullName:"Preview User"}));
+  }
+  if (url.pathname === "/api/admin/mail" && req.method === "GET") {
+    const folder = url.searchParams.get("folder") || "inbox";
+    const counts = {inbox:0,sent:0,queued:0,unsuccessful:0,bounced:0,unsubscribed:0};
+    res.writeHead(200,{"content-type":"application/json","cache-control":"no-store"});
+    return res.end(JSON.stringify(folder === "counts" ? {counts,storage:true} : {items:[],counts,storage:true}));
+  }
+  if (url.pathname === "/api/admin/activity" || url.pathname === "/api/admin/unsubscribes" || url.pathname === "/api/admin/webhooks") {
+    res.writeHead(200,{"content-type":"application/json","cache-control":"no-store"});
+    return res.end(JSON.stringify(url.pathname.endsWith("/webhooks") ? {webhooks:[]} : {items:[],counts:{unsubscribed:0}}));
+  }
+  if (url.pathname === "/api/auth/logout" || url.pathname === "/api/admin/send" || url.pathname === "/api/admin/unsubscribes" || url.pathname === "/api/admin/webhooks") {
+    res.writeHead(200,{"content-type":"application/json","cache-control":"no-store"});
+    return res.end(JSON.stringify({ok:true,queued:1,status:"queued"}));
+  }
   if (url.pathname.startsWith("/api/")) {
     res.writeHead(404,{"content-type":"application/json","cache-control":"no-store"});
     return res.end(JSON.stringify({error:"Preview route not implemented"}));
@@ -70,20 +88,28 @@ try {
   await page.waitForTimeout(500);
   await page.screenshot({path:output+"/login.png",fullPage:true});
 
-  await page.goto("http://127.0.0.1:"+port+"/dashboard.html#overview",{waitUntil:"domcontentloaded"});
+  await page.goto("http://127.0.0.1:"+port+"/dashboard.html",{waitUntil:"domcontentloaded"});
+  await page.waitForSelector("#root .app-shell",{timeout:15000});
   await mark();
-  await page.waitForFunction(()=>document.querySelector("#workspace-name")?.textContent==="Preview workspace",null,{timeout:5000});
-  for (const section of ["overview","emails","logs","domains","settings"]) {
-    await page.goto("http://127.0.0.1:"+port+"/dashboard.html#"+section,{waitUntil:"domcontentloaded"});
-    await mark();
-    try {
-      await page.waitForFunction(value=>document.querySelector("#section-title")?.textContent?.toLowerCase()===value,section,{timeout:10000});
-    } catch {
-      console.warn("Dashboard section did not finish rendering:", section, "Current title:", await page.locator("#section-title").textContent().catch(()=>"unavailable"));
-    }
-    await page.screenshot({path:output+"/dashboard-"+section+".png",fullPage:true});
+  const sections = [
+    ["Homepage","home"],["Emails","emails"],["Templates","templates"],["Audience","audience"],
+    ["Inboxes","inboxes"],["Broadcasts","broadcasts"],["Automations","automations"],["Metrics","metrics"],
+    ["Domains","domains"],["Logs","logs"],["API keys","api"],["Webhooks","webhooks"],
+    ["Settings","settings"],["Help","help"],["Appearance","appearance"],["Onboarding","onboarding"],["Profile","profile"]
+  ];
+  for (const [label,slug] of sections) {
+    const tab = page.locator(".tab-link").filter({hasText:label}).first();
+    await tab.click();
+    await page.waitForFunction(value => document.querySelector(".tab-link.active")?.textContent?.trim() === value,label,{timeout:10000});
+    await page.screenshot({path:output+"/dashboard-"+slug+".png",fullPage:true});
   }
-
+  await page.setViewportSize({width:390,height:844});
+  for (const [label,slug] of [["Homepage","home"],["Audience","audience"],["Webhooks","webhooks"]]) {
+    await page.locator(".tab-link").filter({hasText:label}).first().click();
+    await page.waitForFunction(value => document.querySelector(".tab-link.active")?.textContent?.trim() === value,label,{timeout:10000});
+    await page.screenshot({path:output+"/dashboard-mobile-"+slug+".png",fullPage:true});
+  }
+  await page.setViewportSize({width:1440,height:1000});
   await page.goto("http://127.0.0.1:"+port+"/developer-api-keys.html",{waitUntil:"domcontentloaded"});
   await mark();
   await page.waitForFunction(()=>document.querySelector("#account-api-base")?.textContent?.startsWith("https://"),null,{timeout:5000});
