@@ -73,5 +73,16 @@
       "binding": "INBOUND_MAIL",
       "bucket_name": "leadmaster-inbound-mail"
     }
-  ]
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "MAIL_SEND_QUEUE",
+        "queue": "leadmaster-mail-send"
+      }
+    ]
+  },
+  "ai": {
+    "binding": "AI"
+  }
 }
