@@ -60,3 +60,36 @@ export async function deliverWebhookEvent(env,eventType,eventData,apiKeyId,accou
   }catch{}
  }
 }
+
+/** Cookie-authenticated dashboard management for account-owned webhooks. */
+export async function adminWebhookRoute(req,env,session){
+ if(!session?.accountId||!session?.email)return json({error:"Unauthorized"},401);
+ if(!env.AUTH_DB)return json({error:"Service unavailable"},503);
+ const url=new URL(req.url),parts=url.pathname.split("/").filter(Boolean),id=parts[3];
+ if(req.method!=="GET"&&req.headers.get("Origin")!==url.origin)return json({error:"Invalid request origin"},403);
+ if(parts.length===3&&req.method==="GET"){
+  const rows=await env.AUTH_DB.prepare("SELECT w.id,w.name,w.target_url,w.events,w.created_at,w.revoked_at,w.last_delivery_at,k.id AS api_key_id,k.name AS api_key_name,k.key_prefix FROM developer_webhooks w INNER JOIN developer_api_keys k ON k.id=w.api_key_id WHERE w.account_id=? ORDER BY w.created_at DESC LIMIT 100").bind(session.accountId).all();
+  return json({webhooks:(rows.results||[]).map(r=>({...r,events:JSON.parse(r.events||"[]")}))});
+ }
+ if(parts.length===3&&req.method==="POST"){
+  let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}
+  const name=typeof body.name==="string"?body.name.trim():"",target=safeUrl(body.url),events=Array.isArray(body.events)?[...new Set(body.events)]:[],keyId=String(body.api_key_id||"");
+  if(!name||name.length>80||!target||!events.length||events.some(e=>!EVENTS.includes(e))||!/^[0-9a-f-]{36}$/i.test(keyId))return json({error:"Provide a name, public HTTPS URL, supported events and an API key with webhook:manage scope."},400);
+  const key=await env.AUTH_DB.prepare("SELECT id,scopes FROM developer_api_keys WHERE id=? AND account_id=? AND revoked_at IS NULL").bind(keyId,session.accountId).first();
+  if(!key||!JSON.parse(key.scopes||"[]").includes("webhook:manage"))return json({error:"Choose an active account API key with webhook:manage scope."},400);
+  const webhookId=crypto.randomUUID(),signingSecret=makeSecret(),now=Date.now();
+  await env.AUTH_DB.prepare("INSERT INTO developer_webhooks (id,api_key_id,name,target_url,secret_hash,secret_value,events,created_at,revoked_at,last_delivery_at,account_id) VALUES (?,?,?,?,?,?,?,?,NULL,NULL,?)").bind(webhookId,key.id,name,target.href,await sha(signingSecret),await seal(signingSecret,env),JSON.stringify(events),now,session.accountId).run();
+  return json({id:webhookId,name,url:target.href,events,api_key_id:key.id,signing_secret:signingSecret,created_at:now,warning:"Copy this signing secret now. It is shown only once."},201);
+ }
+ if(parts.length===4&&req.method==="DELETE"&&/^[0-9a-f-]{36}$/i.test(id)){
+  const result=await env.AUTH_DB.prepare("UPDATE developer_webhooks SET revoked_at=? WHERE id=? AND account_id=? AND revoked_at IS NULL").bind(Date.now(),id,session.accountId).run();
+  return (result.meta?.changes||0)?json({revoked:true}):json({error:"Not found or already revoked"},404);
+ }
+ if(parts.length===5&&parts[4]==="deliveries"&&req.method==="GET"&&/^[0-9a-f-]{36}$/i.test(id)){
+  const owned=await env.AUTH_DB.prepare("SELECT id FROM developer_webhooks WHERE id=? AND account_id=?").bind(id,session.accountId).first();
+  if(!owned)return json({error:"Not found"},404);
+  const rows=await env.AUTH_DB.prepare("SELECT id,event_type,event_id,http_status,attempted_at,success FROM developer_webhook_deliveries WHERE webhook_id=? ORDER BY attempted_at DESC LIMIT 50").bind(id).all();
+  return json({deliveries:rows.results||[]});
+ }
+ return json({error:"Not found"},404);
+}
