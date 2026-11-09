@@ -356,3 +356,12 @@ Authentication, API-key, email and webhook route implementations are deployed. L
 - Honest unavailable states remain for template CRUD, contact lists, multiple inboxes, drafts/scheduling, automation, open/click analytics and DNS verification.
 - Android native navigation mirrors `home`, `emails`, `audience`, `metrics`, `profile`.
 - Do not claim production visual or end-to-end verification until CI, screenshots, Android build (if relevant) and authenticated smoke tests pass.
+
+
+## Release verification update — 2026-11-09
+
+- LeadMASTER CI run `42597803329`: tests and screenshots succeeded.
+- Android APK run `42596263455`: build succeeded; debug APK artifact is available in the run.
+- Canonical dashboard and public mirror are byte-for-byte identical; generated static bundle contains the dashboard, isolated preview JS/CSS and DOMPurify.
+- Cloudflare Worker `leadmaster` deployment `71150f57-564d-48e2-ab24-6fd46b1a4130` is serving 100% traffic.
+- Still outstanding: authenticated production UI click-through and real recipient mail-delivery smoke test. Queue acceptance must not be represented as confirmed delivery.
