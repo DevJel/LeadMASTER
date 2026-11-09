@@ -231,8 +231,18 @@ async function verifyOtp(request, env) {
   const expires = now + 8 * 60 * 60 * 1000;
   await env.AUTH_DB.prepare("INSERT INTO auth_sessions (token_hash,email,created_at,expires_at,revoked_at) VALUES (?,?,?,?,NULL)")
     .bind(tokenHash, adminEmail, now, expires).run();
-  await logWorkspaceAction(env,adminEmail,"signed_in","Signed in successfully.");
-  await addMailNotification(env,"security","New sign-in","Your LeadMASTER account was signed in.");
+  // Session creation is the authentication commit point. Activity logging and notifications
+  // are secondary: failures must never prevent the browser from receiving its session cookie.
+  try {
+    await logWorkspaceAction(env,adminEmail,"signed_in","Signed in successfully.");
+  } catch {
+    // Keep authentication available if the activity log is temporarily unavailable.
+  }
+  try {
+    await addMailNotification(env,"security","New sign-in","Your LeadMASTER account was signed in.");
+  } catch {
+    // Keep authentication available if notifications are temporarily unavailable.
+  }
   // Send the branded security alert after the authenticated session is established.
   // Alert delivery is best-effort so an email outage cannot strand a valid login.
   try {
