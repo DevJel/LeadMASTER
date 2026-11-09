@@ -8,12 +8,12 @@ export default {
    const msg=batch.messages[i],body=msg.body||{},id=String(body.id||""),source=body.source||"admin";
    if(!/^[0-9a-f-]{36}$/i.test(id)){msg.ack();continue;}
    let row;
-   if(source==="developer")row=await env.AUTH_DB.prepare("SELECT id,recipient,subject,status,from_email,sender_name,reply_to,api_key_id,account_id FROM developer_email_requests WHERE id=?").bind(id).first();
+   if(source==="developer")row=await env.AUTH_DB.prepare("SELECT id,recipient,subject,status,from_email,sender_name,reply_to,api_key_id,account_id,text_body,html_body FROM developer_email_requests WHERE id=?").bind(id).first();
    else row=await env.AUTH_DB.prepare("SELECT id,recipient,subject,text_body,status,from_email,from_name,reply_to,queue_status,batch_id FROM admin_sent_mail WHERE id=?").bind(id).first();
    if(!row||["accepted","unknown","failed"].includes(row.status)){msg.ack();continue;}
    try{
     if(source==="admin")await env.AUTH_DB.prepare("UPDATE admin_sent_mail SET queue_status='processing' WHERE id=?").bind(id).run();
-    await sendSesEmail({connect,env,to:row.recipient,subject:row.subject,text:row.text_body||"",fromEmail:row.from_email,fromName:source==="developer"?row.sender_name:row.from_name,replyTo:row.reply_to,messageId:id});
+    await sendSesEmail({connect,env,to:row.recipient,subject:row.subject,text:row.text_body||"",...(row.html_body?{html:row.html_body}:{}),fromEmail:row.from_email,fromName:source==="developer"?row.sender_name:row.from_name,replyTo:row.reply_to,messageId:id});
     if(source==="developer"){
      await env.AUTH_DB.prepare("UPDATE developer_email_requests SET status='accepted',updated_at=? WHERE id=?").bind(Date.now(),id).run();
      try{await deliverWebhookEvent(env,"email.accepted",{request_id:id,recipient:row.recipient,subject:row.subject},row.api_key_id,row.account_id);}catch{}
