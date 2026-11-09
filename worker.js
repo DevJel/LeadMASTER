@@ -293,7 +293,8 @@ async function handle(request, env) {
     if (resource === "emails" && resourceId) return developerEmailStatus(request,env,accountId);
     if (resource === "webhooks") return webhookRoute(request,env,accountId);
   }
-  if (url.pathname === "/api/auth/config") return authConfig(request, env);
+  if (url.pathname.startsWith("/api/v1/")) return json({ error: "Account-specific endpoint required. Use the API base URL shown in your LeadMASTER account." }, 404);
+    if (url.pathname === "/api/auth/config") return authConfig(request, env);
   if (url.pathname === "/api/auth/login") return login(request, env);
   if (url.pathname === "/api/auth/verify") return verifyOtp(request, env);
   if (url.pathname === "/api/auth/logout") return logout(request, env);
