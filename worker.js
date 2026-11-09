@@ -342,8 +342,10 @@ async function sesSnsEvents(request,env){
   }
  }
  const summary=({delivered:"Email delivered to the receiving mail server.",bounced:"An email could not be delivered.",complaint:"A recipient reported an email as unwanted.",delayed:"Email delivery is taking longer than expected.",rejected:"An email was rejected by the receiving service.",failed:"An email could not be prepared for sending.",sent:"An email was accepted by the sending service."})[status]||"Email status updated.";
- await env.AUTH_DB.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at) VALUES (?,?,'delivery_update',?,?,?)").bind(crypto.randomUUID(),"system",summary,correlation||eventId, timestamp).run();
- await env.AUTH_DB.prepare("INSERT INTO mail_notifications (id,type,title,message,target_id,created_at) VALUES (?,?,?,?,?,?)").bind(crypto.randomUUID(),status,status==="delivered"?"Email delivered":"Email status updated",summary,correlation||eventId,timestamp).run();
+ if(type!=="SEND"){
+  await env.AUTH_DB.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at) VALUES (?,?,'delivery_update',?,?,?)").bind(crypto.randomUUID(),"system",summary,correlation||eventId, timestamp).run();
+  await env.AUTH_DB.prepare("INSERT INTO mail_notifications (id,type,title,message,target_id,created_at) VALUES (?,?,?,?,?,?)").bind(crypto.randomUUID(),status,status==="delivered"?"Email delivered":"Email status updated",summary,correlation||eventId,timestamp).run();
+ }
  return json({ok:true,event:type,recipients:recipients.length});
 }
 
