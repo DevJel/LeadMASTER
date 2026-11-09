@@ -1,5 +1,22 @@
+# LeadMASTER crawler and agent discovery policy
 User-agent: *
+Allow: /
+Allow: /llms.txt
+Allow: /robots.txt
 Disallow: /api/
 Disallow: /login
 Disallow: /login.html
+Disallow: /logout
+Disallow: /dashboard
 Disallow: /dashboard.html
+Disallow: /dashboard.js
+Disallow: /dashboard.css
+Disallow: /developer-api-keys.html
+Disallow: /html-preview.js
+Disallow: /html-preview.css
+Disallow: /assets/vendor/
+Disallow: /mcp
+Disallow: /mcp/
+
+# This file is a crawler preference, not an access-control mechanism.
+# API authentication and authorization are enforced by LeadMASTER itself.
