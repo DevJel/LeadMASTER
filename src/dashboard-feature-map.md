@@ -12,7 +12,7 @@ The mandatory HTML is the authoritative React dashboard. Preserve its component 
 |---|---|---|
 | Account identity | `GET /api/auth/session`, `GET /api/account/profile` | Authenticated account and owner profile. |
 | Overview | `GET /api/admin/mail?folder=counts`, `GET /api/admin/activity` | Live mailbox/queue counts and workspace activity. |
-| Emails | `GET /api/admin/mail?folder=...`, `GET /api/admin/mail/:id`, `PATCH /api/admin/mail/:id`, `POST /api/admin/send` | Inbound/sent/queued states, message detail, mailbox actions and a full-page composer, local recipient import and optional HTML (subject to rollout). |
+| Emails | `GET /api/admin/mail?folder=...`, `GET /api/admin/mail/:id`, `PATCH /api/admin/mail/:id`, `POST /api/admin/send` | Inbound/sent/queued states, message detail, mailbox actions and a in-dashboard composer with retained navigation, local recipient import and optional HTML (subject to rollout). |
 | Reply assistance | `POST /api/admin/mail/:id/suggest` | Existing mailbox reply suggestion flow. |
 | Audience / suppression | `GET/POST /api/admin/unsubscribes` | Real do-not-contact list and manual suppression. Not a contact manager. |
 | Inboxes | Dedicated inbound mailbox | One account mailbox; no inbox provisioning API. |
@@ -79,3 +79,7 @@ See `docs/DASHBOARD_CONTROL_AUDIT.md`. Email date/status/key filters and export 
 ## Composer branch additions (not production verified)
 
 Multi-file CSV/text extraction runs in the browser and adds deduplicated addresses to the immediate send form; it is not a contacts or groups import. `GET/POST /api/admin/templates` and `GET /api/admin/templates/:id` persist account-scoped subject, text and optional HTML after migration 0010. HTML send is blocked unless `ADMIN_HTML_SEND_ENABLED` is explicitly true. Enable only after migrations 0009 and 0010 and compatible queue consumer are deployed and verified; otherwise an older consumer would silently drop HTML. HTML is delivered using existing SES SMTP multipart/alternative, not SESv2 raw MIME. Attachments and scheduling remain unavailable.
+
+## In-dashboard composer branch
+
+Compose opens inside the existing scrollable dashboard content area; desktop sidebar, header and mobile bottom navigation remain available. It uses dashboard theme tokens and neutral controls. File import, saved-template API and sanitized HTML preview remain subject to their existing limits and release gates. Queue pacing is an internal implementation detail; the interface must show honest sending outcomes without displaying the numeric rate.
