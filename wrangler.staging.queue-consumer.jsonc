@@ -42,5 +42,14 @@
       "enabled": false,
       "persist": true
     }
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "EMAIL_COORDINATOR",
+        "class_name": "EmailCoordinator",
+        "script_name": "leadmaster-staging-release"
+      }
+    ]
   }
 }
