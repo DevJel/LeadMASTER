@@ -290,7 +290,9 @@ async function handle(request, env) {
   }
   if (url.pathname === "/logout" && request.method === "GET") return Response.redirect(new URL("/login.html", request.url), 302);
 
-  if (url.pathname === "/mcp" || url.pathname.startsWith("/mcp/")) return json({ error: "MCP is not available in production. Use the documented LeadMASTER REST API." }, 404);\n\n  const assetPath = url.pathname === "/" ? "/index.html" : url.pathname;
+  if (url.pathname === "/mcp" || url.pathname.startsWith("/mcp/")) return json({ error: "MCP is not available in production. Use the documented LeadMASTER REST API." }, 404);
+
+  const assetPath = url.pathname === "/" ? "/index.html" : url.pathname;
   const asset = staticAssets[assetPath];
   if (asset) {
     const isHtml = asset.contentType.startsWith("text/html");
