@@ -26,3 +26,21 @@
 @media(max-width:360px){.brand-logo{width:148px}.hero-content{padding-inline:16px}.main-content{padding-inline:12px}.card{padding:22px 16px}}
 
 @media(max-width:900px){.hero-content{padding:18px 20px 16px}.hero-center{padding:24px 0 18px}.hero-center h1{font-size:clamp(26px,7vw,34px)}.feature-card,.login-wordmark{display:none}.main-content{padding-bottom:calc(28px + env(safe-area-inset-bottom))}}
+
+/* Shared animated LeadMASTER footer, matching the landing-page brand treatment. */
+.login-brand-footer{width:100%;background:#0a0a0a;color:#ede8e0;overflow:hidden}
+.login-brand-footer .footer-hint{margin:0;color:#737373;text-align:center;letter-spacing:.14em;text-transform:uppercase;background:#0a0a0a;padding:18px 24px 0;font:11px ui-monospace,SFMono-Regular,Menlo,monospace}
+.login-brand-footer .footer-hint b{color:#ede8e0;font-weight:500}
+.login-brand-footer .hwf-root{height:390px;position:relative;width:100%;overflow:hidden;isolation:isolate;background:#0a0a0a;color:#ede8e0}
+.login-brand-footer .hwf-root canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.login-brand-footer .hwf-top{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1.25fr) repeat(3,minmax(0,1fr));gap:24px;padding:30px clamp(20px,3.4vw,44px) 0;font:11px/1.75 ui-monospace,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase}
+.login-brand-footer .hwf-brand img{display:block;width:160px;filter:invert(1);margin-bottom:14px}
+.login-brand-footer .hwf-brand span{opacity:.65}
+.login-brand-footer .hwf-col h3{margin:0;font:inherit;opacity:.65}
+.login-brand-footer .hwf-col ul{list-style:none;margin:0;padding:0}
+.login-brand-footer .hwf-col a,.login-brand-footer .hwf-up{color:inherit;text-decoration:none}
+.login-brand-footer .hwf-col a:hover,.login-brand-footer .hwf-up:hover{text-decoration:underline}
+.login-brand-footer .hwf-rule{position:relative;z-index:1;display:flex;justify-content:flex-end;margin:28px clamp(20px,3.4vw,44px) 0;padding-top:12px;border-top:1px solid #ffffff30;font:11px ui-monospace,Menlo,monospace;letter-spacing:.14em;text-transform:uppercase}
+.login-brand-footer a:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+@media(max-width:720px){.login-brand-footer .hwf-root{height:440px}.login-brand-footer .hwf-top{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:18px}.login-brand-footer .hwf-brand{grid-column:1/-1}}
+@media(max-width:420px){.login-brand-footer .footer-hint{font-size:9px;padding-inline:12px}.login-brand-footer .hwf-root{height:470px}.login-brand-footer .hwf-top{font-size:10px;gap:16px;padding-inline:16px}.login-brand-footer .hwf-rule{margin-inline:16px}}
