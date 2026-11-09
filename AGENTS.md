@@ -131,3 +131,9 @@ Do not advertise a web feature as native Android functionality unless it is impl
 - Distinguish branch code, merged code and production deployment.
 - Do not say a migration, test, email, webhook, MCP connection or screenshot succeeded unless the result was observed.
 - When a required account permission or session is missing, explain the blocker and request only the minimum user action needed.
+
+## Mandatory LeadMASTER dashboard is the canonical UI
+
+`src/Mandatory LeadMASTER Dashboard.html` is the mandatory visual source for the production dashboard. Treat its React markup, CSS, components, navigation, responsive behavior, icons, spacing and interactions as the design contract. Do not redesign, simplify, replace components, or change visual output while wiring APIs. Preserve the design and change only data, state, API actions and necessary truthful status copy. If a requested backend feature is not implemented, build the secure account-scoped backend first or mark that UI area unavailable; never leave preview-only fake data or local-success actions in production.
+
+Before replacing `public/dashboard.html`, read `src/dashboard-feature-map.md`. It records existing API coverage, preview-only sections, the migration sequence and release acceptance checks. Keep the existing dashboard available as a rollback path until the new UI passes functional tests and desktop/mobile screenshot comparisons. Update Android navigation and test its WebView behavior whenever dashboard section IDs or connected workflows change.
