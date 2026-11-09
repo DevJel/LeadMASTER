@@ -74,7 +74,7 @@ async function verifyLoginTurnstile(token, env, action) {
   return verifyTurnstile({
     token,
     secret: env.TURNSTILE_SECRET,
-    expectedHostname: HOSTNAME,
+    expectedHostname: env.APP_HOSTNAME || HOSTNAME,
     expectedAction: action
   });
 }
