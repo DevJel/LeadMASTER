@@ -38,6 +38,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var nav: LinearLayout
     private val navButtons = linkedMapOf<String, Button>()
     private val appSections = setOf("overview", "emails", "logs", "domains", "settings")
+    private var currentSection = "overview"
+    private val sectionLabels = mapOf("overview" to "Homepage", "emails" to "Emails", "logs" to "Logs", "domains" to "Domains", "settings" to "Settings")
     private val appHost = "leadmaster.jelvan.pro"
     private val homeUrl = "https://leadmaster.jelvan.pro/login.html"
     private val channelId = "leadmaster_updates"
@@ -92,12 +94,13 @@ class MainActivity : ComponentActivity() {
                         uri.scheme == "https" && uri.host == appHost && uri.path?.contains("/dashboard") == true
                     }.getOrDefault(false)
                     nav.visibility = if (onWorkspace) View.VISIBLE else View.GONE
-                    updateSelectedNavigation(Uri.parse(url ?: homeUrl).fragment ?: "overview")
+                    updateSelectedNavigation(currentSection)
                     view?.evaluateJavascript("document.documentElement.style.setProperty('--lm-native-app','1')", null)
+                    view?.evaluateJavascript("(function(){if(window.__lmNativeSectionListener)return;window.__lmNativeSectionListener=true;document.addEventListener('click',function(e){var b=e.target.closest('.tab-link,.bottom-tab');if(b&&window.LeadMasterNative)window.LeadMasterNative.sectionChanged((b.textContent||'').trim());},true);return document.querySelector('.tab-link.active')?.textContent?.trim()||'Homepage';})()") { value -> sectionChangedFromNative(value?.trim('"') ?: "Homepage") }
                 }
                 override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
                     super.doUpdateVisitedHistory(view, url, isReload)
-                    updateSelectedNavigation(Uri.parse(url ?: homeUrl).fragment ?: "overview")
+                    updateSelectedNavigation(currentSection)
                 }
             }
             setDownloadListener(DownloadListener { url, _, contentDisposition, mimeType, _ ->
@@ -133,9 +136,8 @@ class MainActivity : ComponentActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 if (web.url?.contains("/dashboard") == true) {
-                    val section = Uri.parse(web.url).fragment
-                    if (!section.isNullOrBlank() && section != "overview") {
-                        web.evaluateJavascript("location.hash='#overview'", null)
+                    if (currentSection != "overview") {
+                        navigateToSection("overview")
                     } else if (web.canGoBack()) {
                         web.goBack()
                     } else {
@@ -162,8 +164,7 @@ class MainActivity : ComponentActivity() {
             contentDescription = label
             setOnClickListener {
                 if (section in appSections) {
-                    web.evaluateJavascript("location.hash='#$section';window.scrollTo(0,0)", null)
-                    updateSelectedNavigation(section)
+                    navigateToSection(section)
                 }
             }
         }
@@ -171,8 +172,20 @@ class MainActivity : ComponentActivity() {
         nav.addView(button, LinearLayout.LayoutParams(0, -1, 1f))
     }
 
+    private fun navigateToSection(section: String) {
+        val tab = sectionLabels[section] ?: return
+        web.evaluateJavascript("(()=>{const b=[...document.querySelectorAll('.tab-link')].find(x=>x.textContent.trim().startsWith('$tab'));if(b){b.click();window.scrollTo(0,0);return true;}return false;})()", null)
+        updateSelectedNavigation(section)
+    }
+
+    private fun sectionChangedFromNative(label: String) {
+        val section = sectionLabels.entries.firstOrNull { it.value == label }?.key ?: return
+        updateSelectedNavigation(section)
+    }
+
     private fun updateSelectedNavigation(rawSection: String) {
         val section = rawSection.takeIf { it in appSections } ?: "overview"
+        currentSection = section
         navButtons.forEach { (key, button) ->
             val selected = key == section
             button.setTextColor(if (selected) Color.rgb(20, 20, 20) else Color.rgb(105, 105, 105))
@@ -199,6 +212,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private inner class NativeBridge {
+        @JavascriptInterface
+        fun sectionChanged(label: String?) {
+            runOnUiThread { sectionChangedFromNative(label.orEmpty()) }
+        }
+
         @JavascriptInterface
         fun notify(title: String?, message: String?) {
             runOnUiThread {
