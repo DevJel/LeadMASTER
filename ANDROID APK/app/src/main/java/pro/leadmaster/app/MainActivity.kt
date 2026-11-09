@@ -57,7 +57,7 @@ class MainActivity : ComponentActivity() {
             settings.allowContentAccess = false
             settings.javaScriptCanOpenWindowsAutomatically = false
             settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_NEVER_ALLOW
-            settings.safeBrowsingEnabled = true
+            if (Build.VERSION.SDK_INT >= 26) settings.safeBrowsingEnabled = true
             CookieManager.getInstance().setAcceptCookie(true)
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
             addJavascriptInterface(NativeBridge(), "LeadMasterNative")
