@@ -4,6 +4,8 @@
   "main": "workers/mail-queue-consumer.js",
   "compatibility_date": "2026-11-04",
   "compatibility_flags": [],
+  "workers_dev": false,
+  "preview_urls": false,
   "vars": {
     "SES_FROM_EMAIL": "noreply@leadmaster.jelvan.pro",
     "SES_CONFIGURATION_SET": "leadmaster-events"
@@ -31,6 +33,11 @@
       "binding": "SES_SMTP_PASSWORD",
       "store_id": "1a77c40addba476788aea7c043ca33db",
       "secret_name": "SES_SMTP_PASSWORD"
+    },
+    {
+      "binding": "SESSION_SECRET",
+      "store_id": "1a77c40addba476788aea7c043ca33db",
+      "secret_name": "ADMIN_JWT_TOKEN"
     }
   ],
   "queues": {
