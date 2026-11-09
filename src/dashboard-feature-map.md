@@ -1,58 +1,69 @@
 # Mandatory LeadMASTER Dashboard — production integration map
 
-**Canonical UI source:** `src/Mandatory LeadMASTER Dashboard.html`
+**Canonical UI:** `src/Mandatory LeadMASTER Dashboard.html`  
+**Production mirror:** `public/dashboard.html`  
+**Authenticated route:** `/dashboard.html`
 
-**Production route:** `/dashboard.html` (authenticated by `worker.js`).
+## Visual contract
 
-## Non-negotiable visual contract
+The mandatory HTML is the authoritative React dashboard. Preserve its component tree, embedded styling, layout, typography, spacing, icons, responsive breakpoints, side navigation, mobile bottom navigation, drawers, cards, tables and interactions. API work must update data and behavior without redesigning the interface. The public mirror must remain byte-for-byte identical to the canonical source; `npm run build:assets` performs that synchronization and regenerates `src/static-assets.mjs`.
 
-The mandatory HTML is the design source of truth. When it becomes the production dashboard, retain its React component structure, layout, responsive breakpoints, typography, spacing, icons, colors, navigation behavior, cards, tables, drawers, bottom navigation and all visual states. API integration must change data and actions, not restyle or reimplement the UI. Any unavoidable UI change requires explicit approval.
+## Live integrations now connected
 
-The mandatory file is currently a local preview, not a production-ready dashboard. Its component contains hardcoded demo contacts, delivery events, campaigns, domains, API keys, webhook endpoints, automation definitions, profile values and toast messages that claim local actions were saved. Do not publish those as live account data or imply that a preview-only action succeeded.
-
-## Existing production backend contracts
-
-| Dashboard area | Existing production source | Current capability / limitation |
+| Dashboard feature | Production API | Behavior |
 |---|---|---|
-| Homepage / overview | `GET /api/auth/session`, `GET /api/admin/mail?folder=counts`, `GET /api/admin/activity`, `GET /api/admin/notifications` | Account identity, operational mail counts, activity and notifications. No campaign or engagement metrics. |
-| Emails / sending | `GET /api/admin/mail?folder=sent`, `POST /api/admin/send` | Admin can queue up to 500 unique recipients per batch; SMTP queue is rate-limited. |
-| Emails / receiving | `GET /api/admin/mail?folder=inbox`, `GET /api/admin/mail/:id`, `PATCH /api/admin/mail/:id` | Dedicated inbound mailbox, message detail, read/archive/delete/restore and source download. |
-| Email delivery folders | `GET /api/admin/mail?folder=counts|bounced|unsuccessful|archived|deleted` | Operational delivery and mailbox states; accepted is not equivalent to delivered. |
-| AI reply assistance | `POST /api/admin/mail/:id/suggest` | Uses the configured Cloudflare AI binding and account-owned correspondence context. |
-| Suppressions | `GET/POST /api/admin/unsubscribes`, `GET /api/admin/mail?folder=unsubscribed` | Add suppression and list suppressed entries through the mail folder. There is no general contact-list service. |
-| API keys | `GET/POST /api/developer/keys`, `DELETE /api/developer/keys/:id` | Real account-scoped key creation, listing and revocation. Full secret is shown once. |
-| Email API | `/api/v1/accounts/:accountId/emails` | One recipient per developer API request, API-key scoped, idempotency supported. |
-| Webhooks | `/api/v1/accounts/:accountId/webhooks` | API-key scoped create/list/revoke and delivery history. Dashboard session adapter now supports `GET/POST /api/admin/webhooks`, `DELETE /api/admin/webhooks/:id` and `GET /api/admin/webhooks/:id/deliveries`, account-scoped and secret-safe. |
-| Profile / settings | `GET/PATCH /api/account/profile`, `GET /api/auth/session` | Only the account owner's display name is editable through this profile API. Email, team and timezone are not editable here. |
-| Activity / logs | `GET /api/admin/activity` | Workspace audit events, not opens/clicks or a full provider event analytics stream. |
+| Account identity | `GET /api/auth/session`, `GET /api/account/profile` | Authenticated account, owner display name, account email and workspace name. |
+| Overview | `GET /api/admin/mail?folder=counts`, `GET /api/admin/activity` | Live mailbox and sending-queue counts plus actual workspace activity. |
+| Emails | `GET /api/admin/mail?folder=...`, `GET /api/admin/mail/:id`, `PATCH /api/admin/mail/:id`, `POST /api/admin/send` | Existing inbound mailbox, sent/queued states, message detail, mailbox actions and composer/send queue. |
+| AI reply assistance | `POST /api/admin/mail/:id/suggest` | Existing account mailbox reply suggestion flow. |
+| Audience / suppression | `GET/POST /api/admin/unsubscribes` | Displays the actual do-not-contact list and allows an administrator to add a suppression. It is not a contact or marketing-list manager. |
+| Inboxes | Existing inbound mailbox | Shows the one dedicated inbound mailbox and links to the Receiving view. Additional inbox provisioning is not exposed. |
+| Broadcasts | `GET /api/admin/mail?folder=sent`, `POST /api/admin/send` | Displays accepted sends and opens the existing queue-backed composer. The endpoint accepts up to 500 recipients. |
+| Metrics | `GET /api/admin/mail?folder=counts` | Uses real operational counts only: accepted sends, inbox, queue, unsuccessful and bounce/complaint counts. |
+| Activity | `GET /api/admin/activity` | Workspace activity events; not opens/clicks or campaign engagement. |
+| API keys | `GET/POST /api/developer/keys`, `DELETE /api/developer/keys/:id` | Account-scoped key management. Full key is revealed once. Optional `webhook:manage` scope is explicit, not granted by default. |
+| Webhooks | `GET/POST /api/admin/webhooks`, `DELETE /api/admin/webhooks/:id`, `GET /api/admin/webhooks/:id/deliveries` | Account-scoped create/list/revoke/history. Creation requires an active account API key with `webhook:manage`. Signing secret is shown once. Supported event types are `email.accepted`, `email.failed`, and `email.unknown`. |
+| Settings | `GET/PATCH /api/account/profile` | Only the account owner display name is editable. Email, workspace and device timezone are read-only in this UI. |
+| Session | `POST /api/auth/logout` | Uses the existing server logout endpoint. |
 
-## Preview-only areas requiring backend work or honest unavailable states
+## Features deliberately not represented as live
 
-- **Templates:** no user-managed template CRUD API. `src/email-templates.mjs` contains system email templates; it is not a saved-template library.
-- **Audience:** no contacts/list/segment CRUD schema or API. Suppression records are not a marketing audience.
-- **Inboxes:** one dedicated inbound address is documented; no multi-inbox provisioning or routing management API.
-- **Broadcasts:** immediate bulk send is supported by `/api/admin/send`; saved campaigns, scheduling, audience targeting and campaign analytics are not implemented.
-- **Automations:** no workflow persistence, trigger engine, scheduler or execution API.
-- **Metrics:** delivery counts are available; open/click analytics are not implemented. Never render sample percentages or charts as account metrics.
-- **Domains:** sender policy accepts configured domain families, but there is no domain verification or DNS-check API. Never display fabricated DKIM/SPF status.
-- **Webhooks:** existing public developer API requires a scoped API key; a secure account-session adapter is needed if the dashboard manages these directly.
-- **Onboarding:** the preview checklist is local state; do not claim setup steps were verified unless backed by an API result.
+These sections remain visible in the mandatory navigation but use honest unavailable states or only existing data. Do not add sample rows, local-success toasts or invented statuses.
 
-## Required implementation sequence
+- **Saved templates:** no user-managed template CRUD API. System OTP/security templates are not a saved customer template library.
+- **Contacts / audience segments:** no contacts, list or segment CRUD service. The only current audience-related backend is the do-not-contact/suppression list.
+- **Multiple inboxes:** only one dedicated inbound mailbox is available; no inbox provisioning or forwarding management API exists.
+- **Draft and scheduled campaigns:** the current backend queues immediate sends only. No saved campaign, scheduler, recipient-segment or campaign lifecycle API exists.
+- **Automations:** no workflow persistence, trigger engine, scheduler or execution service is enabled.
+- **Engagement analytics:** opens, clicks, attribution and campaign time-series are not collected. Do not render estimated rates or charts.
+- **Domain verification:** sender-domain allowlist is not a DNS verification API. Never claim DKIM/SPF status or invent DNS records.
+- **Team management / account deletion:** not enabled for the configured account.
+- **Persistent onboarding checklist:** current checklist is a convenience view derived from observed setup signals, not a persisted workflow record.
 
-1. Keep the mandatory HTML unchanged as the visual baseline and capture desktop/mobile reference screenshots.
-2. Map each UI page and action to an existing authenticated endpoint, or implement the missing account-scoped backend and D1 migration before enabling it.
-3. Replace every demo identity, sample record, fabricated metric, fake key, fake webhook and local-success toast with authenticated live data, a true empty state, or an explicit unavailable state.
-4. Preserve all existing production capabilities (mailbox, composer/send queue, AI reply suggestion, delivery folders, notifications, profile, API keys, webhooks) while migrating them into the mandatory visual shell. Keep the former dashboard as a protected rollback/compatibility page until parity tests pass.
-5. Keep every database query and mutation account-scoped. Require same-origin checks for cookie-authenticated mutations, validate payloads, use prepared statements, and never expose API keys or webhook signing secrets after their one-time creation response.
-6. Update the Android companion navigation to the final production dashboard section IDs and verify WebView session, downloads, Back behavior, safe areas and touch layouts.
-7. Run unit tests, static asset generation, production-route tests and desktop/mobile screenshot comparisons. Do not deploy the dashboard replacement until visual regression and backend behavior pass.
+## Account and security rules
 
-## Release acceptance
+1. Use the authenticated LeadMASTER session and the currently selected account. Do not use preview, operator, shared or other-user data.
+2. Keep every tenant-owned query and mutation account-scoped. The server must authorize ownership; the browser must not filter global results.
+3. Cookie-authenticated mutations must retain same-origin checks and server-side validation.
+4. Never expose API-key hashes, full keys after initial creation, webhook secrets after initial reveal, or another account's resource existence.
+5. A queue acceptance is not proof of recipient delivery. Display the actual backend state.
+6. Keep the human login, Turnstile, email OTP and session controls unchanged.
+7. Do not enable MCP; production agent access remains the documented account-scoped REST API.
 
-- The mandatory design is still recognizably pixel-aligned: same hierarchy, layout, cards, icons, typography, spacing, responsive behavior and interactions.
-- No sample names, example addresses, hardcoded counts, invented statuses or local-preview success messages remain in production.
-- Each enabled control performs a real authorized action and reports server-confirmed success/failure.
-- Unsupported capabilities are clearly marked unavailable and cannot create misleading local-only records.
-- Existing authentication, SES SMTP, queueing, D1/R2 records, API credentials and webhooks continue working.
-- Android opens the same production dashboard and uses the same backend and account session.
+## Android parity
+
+The Android WebView uses the same authenticated dashboard and backend. Its native bottom navigation mirrors the mandatory dashboard mobile destinations: Home (`home`), Emails (`emails`), Audience (`audience`), Metrics (`metrics`) and Profile (`profile`). Other modules remain accessible through the dashboard navigation drawer. Back returns to Home before leaving the workspace. When dashboard section IDs or connected behavior change, update and build the Android companion in the same branch.
+
+## Release verification
+
+- `npm test`
+- `npm run build:assets`
+- `node --check worker.js`
+- `node --check src/developer-api.mjs`
+- `node --check src/developer-webhooks.mjs`
+- `node scripts/capture-screenshots.mjs`
+- Android APK build when Android sources change
+- Desktop and mobile screenshot review against the mandatory dashboard
+- Authenticated production smoke tests for mailbox, send queue, API keys, suppression and webhooks before claiming end-to-end success
+
+Do not deploy a dashboard change while tests or visual checks are failing. Keep a rollback path until the release acceptance checks pass.
