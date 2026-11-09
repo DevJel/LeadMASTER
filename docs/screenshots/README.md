@@ -4,6 +4,7 @@ The CI workflow captures rendered screenshots into the `leadmaster-ui-screenshot
 
 Files:
 - `landing.png`
+- `landing-documentation.png`
 - `login.png`
 - `dashboard-overview.png`
 - `dashboard-emails.png`
