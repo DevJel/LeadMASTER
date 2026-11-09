@@ -45,4 +45,17 @@
   }
   search.addEventListener('input',filterDocs);
   filters.forEach(filter=>filter.addEventListener('click',()=>{category=filter.dataset.docFilter;filterDocs();}));
+
+  function syncDocumentationHash(){
+    const id=decodeURIComponent(location.hash.slice(1));
+    if(id==='documentation'||id.startsWith('doc-')){
+      showTab('documentation');
+      requestAnimationFrame(()=>{
+        const target=id.startsWith('doc-')?document.getElementById(id):document.getElementById('documentation');
+        (target||document.getElementById('panels')).scrollIntoView({behavior:reduced.matches?'auto':'smooth',block:'start'});
+      });
+    }
+  }
+  window.addEventListener('hashchange',syncDocumentationHash);
+  syncDocumentationHash();
 })();
