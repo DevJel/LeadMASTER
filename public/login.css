@@ -129,3 +129,10 @@
 .login-security-label{display:inline-flex;align-items:center;justify-content:center;gap:7px}
 .login-right-footer .footer-separator{color:#c2c2c2}
 @media(max-width:900px){.login-right-footer{gap:10px;min-height:44px;padding:8px 16px calc(8px + env(safe-area-inset-bottom))}}
+
+
+/* Consistent icon-and-label treatment for both centered footer items. */
+.login-privacy-label{display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.login-privacy-label .privacy-mark{display:inline-flex;align-items:center;color:#777}
+.login-security-label .lock-mark{width:14px;height:14px;justify-content:center;flex:none}
+.login-privacy-label svg,.login-security-label svg{display:block;width:14px;height:14px}
