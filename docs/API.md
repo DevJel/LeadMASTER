@@ -250,3 +250,15 @@ The account-scoped changes in this branch are not yet a production release. Appl
 ## Agent security boundary
 
 Agents must use the current user's account identifier and account-bound key only. Never use internal operator access, a shared/platform-wide key, another user's account ID, or infrastructure/provider credentials. Human login security verification and OTP are not agent authentication. MCP is not deployed in production; no MCP URL or tools should be assumed. Any future MCP tools must derive account context from their authenticated principal and enforce the same account ownership checks as REST.
+
+
+## 7A. Dashboard webhook management
+
+The authenticated LeadMASTER workspace also exposes a cookie-session management surface for the signed-in account:
+
+- `GET /api/admin/webhooks` — list account-owned webhook endpoints, associated API-key name/prefix, event subscriptions and delivery timestamps. Signing secrets are never returned.
+- `POST /api/admin/webhooks` — create an endpoint. Requires same-origin request, a public HTTPS URL, supported event types, and an active API key belonging to the same account with `webhook:manage` scope. The signing secret is returned once.
+- `DELETE /api/admin/webhooks/{id}` — revoke an account-owned endpoint.
+- `GET /api/admin/webhooks/{id}/deliveries` — inspect delivery attempts for an account-owned endpoint.
+
+Dashboard mutations require the authenticated session and same-origin Origin header. The public developer API remains separately API-key scoped. These endpoints do not expose webhook secret material after creation.
