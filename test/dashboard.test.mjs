@@ -36,3 +36,17 @@ test('mandatory dashboard retains responsive embedded styling and navigation com
  const html = await read('../src/Mandatory LeadMASTER Dashboard.html');
  assert.match(html, /app-shell/); assert.match(html, /app-sidebar/); assert.match(html, /bottom-bar/); assert.match(html, /@media/); assert.match(html, /tab-link/);
 });
+
+
+test('dashboard routes and static bundles are gated by a server-validated session before asset/proxy routing', async () => {
+ const worker = await read('../worker.js');
+ const gate = worker.indexOf('Enforce the dashboard gate before API routing');
+ const apiRouting = worker.indexOf('if (url.pathname === "/api/aws/ses-events")');
+ const staticLookup = worker.indexOf('const asset = staticAssets[assetPath]');
+ const upstreamProxy = worker.indexOf('const upstream = new URL(url.pathname + url.search, UPSTREAM)');
+ assert.ok(gate >= 0 && gate < apiRouting && gate < staticLookup && gate < upstreamProxy, 'Session gate must run before API, static assets and upstream proxy');
+ assert.match(worker, /decodeURIComponent\(url\.pathname\)/);
+ assert.match(worker, /const dashboardRoute = routePath === "\\/dashboard" \|\| routePath\.startsWith\("\\/dashboard\\/"\) \|\| routePath\.startsWith\("\\/dashboard\\\."\)/);
+ assert.match(worker, /const session = await sessionFor\(request, env\);\s*if \(!session\) return Response\.redirect\(new URL\("\\/login\.html", request\.url\), 302\)/);
+ assert.match(worker, /"\\/dashboard\.js", "\\/dashboard\.css", "\\/developer-api-keys\.html", "\\/html-preview\.js", "\\/html-preview\.css", "\\/assets\\/vendor\\/dompurify\.min\.js"/);
+});
