@@ -146,12 +146,13 @@ async function passwordMatches(supplied, configured) {
 async function accountForEmail(env, email) {
   const ownerEmail = String(email || "").trim().toLowerCase();
   if (!ownerEmail) throw new Error("Account identity unavailable");
-  let account = await env.AUTH_DB.prepare("SELECT id,name,created_at,updated_at FROM accounts WHERE owner_email=?").bind(ownerEmail).first();
+  let account = await env.AUTH_DB.prepare("SELECT id,name,owner_name,created_at,updated_at FROM accounts WHERE owner_email=?").bind(ownerEmail).first();
   if (!account) {
     const id = "acct_" + randomToken(16);
     const now = Date.now();
-    await env.AUTH_DB.prepare("INSERT INTO accounts (id,name,owner_email,created_at,updated_at) VALUES (?, 'My LeadMASTER workspace', ?, ?, ?) ON CONFLICT(owner_email) DO NOTHING").bind(id,ownerEmail,now,now).run();
-    account = await env.AUTH_DB.prepare("SELECT id,name,created_at,updated_at FROM accounts WHERE owner_email=?").bind(ownerEmail).first();
+    const initialName=ownerEmail.split("@")[0].replace(/[._-]+/g," ").replace(/\\b[a-z]/g,x=>x.toUpperCase()).slice(0,80);
+    await env.AUTH_DB.prepare("INSERT INTO accounts (id,name,owner_email,owner_name,created_at,updated_at) VALUES (?, 'My LeadMASTER workspace', ?, ?, ?, ?) ON CONFLICT(owner_email) DO NOTHING").bind(id,ownerEmail,initialName,now,now).run();
+    account = await env.AUTH_DB.prepare("SELECT id,name,owner_name,created_at,updated_at FROM accounts WHERE owner_email=?").bind(ownerEmail).first();
   }
   if (!account) throw new Error("Account could not be initialized");
   await env.AUTH_DB.prepare("INSERT OR IGNORE INTO account_members (account_id,email,role,created_at) VALUES (?,?, 'owner', ?)").bind(account.id,ownerEmail,Date.now()).run();
@@ -168,7 +169,7 @@ async function sessionFor(request, env) {
   const row = await env.AUTH_DB.prepare("SELECT email, expires_at, revoked_at FROM auth_sessions WHERE token_hash = ?").bind(tokenHash).first();
   if (!row || row.revoked_at || row.expires_at <= Date.now()) return null;
   const account = await accountForEmail(env,row.email);
-  return { email: row.email, tokenHash, accountId: account.id, accountName: account.name };
+  return { email: row.email, tokenHash, accountId: account.id, accountName: account.name, ownerName: account.owner_name || "" };
 }
 async function authConfig(request, env) {
   if (request.method !== "GET") return json({ error: "Method not allowed" }, 405, { allow: "GET" });
@@ -197,6 +198,7 @@ async function login(request, env) {
   await env.AUTH_DB.prepare("DELETE FROM auth_challenges WHERE email = ?").bind(adminEmail).run();
   await env.AUTH_DB.prepare("INSERT INTO auth_challenges (id,email,code_hash,created_at,expires_at,attempts) VALUES (?,?,?,?,?,0)")
     .bind(id, adminEmail, codeHash, now, now + 10 * 60 * 1000).run();
+  await logWorkspaceAction(env,adminEmail,"sign_in_code_sent","Requested a sign-in code.");
   try {
     await sendSesEmail({
       connect,
@@ -241,6 +243,8 @@ async function verifyOtp(request, env) {
   const expires = now + 8 * 60 * 60 * 1000;
   await env.AUTH_DB.prepare("INSERT INTO auth_sessions (token_hash,email,created_at,expires_at,revoked_at) VALUES (?,?,?,?,NULL)")
     .bind(tokenHash, adminEmail, now, expires).run();
+  await logWorkspaceAction(env,adminEmail,"signed_in","Signed in successfully.");
+  await addMailNotification(env,"security","New sign-in","Your LeadMASTER account was signed in.");
   // Send the branded security alert after the authenticated session is established.
   // Alert delivery is best-effort so an email outage cannot strand a valid login.
   try {
@@ -275,7 +279,7 @@ async function logout(request, env) {
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405, { allow: "POST" });
   if (!sameOrigin(request)) return json({ error: "Invalid request" }, 403);
   const session = await sessionFor(request, env);
-  if (session) await env.AUTH_DB.prepare("UPDATE auth_sessions SET revoked_at = ? WHERE token_hash = ?").bind(Date.now(), session.tokenHash).run();
+  if (session){await env.AUTH_DB.prepare("UPDATE auth_sessions SET revoked_at = ? WHERE token_hash = ?").bind(Date.now(), session.tokenHash).run();await logWorkspaceAction(env,session.email,"signed_out","Signed out of LeadMASTER.");}
   return json({ ok: true }, 200, { "set-cookie": SESSION_COOKIE + "=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict" });
 }
 
@@ -344,6 +348,17 @@ async function sesSnsEvents(request,env){
 }
 
 
+async function accountProfileRoute(request,env,session){
+ if(!session||session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
+ if(request.method==="GET"){const a=await env.AUTH_DB.prepare("SELECT owner_name FROM accounts WHERE id=?").bind(session.accountId).first();return json({fullName:a?.owner_name||""});}
+ if(request.method!=="PATCH"||!sameOrigin(request))return json({error:"Invalid request"},403);
+ let b;try{b=await readJson(request)}catch{return json({error:"Invalid request"},400)}
+ const name=String(b.fullName||"").trim().replace(/\\s+/g," ");
+ if(!/^[A-Za-z][A-Za-z .'-]{1,79}$/.test(name))return json({error:"Enter your full name using 2 to 80 characters."},400);
+ await env.AUTH_DB.prepare("UPDATE accounts SET owner_name=?,updated_at=? WHERE id=?").bind(name,Date.now(),session.accountId).run();
+ await logWorkspaceAction(env,session.email,"profile_updated","Updated the account name used on outgoing messages.");
+ return json({ok:true,fullName:name});
+}
 async function logWorkspaceAction(env,actor,action,summary,targetId=null,details=null){
  await env.AUTH_DB.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at,details_json) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(),actor||"system",action,summary,targetId,Date.now(),details?JSON.stringify(details):null).run();
 }
@@ -393,7 +408,7 @@ async function adminMailboxRoute(request,env,session){
  if(!env.INBOUND_MAIL||!env.AUTH_DB)return json({error:"Mailbox storage unavailable"},503);
  const url=new URL(request.url),parts=url.pathname.split("/").filter(Boolean),folder=url.searchParams.get("folder")||"inbox",q=(url.searchParams.get("q")||"").trim().slice(0,100),domain=(url.searchParams.get("domain")||"").toLowerCase();
  const counts={};
- for(const [k,sql] of Object.entries({inbox:"SELECT COUNT(*) n FROM inbound_mail WHERE archived_at IS NULL AND deleted_at IS NULL",sent:"SELECT (SELECT COUNT(*) FROM admin_sent_mail WHERE deleted_at IS NULL)+(SELECT COUNT(*) FROM developer_email_requests WHERE deleted_at IS NULL) n",deleted:"SELECT (SELECT COUNT(*) FROM inbound_mail WHERE deleted_at IS NOT NULL)+(SELECT COUNT(*) FROM admin_sent_mail WHERE deleted_at IS NOT NULL)+(SELECT COUNT(*) FROM developer_email_requests WHERE deleted_at IS NOT NULL) n",bounced:"SELECT COUNT(*) n FROM email_delivery_events WHERE status='bounced'",unsuccessful:"SELECT (SELECT COUNT(*) FROM admin_sent_mail WHERE status IN ('failed','unknown'))+(SELECT COUNT(*) FROM developer_email_requests WHERE status IN ('failed','unknown')) n",unsubscribed:"SELECT COUNT(*) n FROM email_unsubscribes"})){const r=await env.AUTH_DB.prepare(sql).first();counts[k]=Number(r?.n||0);}
+ for(const [k,sql] of Object.entries({inbox:"SELECT COUNT(*) n FROM inbound_mail WHERE archived_at IS NULL AND deleted_at IS NULL",sent:"SELECT (SELECT COUNT(*) FROM admin_sent_mail WHERE deleted_at IS NULL)+(SELECT COUNT(*) FROM developer_email_requests WHERE deleted_at IS NULL) n",deleted:"SELECT (SELECT COUNT(*) FROM inbound_mail WHERE deleted_at IS NOT NULL)+(SELECT COUNT(*) FROM admin_sent_mail WHERE deleted_at IS NOT NULL)+(SELECT COUNT(*) FROM developer_email_requests WHERE deleted_at IS NOT NULL) n",bounced:"SELECT COUNT(*) n FROM email_delivery_events WHERE status IN ('bounced','complaint')",unsuccessful:"SELECT (SELECT COUNT(*) FROM admin_sent_mail WHERE status IN ('failed','unknown'))+(SELECT COUNT(*) FROM developer_email_requests WHERE status IN ('failed','unknown')) n",unsubscribed:"SELECT COUNT(*) n FROM email_unsubscribes"})){const r=await env.AUTH_DB.prepare(sql).first();counts[k]=Number(r?.n||0);}
  if(url.pathname==="/api/admin/unsubscribes"&&request.method==="POST"){
   if(request.headers.get("Origin")!==url.origin)return json({error:"Invalid request"},403);
   let b;try{b=await readJson(request)}catch{return json({error:"Invalid request"},400)}
@@ -405,8 +420,8 @@ async function adminMailboxRoute(request,env,session){
  if(request.method==="GET"&&url.pathname==="/api/admin/mail"){
   if(folder==="counts")return json({counts,storage:true});
   if(folder==="inbox"){const r=await env.AUTH_DB.prepare("SELECT id,from_address,to_address,subject,received_at,read_at,archived_at,delivery_status,size_bytes FROM inbound_mail WHERE archived_at IS NULL AND deleted_at IS NULL AND (?='' OR lower(from_address||' '||to_address||' '||subject) LIKE ?) AND (?='' OR lower(from_address) LIKE ? OR lower(to_address) LIKE ?) ORDER BY received_at DESC LIMIT 100").bind(q,q?"%"+q.toLowerCase()+"%":"",domain,domain?"%"+domain+"%":"",domain?"%"+domain+"%":"").all();return json({items:r.results||[],counts,storage:true,note:"Dedicated mailbox only. Existing forwarding routes are unchanged."});}
-  if(folder==="sent"){const r=await env.AUTH_DB.prepare("SELECT id,recipient,subject,status,created_at,updated_at,from_email,reply_to FROM admin_sent_mail WHERE deleted_at IS NULL AND (?='' OR lower(recipient||' '||subject) LIKE ?) UNION ALL SELECT id,recipient,subject,status,created_at,updated_at,from_email,reply_to FROM developer_email_requests WHERE deleted_at IS NULL AND (?='' OR lower(recipient||' '||subject) LIKE ?) ORDER BY created_at DESC LIMIT 100").bind(q,q?"%"+q.toLowerCase()+"%":"",q,q?"%"+q.toLowerCase()+"%":"").all();return json({items:r.results||[],counts,note:"Sent means SES accepted the SMTP submission, not confirmed inbox delivery."});}
-  if(folder==="bounced"){const r=await env.AUTH_DB.prepare("SELECT id,email AS recipient,subject,status,created_at AS received_at,detail FROM email_delivery_events WHERE status='bounced' ORDER BY created_at DESC LIMIT 100").all();return json({items:r.results||[],counts,note:"SES bounce and complaint events are recorded here for messages sent through the LeadMASTER SES configuration set."});}
+  if(folder==="sent"){const r=await env.AUTH_DB.prepare("SELECT id,recipient,subject,status,created_at,updated_at,from_email,reply_to,delivery_status,queue_status FROM admin_sent_mail WHERE deleted_at IS NULL AND (?='' OR lower(recipient||' '||subject) LIKE ?) UNION ALL SELECT id,recipient,subject,status,created_at,updated_at,from_email,reply_to,delivery_status,'complete' AS queue_status FROM developer_email_requests WHERE deleted_at IS NULL AND (?='' OR lower(recipient||' '||subject) LIKE ?) ORDER BY created_at DESC LIMIT 100").bind(q,q?"%"+q.toLowerCase()+"%":"",q,q?"%"+q.toLowerCase()+"%":"").all();return json({items:r.results||[],counts,note:"Sent means SES accepted the SMTP submission, not confirmed inbox delivery."});}
+  if(folder==="bounced"){const r=await env.AUTH_DB.prepare("SELECT id,email AS recipient,subject,status,created_at AS received_at,detail FROM email_delivery_events WHERE status IN ('bounced','complaint') ORDER BY created_at DESC LIMIT 100").all();return json({items:r.results||[],counts,note:"SES bounce and complaint events are recorded here for messages sent through the LeadMASTER SES configuration set."});}
   if(folder==="unsuccessful"){const r=await env.AUTH_DB.prepare("SELECT id,recipient,subject,status,created_at,updated_at,error_code FROM admin_sent_mail WHERE status IN ('failed','unknown') UNION ALL SELECT id,recipient,subject,status,created_at,updated_at,error_code FROM developer_email_requests WHERE status IN ('failed','unknown') UNION ALL SELECT id,email AS recipient,subject,status,created_at AS updated_at,status AS error_code FROM email_delivery_events WHERE status IN ('rejected','failed','delayed') ORDER BY created_at DESC LIMIT 100").all();return json({items:r.results||[],counts,note:"Failed = SMTP not accepted. Unknown = final SMTP acceptance could not be confirmed."});}
   if(folder==="unsubscribed"){const r=await env.AUTH_DB.prepare("SELECT id,email,source,created_at,reason AS subject,'unsubscribed' AS status FROM email_unsubscribes ORDER BY created_at DESC LIMIT 100").all();return json({items:r.results||[],counts,note:"Suppression records. No marketing unsubscribe capture endpoint is enabled."});}
   if(folder==="deleted"){const r=await env.AUTH_DB.prepare("SELECT id,from_address,from_address AS recipient,to_address,subject,received_at,'received' AS kind,'Deleted' AS status FROM inbound_mail WHERE deleted_at IS NOT NULL UNION ALL SELECT id,from_email AS from_address,from_email,recipient,subject,created_at,'sent' AS kind,'Deleted' AS status FROM admin_sent_mail WHERE deleted_at IS NOT NULL UNION ALL SELECT id,from_email AS from_address,from_email,recipient,subject,created_at,'sent' AS kind,'Deleted' AS status FROM developer_email_requests WHERE deleted_at IS NOT NULL ORDER BY received_at DESC LIMIT 100").all();return json({items:r.results||[],counts,note:"Deleted messages remain here until you permanently remove them."});}
@@ -416,7 +431,8 @@ async function adminMailboxRoute(request,env,session){
  if(parts.length===4&&request.method==="GET"&&/^[0-9a-f-]{36}$/i.test(id)){
   const row=await env.AUTH_DB.prepare("SELECT * FROM inbound_mail WHERE id=?").bind(id).first();
   if(row){const obj=await env.INBOUND_MAIL.get(row.r2_key);if(!obj)return json({error:"Original message unavailable"},404);const raw=await obj.text(),chunks=raw.split(/\r?\n\r?\n/),headers=chunks.shift()||"",body=chunks.join("\n"),part=body.split(/\r?\n--[^\r\n]+/).find(x=>/content-type:\s*text\/plain/i.test(x));let textBody=(part||body).replace(/^.*?\r?\n\r?\n/s,"");const transfer=(part||"").match(/content-transfer-encoding:\s*([^\r\n]+)/i)?.[1]?.trim().toLowerCase();try{if(transfer==="base64")textBody=atob(textBody.replace(/\s/g,""));else if(transfer==="quoted-printable")textBody=textBody.replace(/=\r?\n/g,"").replace(/=([0-9a-f]{2})/gi,(_,h)=>String.fromCharCode(parseInt(h,16)));}catch{textBody="Message body could not be decoded.";}await env.AUTH_DB.prepare("UPDATE inbound_mail SET read_at=COALESCE(read_at,?) WHERE id=?").bind(Date.now(),id).run();return json({id,from_address:row.from_address,to_address:row.to_address,subject:row.subject,received_at:row.received_at,read_at:row.read_at||Date.now(),text_body:textBody.slice(0,100000),attachments:(body.match(/content-disposition:\s*attachment/gi)||[]).length,download_url:"/api/admin/mail/"+id+"/source"});}
-  const sent=await env.AUTH_DB.prepare("SELECT * FROM admin_sent_mail WHERE id=?").bind(id).first();if(sent)return json({id,sender:sent.from_email,recipient:sent.recipient,subject:sent.subject,created_at:sent.created_at,text_body:sent.text_body||"",status:sent.status});
+  const sent=await env.AUTH_DB.prepare("SELECT * FROM admin_sent_mail WHERE id=?").bind(id).first();if(sent)return json({id,sender:sent.from_email,recipient:sent.recipient,subject:sent.subject,created_at:sent.created_at,text_body:sent.text_body||"",status:sent.status,delivery_status:sent.delivery_status});
+  const devSent=await env.AUTH_DB.prepare("SELECT * FROM developer_email_requests WHERE id=?").bind(id).first();if(devSent)return json({id,sender:devSent.from_email,recipient:devSent.recipient,subject:devSent.subject,created_at:devSent.created_at,text_body:devSent.text_body||"",status:devSent.status,delivery_status:devSent.delivery_status});
   const bounced=await env.AUTH_DB.prepare("SELECT * FROM email_delivery_events WHERE id=?").bind(id).first();if(bounced)return json({id,sender:bounced.email,recipient:bounced.email,subject:bounced.subject,created_at:bounced.created_at,text_body:bounced.detail||"Delivery event recorded.",status:bounced.status});
   const unsub=await env.AUTH_DB.prepare("SELECT * FROM email_unsubscribes WHERE id=?").bind(id).first();if(unsub)return json({id,email:unsub.email,recipient:unsub.email,subject:"Unsubscribed address",created_at:unsub.created_at,text_body:unsub.reason||"Suppressed from sending.",status:"unsubscribed"});
   return json({error:"Message not found"},404);
@@ -430,8 +446,8 @@ async function adminMailboxRoute(request,env,session){
   const sent=await env.AUTH_DB.prepare("SELECT id,recipient,reply_to FROM admin_sent_mail WHERE id=?").bind(id).first();
   const developer=await env.AUTH_DB.prepare("SELECT id,recipient,from_email FROM developer_email_requests WHERE id=?").bind(id).first();
   if(!inbound&&!sent&&!developer)return json({error:"Message not found"},404);
-  if(action==="read"&&inbound)await env.AUTH_DB.prepare("UPDATE inbound_mail SET read_at=? WHERE id=?").bind(b.read?now:null,id).run();
-  else if(action==="archive"&&inbound)await env.AUTH_DB.prepare("UPDATE inbound_mail SET archived_at=? WHERE id=?").bind(now,id).run();
+  if(action==="read"&&inbound){await env.AUTH_DB.prepare("UPDATE inbound_mail SET read_at=? WHERE id=?").bind(b.read?now:null,id).run();await logWorkspaceAction(env,session.email,"email_read",b.read?"Marked a message as read.":"Marked a message as unread.",id);}
+  else if(action==="archive"&&inbound){await env.AUTH_DB.prepare("UPDATE inbound_mail SET archived_at=? WHERE id=?").bind(now,id).run();await logWorkspaceAction(env,session.email,"email_archived","Archived a message.",id);}
   else if(action==="delete"){
    if(inbound)await env.AUTH_DB.prepare("UPDATE inbound_mail SET deleted_at=? WHERE id=?").bind(now,id).run();
    else if(sent)await env.AUTH_DB.prepare("UPDATE admin_sent_mail SET deleted_at=? WHERE id=?").bind(now,id).run();
@@ -447,7 +463,7 @@ async function adminMailboxRoute(request,env,session){
    if(inbound){await env.INBOUND_MAIL.delete(inbound.r2_key);await env.AUTH_DB.prepare("DELETE FROM inbound_mail WHERE id=? AND deleted_at IS NOT NULL").bind(id).run();}
    else if(sent)await env.AUTH_DB.prepare("DELETE FROM admin_sent_mail WHERE id=? AND deleted_at IS NOT NULL").bind(id).run();
    else await env.AUTH_DB.prepare("DELETE FROM developer_email_requests WHERE id=? AND deleted_at IS NOT NULL").bind(id).run();
-   await logWorkspaceAction(env,session.email,"email_permanently_deleted","Permanently removed a message.",id);
+   await logWorkspaceAction(env,session.email,"email_permanently_deleted","Permanently removed a message.",id);await addMailNotification(env,"deleted","Message permanently deleted","A message was permanently removed.",id);
   }else return json({error:"Unsupported action"},400);
   return json({ok:true});
  }
@@ -467,7 +483,7 @@ async function adminSendRoute(request,env,session){
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(from)||!verifiedDomain)return json({error:"Choose a sender under a verified jelvan.pro or operavaglobal.com identity."},400);
  const subject=String(b.subject||"").trim(),textBody=String(b.text||"");
  if(!subject||/[\r\n\x00-\x1f\x7f]/.test(subject)||new TextEncoder().encode(subject).length>300||!textBody.trim()||new TextEncoder().encode(textBody).length>200000)return json({error:"Add a subject and message. The message is too long."},400);
- const name=from==="hello@operavaglobal.com"?"Operava":from==="hello@work.jelvan.pro"?"Jelvan Ricolcol":"LeadMASTER";
+ const requestedName=String(b.fromName||"").trim();const name=requestedName&&/^[A-Za-z][A-Za-z .'-]{1,63}$/.test(requestedName)?requestedName:(domain==="operavaglobal.com"?"Operava":domain==="work.jelvan.pro"?"Jelvan Ricolcol":"LeadMASTER");
  const batchId=crypto.randomUUID(),now=Date.now(),ids=[],statements=[];
  for(const recipient of recipients){
   const suppressed=await env.AUTH_DB.prepare("SELECT email FROM email_unsubscribes WHERE lower(email)=lower(?)").bind(recipient).first();
@@ -497,6 +513,7 @@ async function handle(request, env) {
   const aiSuggest=url.pathname.match(/^\/api\/admin\/mail\/([0-9a-f-]{36})\/suggest$/i);
   if (aiSuggest) return adminAiSuggestRoute(request,env,adminSession,aiSuggest[1]);
   if (url.pathname === "/api/admin/mail" || url.pathname.startsWith("/api/admin/mail/") || url.pathname === "/api/admin/unsubscribes") return adminMailboxRoute(request,env,adminSession);
+  if (url.pathname === "/api/account/profile") return accountProfileRoute(request,env,adminSession);
   if (url.pathname === "/api/admin/send") return adminSendRoute(request,env,adminSession);
   if (url.pathname === "/api/admin/activity") return adminActivityRoute(request,env,adminSession);
   if (url.pathname === "/api/admin/notifications" || url.pathname.startsWith("/api/admin/notifications/")) return adminNotificationsRoute(request,env,adminSession);
@@ -520,7 +537,7 @@ async function handle(request, env) {
   if (url.pathname === "/api/auth/logout") return logout(request, env);
   if (url.pathname === "/api/auth/session" && request.method === "GET") {
     const session = await sessionFor(request, env);
-    return json({ authenticated: Boolean(session), email: session?.email || null, account: session ? { id: session.accountId, name: session.accountName, api_base_url: "https://leadmaster.jelvan.pro/api/v1/accounts/" + session.accountId, endpoints: { account: "/api/v1/accounts/" + session.accountId, emails: "/api/v1/accounts/" + session.accountId + "/emails", webhooks: "/api/v1/accounts/" + session.accountId + "/webhooks" } } : null });
+    return json({ authenticated: Boolean(session), email: session?.email || null, account: session ? { id: session.accountId, name: session.accountName, owner_name: session.ownerName, api_base_url: "https://leadmaster.jelvan.pro/api/v1/accounts/" + session.accountId, endpoints: { account: "/api/v1/accounts/" + session.accountId, emails: "/api/v1/accounts/" + session.accountId + "/emails", webhooks: "/api/v1/accounts/" + session.accountId + "/webhooks" } } : null });
   }
 
   if (url.pathname === "/dashboard") {
