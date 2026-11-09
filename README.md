@@ -70,7 +70,7 @@ Tests use local/mock boundaries. They do not prove production login, Turnstile S
 
 ## Documentation
 
-The public documentation hub is part of the landing page: **https://leadmaster.jelvan.pro/#documentation**. Old `/docs.html` and `/mcp.html` URLs redirect to relevant sections of the landing page. Repository engineering documents remain under `docs/`; they are source documentation, not separate public documentation destinations.
+The public documentation hub is part of the landing page: **https://leadmaster.jelvan.pro/#documentation**. The Worker serves the canonical landing page from its generated asset bundle at both `/` and `/index.html`. Old `/docs.html` and `/mcp.html` URLs redirect to relevant sections of the landing page. Repository engineering documents remain under `docs/`; they are source documentation, not separate public documentation destinations.
 
 ## Production release
 
