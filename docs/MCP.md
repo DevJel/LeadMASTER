@@ -52,3 +52,19 @@ The public product and integration documentation is consolidated into the Docume
 ## Agent integration policy
 
 AI agents must not use the human administrator sign-in page, security challenge, password or email OTP. The supported agent integration is the LeadMASTER REST API with a least-privilege server-side API key. The canonical machine-readable guide is [`/llms.txt`](https://leadmaster.jelvan.pro/llms.txt). Do not publish or assume a production MCP endpoint until the MCP server is deployed, authenticated, monitored and acceptance-tested.
+
+
+## Account isolation requirements for any future MCP release
+
+No MCP endpoint is available in production. If MCP is implemented, it must be account-bound by design:
+
+- Authenticate each client as a specific LeadMASTER account principal.
+- Derive account identity from the authenticated principal; never trust an account ID passed as a tool argument to select data.
+- Store MCP client credentials, revocation state, permissions and audit events per account.
+- Route every tool through the same account-scoped service functions used by REST.
+- Apply account and resource ownership predicates to every read, write, webhook operation and result.
+- Never provide platform-wide, operator or cross-account MCP access. Do not reuse a global token.
+- Include negative tests for cross-account resource enumeration, IDOR, prompt injection and account-context substitution.
+- Do not publish an MCP URL or advertise a tool until all authentication, authorization, rate, audit, privacy and deployment acceptance gates pass.
+
+The current prototype is not mounted, and its read-only tools are not a production integration. The account-scoped REST API remains the only supported agent integration.
