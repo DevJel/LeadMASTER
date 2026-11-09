@@ -52,3 +52,14 @@ Unit tests do not prove live Turnstile, SES inbox delivery or webhook callback r
 - Added account endpoint visibility and copy action to the developer API console.
 - Added reproducible, watermarked local UI screenshot capture for landing, integrated documentation, login, dashboard tabs and API Keys console. Screenshots are delivered as a CI artifact and are explicitly labeled synthetic.
 - Production Worker version `050eacd1-e8e6-4f4b-935e-b202390dcf2c` (version 137) deployed at 100%; external HTTP smoke checks are blocked by the connected tool's outbound-domain policy, and the unit test suite was not run in this session.
+
+
+## 2026-11-09 — Production account-schema activation
+
+- Applied the account-scoped integration migration to the production D1 database after verifying the existing developer tables and confirming there were no API-key, email-request or webhook records to backfill.
+- Created the D1 migration ledger and recorded existing migrations 0002/0003 plus the newly applied 0004 migration to prevent future Wrangler migration runs from replaying already-applied schema changes.
+- Verified account, membership, API-key, email-request, webhook and delivery tables are present; confirmed no pre-existing integration rows were lost or left unowned.
+- Verified the active Worker remains version 144 at 100% traffic and its production D1/Secrets Store bindings align with repository configuration.
+- Verified the configured SES sender identity is verified and sending-enabled; left sender and all existing secrets unchanged.
+- No Worker code upload was necessary because the active version already contained the account-scoped routes.
+- Remaining acceptance checks: authenticated browser login and Turnstile/OTP, controlled email inbox delivery, webhook callback delivery, account-isolation negative tests and external HTTP smoke tests. Webhook callback URL validation still requires stronger DNS/private-address and redirect protections before full SSRF-resistance can be claimed.
