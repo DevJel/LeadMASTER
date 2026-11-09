@@ -65,5 +65,11 @@
       "enabled": false,
       "persist": true
     }
-  }
+  },
+  "r2_buckets": [
+    {
+      "binding": "INBOUND_MAIL",
+      "bucket_name": "leadmaster-inbound-mail"
+    }
+  ]
 }
