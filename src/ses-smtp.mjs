@@ -17,7 +17,7 @@ function mailbox(value) {
   if (typeof value !== 'string' || value.length > 254 || !EMAIL.test(value) || value.includes('..')) throw new TypeError('Invalid email address');
   return value;
 }
-function buildMessage({ from, fromName, replyTo, configurationSet, to, subject, text, html }) {
+function buildMessage({ from, fromName, replyTo, configurationSet, messageId, to, subject, text, html }) {
   mailbox(from); mailbox(to);
   if (fromName !== undefined && (typeof fromName !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9 .'-]{0,63}$/.test(fromName))) throw new TypeError('Invalid sender name');
   const fromHeader = fromName ? `${fromName} <${from}>` : from;
@@ -33,7 +33,7 @@ function buildMessage({ from, fromName, replyTo, configurationSet, to, subject, 
   }
   if (chunk) words.push(chunk);
   const encodedSubject = words.map(word => `=?UTF-8?B?${utf8b64(word)}?=`).join('\r\n ');
-  const headers = [`From: ${fromHeader}`, `To: ${to}`, ...(replyTo ? [`Reply-To: ${mailbox(replyTo)}`] : []), ...(configurationSet ? [`X-SES-CONFIGURATION-SET: ${configurationSet}`] : []), `Subject: ${encodedSubject}`, 'MIME-Version: 1.0'];
+  const headers = [`From: ${fromHeader}`, `To: ${to}`, ...(replyTo ? [`Reply-To: ${mailbox(replyTo)}`] : []), ...(messageId && /^[0-9a-f-]{36}$/i.test(messageId) ? [`X-LeadMASTER-Message-ID: ${messageId}`] : []), ...(configurationSet ? [`X-SES-CONFIGURATION-SET: ${configurationSet}`] : []), `Subject: ${encodedSubject}`, 'MIME-Version: 1.0'];
   if (html === undefined) return [...headers, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(utf8b64(text)), ''].join('\r\n');
   // The body is base64 encoded; a random boundary cannot occur in a body line.
   const boundary = 'leadmaster-' + crypto.randomUUID();
@@ -73,7 +73,7 @@ async function secret(value) {
  */
 export async function sendSesEmail({ connect, env, to, subject, text, html, fromName, fromEmail, replyTo, messageId, timeoutMs = 15000 }) {
   if (!env || typeof connect !== 'function' || !Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 30000) throw new Error('SMTP configuration unavailable');
-  const from = mailbox(fromEmail || env.SES_FROM_EMAIL); const configurationSet = typeof env.SES_CONFIGURATION_SET === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(env.SES_CONFIGURATION_SET) ? env.SES_CONFIGURATION_SET : undefined; const message = buildMessage({ from, fromName, replyTo, configurationSet, to, subject, text, html });
+  const from = mailbox(fromEmail || env.SES_FROM_EMAIL); const configurationSet = typeof env.SES_CONFIGURATION_SET === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(env.SES_CONFIGURATION_SET) ? env.SES_CONFIGURATION_SET : undefined; const message = buildMessage({ from, fromName, replyTo, configurationSet, messageId, to, subject, text, html });
   const [host, username, password] = await Promise.all([secret(env.SES_SMTP_HOST), secret(env.SES_SMTP_USERNAME), secret(env.SES_SMTP_PASSWORD)]);
   if (!HOST.test(host)) throw new Error('SMTP configuration unavailable');
   let socket; let timer; let dataSent = false; let accepted = false;
