@@ -11,9 +11,10 @@ const allowlist = [
   "html-preview.css", "html-preview.js", "developer-api-keys.html",
   "docs.html", "mcp.html", "privacy.html", "terms.html", "legal.css", "docs.css", "llms.txt", "robots.txt",
   "assets/brand/leadmaster-full.svg", "assets/brand/favicon-gray.svg",
-  "assets/vendor/dompurify.min.js"
+  "assets/vendor/dompurify.min.js", "assets/marketing/leadmaster_testimonial_email_campaigns_transparent.webp"
 ];
 const mime = {
+  ".webp": "image/webp",
   ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8",
   ".svg": "image/svg+xml", ".json": "application/json; charset=utf-8", ".txt": "text/plain; charset=utf-8"
@@ -21,7 +22,8 @@ const mime = {
 const entries = {};
 for (const path of allowlist) {
   let body;
-  try { body = await readFile(join(publicDir, path), "utf8"); }
+  const binary = extname(path).toLowerCase() === ".webp";
+  try { body = binary ? (await readFile(join(publicDir, path))).toString("base64") : await readFile(join(publicDir, path), "utf8"); }
   catch (error) {
     if (error.code === "ENOENT") throw new Error(`Required public asset is missing: public/${path}`);
     throw error;
