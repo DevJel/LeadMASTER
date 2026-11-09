@@ -39,6 +39,9 @@ jobs:
           node --check worker.js
           node --check src/developer-api.mjs
           node --check src/developer-webhooks.mjs
+          node --check workers/mail-queue-consumer.js
+          node --check workers/mail-failed-consumer.js
+          node --check workers/inbound-mail.js
           node --check test/account-isolation.test.mjs
           node --check scripts/capture-screenshots.mjs
 
