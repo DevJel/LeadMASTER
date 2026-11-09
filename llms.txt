@@ -197,3 +197,16 @@ If MCP is released in the future, every MCP client must authenticate as a specif
 - Documentation: https://leadmaster.jelvan.pro/#documentation
 - Agent guide: https://leadmaster.jelvan.pro/llms.txt
 - Crawler policy: https://leadmaster.jelvan.pro/robots.txt
+
+
+## Android companion and cross-platform change rules
+
+LeadMASTER also has an Android companion app in the repository's `ANDROID APK/` project. It shares the same authenticated LeadMASTER web workspace and server-side account authorization through a restricted HTTPS WebView; it is not a separate email or account backend.
+
+For coding agents changing the web application:
+- Assess whether each change affects a route, feature, navigation item, responsive state, notification, download, external link or security boundary used by Android.
+- If connected, keep the Android companion aligned in the same branch, including navigation labels and destinations, WebView behavior, native notifications, downloads, external intents, Back behavior and permissions as relevant.
+- Keep business logic, authentication, account ownership and persistence in the shared server/web implementation. Never duplicate or weaken those rules in Android.
+- If the change has no Android impact, say why; do not make unrelated APK changes.
+- Build the APK after Android source changes and distinguish compilation from real-device acceptance.
+- Do not claim a feature is native Android functionality unless implemented and verified. Shared web functionality may be described as available through the companion only when the production route works in its WebView.
