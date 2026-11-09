@@ -79,3 +79,13 @@ Read [AGENTS.md](AGENTS.md) before modifying the project and [HANDOVER.md](HANDO
 ## Security and privacy
 
 Use least-privilege API scopes, keep credentials server-side, redact authorization/signature headers, validate webhook signatures before parsing JSON, and do not bypass Turnstile, OTP limits or session checks. Webhook URL validation does not fully prevent DNS rebinding. Privacy and terms pages are drafts and require review before expanding audience/campaign processing.
+
+
+## AI agents and machine-readable documentation
+
+- Canonical agent guide: [https://leadmaster.jelvan.pro/llms.txt](https://leadmaster.jelvan.pro/llms.txt)
+- Crawler policy: [https://leadmaster.jelvan.pro/robots.txt](https://leadmaster.jelvan.pro/robots.txt)
+- Public documentation: [https://leadmaster.jelvan.pro/#documentation](https://leadmaster.jelvan.pro/#documentation)
+- Agent authentication is through server-side LeadMASTER API keys and documented REST scopes. Agents must not automate human administrator sign-in, security challenges or email OTP.
+- MCP is not available in production. Use the REST API; `/mcp` returns an explicit unavailable response.
+- Keep public product copy vendor-neutral and refer to the product as LeadMASTER. Internal platform details belong only in engineering handover/configuration, not the UI.
