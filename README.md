@@ -258,7 +258,7 @@ Before production release:
 
 ## Current verification boundary
 
-The account-scoping implementation in this branch is code and test work, not yet a production release. The production service must not be described as multi-user or account-isolated until the migration is applied, tests pass and the account routes are deployed and verified. Authenticated end-to-end delivery tests and logged-in dashboard screenshots still require a valid authorized session.
+The account-scoping migration has now been applied to the production D1 database, and the active production Worker already contains the account-specific API routes. The production schema and route code are therefore aligned. However, this does not make LeadMASTER a self-service multi-user service: human authentication still supports one configured administrator identity. Live authenticated account-isolation tests, controlled SES delivery, webhook callback acceptance and authenticated dashboard screenshots remain outstanding.
 
 ---
 
@@ -659,3 +659,13 @@ A commit does not by itself mean a release is complete. Record separately:
 | CHANGELOG.md | Chronological source and release changes |
 
 Update related references when implementation changes. Never make README, landing-page or agent-instruction claims that are ahead of code, tests or production verification.
+
+
+## Production release update — 2026-11-09
+
+- Production D1 migration `0004_account_scoped_integrations.sql` was applied successfully after verifying the existing developer tables and empty integration-record counts.
+- Created/initialized Wrangler's `d1_migrations` tracking table and recorded migrations `0002`, `0003` and `0004` as applied, preventing a future remote migration run from replaying the account-column ALTER statements.
+- Verified that the account, membership, API-key, email-request, webhook and webhook-delivery tables exist. Existing API-key, email-request and webhook record counts were zero at migration time, so no existing integration records required backfill.
+- Production Worker version 144 is assigned 100% traffic. Its D1 and Secrets Store bindings match the repository's production configuration.
+- The configured SES sender `hello@work.jelvan.pro` is an SES-verified identity with sending enabled. The sender was intentionally left unchanged; do not replace it without confirming the desired verified sender and updating configuration.
+- This is a schema/configuration release, not proof of successful interactive login, Turnstile challenge, OTP receipt, outbound email inbox placement, webhook callback delivery or account-isolation acceptance tests.
