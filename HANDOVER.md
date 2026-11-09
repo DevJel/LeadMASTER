@@ -374,3 +374,10 @@ Authentication, API-key, email and webhook route implementations are deployed. L
 - Case variants, percent-encoded paths, trailing slashes and unknown dashboard subpaths no longer bypass the gate or fall through to the preview upstream.
 - Added a regression test asserting the gate runs before static and proxy routing.
 - Production deployment and unauthenticated HTTP behavior must be verified after deployment completes.
+
+
+## Pending branch: inbound deletion safety
+
+The feature branch introduces `migrations/0008_inbound_deletion_claim.sql` and a persistent deletion claim. Only already-soft-deleted inbound messages can be claimed; restoration is blocked while pending, and retries repeat idempotent object cleanup before deleting the row. A 503 means the operation requires retry/reconciliation, not that the object is intact. Check and monitor pending records after rollout. Never deploy the code before the migration is applied. Migration is additive; rolling back the Worker must not revive a pending row whose object may have been deleted. Staging rehearsal and a rollback strategy that accounts for pending claims are release gates.
+
+This branch has not been deployed and did not change the UI, Android source or public API contract. The shared Android WebView must be checked for delete/restore behavior. Queue partial failure and the other finalization work remain outstanding.
