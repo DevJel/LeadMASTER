@@ -2,6 +2,8 @@ package pro.leadmaster.app
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.DownloadManager
+import android.os.Environment
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Intent
@@ -78,9 +80,16 @@ class MainActivity : ComponentActivity() {
                     view?.evaluateJavascript("document.documentElement.style.setProperty('--lm-native-app','1')", null)
                 }
             }
-            setDownloadListener(DownloadListener { url, _, _, _, _ ->
+            setDownloadListener(DownloadListener { url, _, contentDisposition, mimeType, _ ->
                 if (url.startsWith("https://$appHost/")) {
-                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                    val request = DownloadManager.Request(Uri.parse(url))
+                        .setTitle("LeadMASTER message")
+                        .setDescription("Saving your email")
+                        .setMimeType(mimeType ?: "message/rfc822")
+                        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                        .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "LeadMASTER-message.eml")
+                    CookieManager.getInstance().getCookie(url)?.let { request.addRequestHeader("Cookie", it) }
+                    getSystemService(DOWNLOAD_SERVICE).let { (it as DownloadManager).enqueue(request) }
                 }
             })
         }
