@@ -125,7 +125,7 @@ try {
   await mark();
   await page.waitForFunction(()=>document.querySelector("#account-api-base")?.textContent?.startsWith("https://"),null,{timeout:5000});
   await page.screenshot({path:output+"/dashboard-api-keys.png",fullPage:true});
-  console.log("Captured landing, login, nine dashboard sections and API Keys UI into "+output);
+  console.log("Captured landing, login, all dashboard sections, email/template HTML previews, mobile views and API Keys UI into "+output);
 } finally {
   await browser.close();
   await new Promise(resolveClose=>server.close(resolveClose));
