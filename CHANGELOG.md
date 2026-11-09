@@ -119,3 +119,11 @@ Unit tests do not prove live Turnstile, SES inbox delivery or webhook callback r
 - Restored the sanitized HTML preview separately for Emails and Templates.
 - Aligned Android native navigation with Home, Emails, Audience, Metrics and Profile.
 - Updated feature map, agent rules, tests and desktop/mobile screenshot capture. CI and production browser acceptance remain pending.
+
+## 2026-11-09 — Inbound deletion safety (feature branch only)
+
+- Claim a soft-deleted inbound row in D1 before deleting its original object; refuse restore while the durable deletion claim is pending. Retry resumes cleanup if object or database deletion failed.
+- Refuse permanent deletion of non-deleted sent and developer messages instead of reporting success.
+- Migration `0008_inbound_deletion_claim.sql` is required before the Worker code; rehearse in staging and review forward-only rollback before release. No migration or deployment was performed.
+- Added local unit/failure/race tests. Full suite, Cloudflare runtime, production records and Android device behavior remain unverified. No UI, public API contract, or Android source was changed; Android shares the same web API behavior and needs a deletion/restore smoke test.
+- Partial queue failure, full-screen compose, confirmation UX, contacts, scheduling and other finalization requirements remain open.

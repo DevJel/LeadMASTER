@@ -206,3 +206,8 @@ Deleted messages can be restored. Permanent deletion removes the stored original
 | Dedicated inbox | inbound@inbound.leadmaster.jelvan.pro |
 
 All SMTP credentials remain in Cloudflare Secrets Store. The dedicated inbound rule is separate from existing personal and Operava email-routing rules.
+
+
+## Pending branch: recoverable inbound deletion (not deployed)
+
+Migration 0008 adds a durable claim to already-soft-deleted inbound records. Restore is rejected once cleanup has been claimed. If R2 or D1 cleanup fails, a retry is required; an error does not prove the original object remains. Monitor pending deletion claims and verify them in staging before rollout. This does not yet implement the required typed confirmation UI.

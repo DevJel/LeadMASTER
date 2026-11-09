@@ -719,3 +719,8 @@ The dashboard and Android companion share the same authenticated account context
 The mandatory React dashboard is the canonical production UI. Live integrations and unavailable modules are documented in [src/dashboard-feature-map.md](src/dashboard-feature-map.md). Live features include account overview, mailbox and sending queue, suppression management, API keys, webhooks and sandboxed HTML preview. Saved templates, contacts/segments, multiple inboxes, scheduled campaigns, automations, engagement tracking and DNS verification remain unavailable until their backend services exist. No sample data or simulated success is used for those modules.
 
 Android native navigation mirrors the mandatory dashboard mobile sections: Home, Emails, Audience, Metrics and Profile. Other modules remain available through the dashboard navigation drawer.
+
+
+## Pending safety work (feature branch, not deployed)
+
+Inbound permanent deletion is being hardened with an additive D1 claim migration and retryable R2/D1 cleanup. This is not production-verified. See `HANDOVER.md` for migration ordering and rollback cautions. Dashboard deletion confirmations and the remaining finalization requirements are still open.
