@@ -386,3 +386,15 @@ This branch has not been deployed and did not change the UI, Android source or p
 ## Pending suppression validation and dashboard audit
 
 A feature branch fixes over-escaped server-side suppression email validation and introduces regression tests. `docs/DASHBOARD_CONTROL_AUDIT.md` records the initial control inventory and known gaps. No UI or schema change; validate the shared Android workflow when deployed. This branch is not deployed.
+
+
+## Production schema and isolated staging release — 2026-11-10
+
+- A separate D1 database `leadmaster-staging-release-20261110` was created in APAC. Production rows were not copied. The earlier `leadmaster-staging-synthetic-20261109` database contained pre-existing records and was preserved unchanged.
+- Staging has separate main, queue-consumer and failed-consumer Workers; separate send and failed queues; and a separate inbound-mail R2 bucket. Staging secrets are synthetic. Its SMTP host is deliberately invalid, preventing real outbound mail.
+- The four pending schema migrations (0009–0012) were rehearsed and verified in staging, then applied sequentially to production D1 `leadmaster-auth`. Its migration ledger is now continuous through `0012_mail_batch_progress_index.sql`.
+- Production send and failed queues both had zero backlog before migration. Existing sent outcomes (six accepted, three failed) were not replayed.
+- The queue-consumer configuration now binds the existing shared `SESSION_SECRET` Secrets Store entry. A production failed-message consumer config is also included. The existing SMTP host, username, password and sender are not rotated.
+- A pre-migration D1 Time Travel bookmark was recorded and a D1 export reached `complete`; the export response did not provide a downloadable backup artifact, and a restore rehearsal is not claimed. D1 restore does not restore R2 objects.
+- The full deployment and verification record is in [docs/PRODUCTION_RELEASE_2026-11-10.md](docs/PRODUCTION_RELEASE_2026-11-10.md).
+- Remaining acceptance work: real browser login/Turnstile/OTP, unauthenticated dashboard-route test, actual queue failure and reconciliation tests, approved SES delivery to a test mailbox, global account-wide sender-rate coordination, mobile/Android and accessibility verification, and D1/R2 restore rehearsal. LeadMASTER must not yet be described as fully production-ready.
