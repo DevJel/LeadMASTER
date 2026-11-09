@@ -9,6 +9,7 @@ const port = 4179;
 const accountId = "acct_preview_account_00000001";
 const apiBase = "https://leadmaster.jelvan.pro/api/v1/accounts/" + accountId;
 const types = { ".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",".js":"text/javascript; charset=utf-8",".svg":"image/svg+xml",".txt":"text/plain; charset=utf-8" };
+const watermarkCss = "body::after{content:'LOCAL UI PREVIEW · SYNTHETIC ACCOUNT';position:fixed;z-index:999999;right:18px;bottom:16px;padding:7px 10px;border-radius:6px;background:rgba(20,20,20,.86);color:#fff;font:600 10px/1.2 Arial,sans-serif;letter-spacing:.08em;pointer-events:none}";
 
 const server = createServer(async (req,res) => {
   const url = new URL(req.url || "/", "http://127.0.0.1:"+port);
@@ -26,7 +27,7 @@ const server = createServer(async (req,res) => {
   }
   if (url.pathname === "/api/auth/config") {
     res.writeHead(503,{"content-type":"application/json","cache-control":"no-store"});
-    return res.end(JSON.stringify({error:"Security verification preview unavailable"}));
+    return res.end(JSON.stringify({error:"Human security verification is not connected in this local preview"}));
   }
   if (url.pathname.startsWith("/api/")) {
     res.writeHead(404,{"content-type":"application/json","cache-control":"no-store"});
@@ -52,23 +53,28 @@ await new Promise(resolveListen=>server.listen(port,"127.0.0.1",resolveListen));
 const browser = await chromium.launch({headless:true,args:["--no-sandbox"]});
 try {
   const page = await browser.newPage({viewport:{width:1440,height:1000},deviceScaleFactor:1});
-  await page.addStyleTag({content:"body::after{content:'LOCAL UI PREVIEW · SYNTHETIC ACCOUNT';position:fixed;z-index:999999;right:18px;bottom:16px;padding:7px 10px;border-radius:6px;background:rgba(20,20,20,.86);color:#fff;font:600 10px/1.2 Arial,sans-serif;letter-spacing:.08em;pointer-events:none}"});
+  const mark = async () => page.addStyleTag({content:watermarkCss});
 
   await page.goto("http://127.0.0.1:"+port+"/",{waitUntil:"networkidle"});
+  await mark();
   await page.screenshot({path:output+"/landing.png",fullPage:true});
 
   await page.goto("http://127.0.0.1:"+port+"/login.html",{waitUntil:"networkidle"});
+  await mark();
   await page.screenshot({path:output+"/login.png",fullPage:true});
 
   await page.goto("http://127.0.0.1:"+port+"/dashboard.html#overview",{waitUntil:"networkidle"});
+  await mark();
   await page.waitForSelector("#workspace-name");
   for (const section of ["overview","emails","logs","broadcasts","audiences","templates","domains","webhooks","settings"]) {
     await page.goto("http://127.0.0.1:"+port+"/dashboard.html#"+section,{waitUntil:"networkidle"});
-    await page.waitForFunction((value)=>document.querySelector("#section-title")?.textContent?.toLowerCase()===value,{timeout:5000},section);
+    await mark();
+    await page.waitForFunction(value=>document.querySelector("#section-title")?.textContent?.toLowerCase()===value,section,{timeout:5000});
     await page.screenshot({path:output+"/dashboard-"+section+".png",fullPage:true});
   }
 
   await page.goto("http://127.0.0.1:"+port+"/developer-api-keys.html",{waitUntil:"networkidle"});
+  await mark();
   await page.waitForSelector("#keys");
   await page.screenshot({path:output+"/dashboard-api-keys.png",fullPage:true});
   console.log("Captured landing, login, nine dashboard sections and API Keys UI into "+output);
