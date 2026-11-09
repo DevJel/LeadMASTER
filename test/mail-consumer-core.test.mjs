@@ -53,3 +53,15 @@ test('a claim left by a crashed process blocks another SMTP attempt',async()=>{
 });
 
 test('admin HTML reaches the transport with its plain-text alternative',async()=>{const s=setup();s.sql.prepare('UPDATE admin_sent_mail SET html_body=? WHERE id=?').run('<p>hello</p>',id);let sent;await consumer(async x=>{sent=x}).queue({messages:[message()]},s.env);assert.equal(sent.html,'<p>hello</p>');assert.equal(sent.text,'body');assert.equal(s.status(),'accepted')});
+
+test('consecutive batches retain a 100ms pause after the last message', async()=>{
+ const s=setup(),starts=[];let time=0;
+ const c=createMailConsumer({send:async()=>{starts.push(time)},deliverWebhook:async()=>{},clock:()=>time,sleep:async ms=>{time+=ms}});
+ const messages=[];
+ for(let i=0;i<11;i++){
+  const msg=message();msg.body.id=`10000000-0000-4000-8000-${String(i).padStart(12,'0')}`;messages.push(msg);
+  s.sql.prepare('INSERT INTO admin_sent_mail (id,recipient,subject,text_body,status,from_email,from_name,reply_to,queue_status) VALUES (?,?,?,?,?,?,?,?,?)').run(msg.body.id,'recipient@example.test','Subject','body','sending','sender@example.test','Sender','reply@example.test','queued');
+ }
+ await c.queue({messages:messages.slice(0,10)},s.env);await c.queue({messages:messages.slice(10)},s.env);
+ assert.equal(starts.length,11);for(let i=1;i<starts.length;i++)assert.ok(starts[i]-starts[i-1]>=100,`missing spacing between messages ${i} and ${i+1}`);
+});

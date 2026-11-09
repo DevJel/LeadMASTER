@@ -537,7 +537,7 @@ async function adminSendRoute(request,env,session){
   ()=>env.AUTH_DB.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at) VALUES (?,?,'email_queued',?,?,?)").bind(crypto.randomUUID(),session.email,ids.length===1?"Queued an email to "+recipients[0]:"Queued "+ids.length+" emails for sending",batchId,now).run(),
   ()=>env.AUTH_DB.prepare("INSERT INTO mail_notifications (id,type,title,message,target_id,created_at) VALUES (?,'queued','Messages queued',?,?,?)").bind(crypto.randomUUID(),ids.length+" messages were added to the sending list.",batchId,now).run()
  ]);
- return json({batch_id:batchId,queued:ids.length,skipped:recipients.length-ids.length,status:"queued",message:"Your messages are queued. LeadMASTER sends no more than 10 messages per second."},202);
+ return json({batch_id:batchId,queued:ids.length,skipped:recipients.length-ids.length,status:"queued",message:"Your messages are queued. Queue acceptance does not mean delivery."},202);
 }
 
 async function handle(request, env) {

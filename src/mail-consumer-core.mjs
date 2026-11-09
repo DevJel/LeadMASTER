@@ -43,7 +43,9 @@ export function createMailConsumer({send, deliverWebhook, sleep = ms => new Prom
  return {async queue(batch,env){
   for(let i=0;i<batch.messages.length;i++){
    try{await process(batch.messages[i],env)}catch{batch.messages[i].retry({delaySeconds:60})}
-   if(i<batch.messages.length-1)await sleep(100);
+   // Include the last message so the next sequential batch cannot start immediately.
+   // Requires max_concurrency=1; this is pacing, not an account-wide quota guarantee.
+   await sleep(100);
   }
  }};
 }
