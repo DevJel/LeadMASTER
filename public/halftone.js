@@ -3,7 +3,7 @@
   const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
   for (const canvas of document.querySelectorAll('[data-halftone]')) {
     const ctx=canvas.getContext('2d'); if(!ctx) continue;
-    const dark=canvas.dataset.halftone!=='light', transparent=canvas.dataset.halftone==='login', background=dark?'#0a0a0a':'#fff', ink=dark?[237,232,224]:[10,10,10], warm=[233,118,43];
+    const dark=canvas.dataset.halftone!=='light', transparent=canvas.dataset.halftone==='login'||canvas.dataset.halftone==='dark-login', background=dark?'#0a0a0a':'#fff', ink=dark?[237,232,224]:[10,10,10], warm=[233,118,43];
     const parent=canvas.parentElement, gap=6, radius=80; let points=[],width=1,height=1,dpr=1,frame=0,visible=true,pointer={x:-1e5,y:-1e5},ring=null,wordmarkBounds=null;
     function resize(){
       const rect=parent.getBoundingClientRect(); width=Math.max(1,Math.round(rect.width));height=Math.max(1,Math.round(rect.height));dpr=Math.min(devicePixelRatio||1,2);
