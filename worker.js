@@ -1,5 +1,6 @@
 import { connect } from "cloudflare:sockets";
 import { permanentlyDeleteInbound, restoreInbound } from "./src/inbound-deletion.mjs";
+import { validSuppressionEmail } from "./src/suppression-validation.mjs";
 import { sendSesEmail } from "./src/ses-smtp.mjs";
 import { emailOtpTemplate, emailSecurityAlertTemplate } from "./src/email-templates.mjs";
 import { staticAssets } from "./src/static-assets.mjs";
@@ -429,7 +430,7 @@ async function adminMailboxRoute(request,env,session){
   if(request.headers.get("Origin")!==url.origin)return json({error:"Invalid request"},403);
   let b;try{b=await readJson(request)}catch{return json({error:"Invalid request"},400)}
   const email=String(b.email||"").trim().toLowerCase(),reason=String(b.reason||"Manual suppression").slice(0,240);
-  if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))return json({error:"Enter a valid email address"},400);
+  if(!validSuppressionEmail(email))return json({error:"Enter a valid email address"},400);
   await env.AUTH_DB.prepare("INSERT OR IGNORE INTO email_unsubscribes (id,email,source,created_at,reason) VALUES (?,?,?,?,?)").bind(crypto.randomUUID(),email,"manual",Date.now(),reason).run();
   await logWorkspaceAction(env,session.email,"contact_unsubscribed","Marked "+email+" as Do not contact.");
   return json({ok:true,email});

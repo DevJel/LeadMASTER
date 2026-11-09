@@ -120,10 +120,21 @@ Unit tests do not prove live Turnstile, SES inbox delivery or webhook callback r
 - Aligned Android native navigation with Home, Emails, Audience, Metrics and Profile.
 - Updated feature map, agent rules, tests and desktop/mobile screenshot capture. CI and production browser acceptance remain pending.
 
-## 2026-11-09 — Inbound deletion safety (feature branch only)
+## 2026-11-09 — Inbound deletion safety (initial feature branch)
 
 - Claim a soft-deleted inbound row in D1 before deleting its original object; refuse restore while the durable deletion claim is pending. Retry resumes cleanup if object or database deletion failed.
 - Refuse permanent deletion of non-deleted sent and developer messages instead of reporting success.
-- Migration `0008_inbound_deletion_claim.sql` is required before the Worker code; rehearse in staging and review forward-only rollback before release. No migration or deployment was performed.
+- Migration `0008_inbound_deletion_claim.sql` is required before the Worker code; rehearse in staging and review forward-only rollback before release. At the time of this entry, no migration or deployment had been performed; see the subsequent production status entry.
 - Added local unit/failure/race tests. Full suite, Cloudflare runtime, production records and Android device behavior remain unverified. No UI, public API contract, or Android source was changed; Android shares the same web API behavior and needs a deletion/restore smoke test.
 - Partial queue failure, full-screen compose, confirmation UX, contacts, scheduling and other finalization requirements remain open.
+
+## 2026-11-09 — Suppression validation and dashboard audit (feature branch)
+
+- Fix over-escaped suppression email validation and add unit tests. No schema or dashboard visual change; Android shares the same backend and should be included in acceptance testing.
+- Document initial control-to-endpoint audit, including UI-only filters/export and missing delete confirmation / reload. The full audit and requested feature implementation remain incomplete.
+- Not deployed. GitHub CI, staging and authenticated acceptance pending.
+
+## 2026-11-09 — Inbound deletion production status
+
+- The deletion-claim code was observed in the live Worker, and migration `0008_inbound_deletion_claim.sql` was applied and verified in D1. The exact deployed Git commit was not independently verified.
+- No live deletion or restoration was performed; staging rehearsal and end-to-end acceptance remain outstanding. A D1 time-travel rollback affects the whole database and does not restore R2 objects.
