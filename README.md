@@ -259,3 +259,403 @@ Before production release:
 ## Current verification boundary
 
 The account-scoping implementation in this branch is code and test work, not yet a production release. The production service must not be described as multi-user or account-isolated until the migration is applied, tests pass and the account routes are deployed and verified. Authenticated end-to-end delivery tests and logged-in dashboard screenshots still require a valid authorized session.
+
+---
+
+# Complete product and engineering documentation
+
+This README is the repository-level product and engineering guide. The Worker source, migrations, tests and deployment configuration are authoritative if implementation differs from this document. Features are labelled by their actual state; planned or experimental work must not be described as production-ready.
+
+## Product overview and features
+
+LeadMASTER is an email workspace and developer email integration service. The current product surface includes:
+
+- **Public landing page:** product introduction, responsive navigation, product status and integrated documentation.
+- **Product showcase:** illustrative feature/workflow cards. They are concepts, not live campaign activity or delivery metrics.
+- **Integrated documentation:** searchable overview, authentication, API, webhooks, operations, queue roadmap and agent/MCP guidance.
+- **Human administrator sign-in:** password, Cloudflare Turnstile and email one-time passcode.
+- **Dashboard shell:** authenticated navigation framework; not yet a complete mailbox or campaign workspace.
+- **Developer API Keys console:** create named keys, assign scopes, view key metadata and revoke keys. The full key is shown once.
+- **Account-specific email API:** submit one email, inspect eligible request status and manage account-owned webhooks.
+- **Email templates:** branded OTP and new-login security-alert messages.
+- **Browser-local HTML preview:** local rendering only; it does not send email or persist templates.
+- **Legal pages:** draft Terms and Conditions and Data Privacy Notice; neither is effective or legally approved.
+
+### Feature availability matrix
+
+| Feature | Current state | Boundary |
+|---|---|---|
+| Landing page and responsive navigation | Implemented in source | Confirm production deployment separately |
+| Integrated documentation and machine-readable llms.txt | Implemented | Must track actual release state |
+| Administrator password + Turnstile + email OTP | Implemented in Worker source | One configured administrator identity |
+| Opaque administrator sessions and logout revocation | Implemented | Eight-hour session expiry |
+| API-key console and revocation | Implemented | Account-owned; raw key shown once |
+| Account-scoped email API and status | Implemented in current branch | Controlled authenticated live acceptance tests remain outstanding |
+| Signed account-owned webhooks | Implemented in current branch | One synchronous attempt; no automatic retries/replay |
+| Dashboard mailbox, campaigns, audiences, templates and analytics | Planned/incomplete | Dashboard is currently a shell |
+| Queue and Durable Object send coordinator | Experimental prototype | Not configured as the production send path |
+| MCP | Experimental read-only prototype | Not mounted in production; no public endpoint or send tool |
+| Self-service registration, invitations, team roles and organization switching | Not implemented | Do not advertise as available |
+| Marketing consent, unsubscribe, suppression and campaign compliance tools | Not implemented | Do not use this API as a bulk marketing platform |
+
+## Technology stack
+
+| Layer | Technology | Purpose |
+|---|---|---|
+| Edge application runtime | Cloudflare Workers | Request routing, authentication, APIs and static delivery |
+| Application language | JavaScript ES modules | Worker and browser application logic |
+| Browser interface | HTML5, CSS and vanilla JavaScript | Landing, login, dashboard shell, API-key console and legal pages |
+| Database | Cloudflare D1 | Authentication challenges, sessions, rate limits, accounts, API keys, email requests and webhooks |
+| Secret management | Cloudflare Secrets Store | Admin credentials, cryptographic/session secret, Turnstile secret and SES SMTP credentials |
+| Human anti-abuse | Cloudflare Turnstile | Login challenge and server-side Siteverify |
+| Transactional email | Amazon SES SMTP over implicit TLS | OTP, security alerts and authorized email submissions |
+| Cryptography | Web Crypto API | SHA-256, HMAC-SHA256, PBKDF2 verification and secure random tokens |
+| Static asset pipeline | Generated src/static-assets.mjs from canonical public/ files | Worker-served browser assets |
+| Development and tests | Node.js 20+, npm and Node test runner | Local development and automated tests |
+| Agent integration research | MCP SDK dependency and prototype | Experimental only, not a production integration |
+
+The current Wrangler configuration declares the leadmaster Worker, D1 binding AUTH_DB, Secrets Store bindings and observability. It does not configure a production Queue/Durable Object sending pipeline. Configuration values and secret names are not proof that a sender identity, quota or inbox delivery has been verified.
+
+## High-level system architecture
+
+The Worker is the application boundary. It validates requests and authorization before accessing account data or the email transport. Browser assets are authored under public/ and copied into the generated static module. Secret values are read at runtime from Secrets Store; they must never be copied into source files or browser bundles.
+
+~~~mermaid
+flowchart TB
+  Browser[Browser: HTML, CSS, JavaScript] --> Worker[Cloudflare Worker: worker.js]
+  Worker --> Router[Request routing and validation]
+  Router --> Auth[Authentication and session checks]
+  Router --> API[Developer API and webhook modules]
+  Router --> Static[Generated static assets]
+  Auth --> D1[(Cloudflare D1: AUTH_DB)]
+  API --> D1
+  Auth --> Secrets[Cloudflare Secrets Store]
+  API --> Secrets
+  Auth --> Turnstile[Cloudflare Turnstile Siteverify]
+  Auth --> SES[Amazon SES SMTP over TLS]
+  API --> SES
+  Static --> Browser
+~~~
+
+### Main source components
+
+| Component | Source path | Responsibility |
+|---|---|---|
+| Main Worker | worker.js | Routes, login, OTP, sessions, account resolution and API dispatch |
+| HTTP router | src/http-router.mjs | Experimental queue-producer routing boundary |
+| Developer API | src/developer-api.mjs | API keys, account metadata, email submission and status |
+| Webhooks | src/developer-webhooks.mjs | Account-owned subscriptions, signatures and delivery history |
+| SES transport | src/ses-smtp.mjs | SMTP transport over Cloudflare sockets |
+| Turnstile adapter | src/turnstile.mjs | Server-side challenge verification |
+| Email templates | src/email-templates.mjs | Generated OTP and security-alert template module |
+| Static assets | src/static-assets.mjs | Generated production copy of public assets |
+| Queue prototype | src/email-queue-core.mjs, src/email-queue-worker.mjs, src/queue-batch.mjs | Experimental queue coordination and batch handling |
+| Queue producer | src/email-api.mjs | Disabled-by-default experimental bearer-key producer |
+| MCP prototype | src/mcp-server.mjs | Experimental read-only MCP code; not mounted in production |
+| Public interface | public/ | Canonical HTML, CSS, JavaScript, brand assets and email templates |
+| Database schema | migrations/ | Ordered D1 migrations |
+| Tests | test/ | Unit, regression and security-boundary tests |
+| Deployment | wrangler.jsonc | Worker, D1, Secrets Store and observability configuration |
+
+## Account and data ownership architecture
+
+Each authenticated identity resolves to an opaque acct_ account ID. This identifier is a locator, not a credential. API keys, email requests, webhook registrations and delivery records are account-owned. Every protected request must validate the credential, scope, account ID and resource ownership.
+
+The current administrator rollout is not a general multi-user SaaS identity system. Self-service registration, invitations, team administration and organization switching are not implemented. Schema preparation for membership or roles must not be advertised as a live team feature.
+
+~~~mermaid
+flowchart LR
+  subgraph A[Account A]
+    KA[API key A] --> EA[Email requests A]
+    KA --> WA[Webhooks A]
+    WA --> DA[Delivery history A]
+  end
+  subgraph B[Account B]
+    KB[API key B] --> EB[Email requests B]
+    KB --> WB[Webhooks B]
+    WB --> DB[Delivery history B]
+  end
+  KA -. denied .-> EB
+  KB -. denied .-> WA
+~~~
+
+## Authentication styles and flows
+
+### Human administrator authentication
+
+The implemented human login is sequential and server-validated:
+
+1. Browser requests public login configuration and receives the Turnstile site key.
+2. User completes the Cloudflare Turnstile widget configured for the login action.
+3. Browser submits administrator identity, password and challenge token to the same-origin Worker endpoint.
+4. Worker checks request origin, IP/email rate limits, Turnstile Siteverify, expected hostname/action, configured administrator allowlist and password.
+5. Successful password verification creates a six-digit email OTP. Only an HMAC hash is stored in D1; the OTP expires after ten minutes and allows at most five verification attempts.
+6. Valid OTP is consumed once. Worker creates a random 32-byte opaque session token and stores only its SHA-256 hash.
+7. Browser receives an eight-hour Secure, HttpOnly, SameSite=Strict cookie.
+8. Session checks are server-side. Logout revokes the stored session and expires the cookie. A new-login security email is best-effort.
+
+~~~mermaid
+flowchart TD
+  A[Open administrator login] --> B[Load public Turnstile site key]
+  B --> C[Complete login challenge]
+  C --> D[POST identity, password and token]
+  D --> E{Origin and rate limits valid?}
+  E -- No --> X[Reject]
+  E -- Yes --> F{Turnstile Siteverify valid?}
+  F -- No --> X
+  F -- Yes --> G{Admin allowlist and password valid?}
+  G -- No --> X
+  G -- Yes --> H[Generate six-digit OTP]
+  H --> I[Store HMAC hash in D1 and send email]
+  I --> J[Verify expiry and attempt count]
+  J --> K{OTP valid and unused?}
+  K -- No --> X
+  K -- Yes --> L[Consume OTP and create opaque session]
+  L --> M[Store SHA-256 session hash in D1]
+  M --> N[Set secure session cookie]
+  N --> O[Authenticated workspace]
+  O --> P[Logout revokes session]
+~~~
+
+**Implemented authentication methods:** administrator password, Cloudflare Turnstile human verification and email OTP. PBKDF2-SHA256 password-hash format is supported; a legacy configured-secret comparison remains for migration compatibility and should be retired through a controlled credential migration.
+
+**Not implemented:** passkeys/WebAuthn, Duo, social sign-in, SSO, public registration, self-service password reset, customer invitations and multi-admin role management. These must not be described as available.
+
+### Machine-to-machine authentication
+
+Developer integrations use a separate API-key model, not the human browser session. Keys are generated using secure randomness, shown once, stored as SHA-256 hashes with a short lookup prefix, assigned explicit scopes and bound to an account.
+
+| Scope | Permission |
+|---|---|
+| email:send | Submit one email |
+| email:read | Read request status for requests created by the same key |
+| webhook:manage | Create/list/revoke owned webhooks and inspect their delivery attempts |
+
+~~~mermaid
+sequenceDiagram
+  participant Owner as Authorized administrator
+  participant UI as API Keys console
+  participant App as Customer backend
+  participant API as LeadMASTER API
+  participant DB as D1
+  Owner->>UI: Create named key and choose scopes
+  UI->>DB: Store hash, prefix, account and scopes
+  UI-->>Owner: Display raw key once
+  Owner->>App: Store key in server-side secret manager
+  App->>API: Bearer key and account-specific route
+  API->>DB: Validate hash, revocation, scope and ownership
+  DB-->>API: Authorization decision
+  API-->>App: Authorized response or denial
+~~~
+
+## Security architecture and controls
+
+Current source implements the following controls:
+
+- Same-origin checks on human authentication and state-changing administrator operations.
+- Server-side Turnstile Siteverify with expected hostname and action.
+- IP/email login limits and OTP verification limits backed by D1.
+- Administrator allowlist and configured password verification.
+- Single-use, time-limited OTPs stored as HMAC hashes with a five-attempt cap.
+- Cryptographically random opaque sessions; only token hashes are persisted.
+- Secure, HttpOnly and SameSite=Strict session cookies.
+- API-key hashing, prefix lookup, explicit scopes, revocation and account ownership checks.
+- Account-scoped resource queries and rejection of legacy unscoped integration routes.
+- Per-key API rate limiting and idempotency checks.
+- Bounded JSON bodies, content-type checks and input validation.
+- HMAC-SHA256 webhook signatures over timestamp plus raw body.
+- HTTPS-only webhook destinations, redirects disabled and bounded callback timeout.
+- Secrets Store bindings for sensitive runtime credentials.
+- No secret values in repository documentation or browser assets.
+- No-store and nosniff response headers on relevant API responses.
+- HTML escaping for values inserted into email templates.
+
+### Security responsibilities and limitations
+
+- Turnstile site key is public; its Siteverify secret is private.
+- Account ID alone does not authorize access.
+- API keys and webhook signing secrets belong only in trusted server-side secret storage.
+- Never disclose credentials, OTPs, cookies, message bodies or recipient lists in public chat or issue reports.
+- Integrators must validate recipient authorization, consent, suppression and applicable legal basis before sending.
+- Webhook consumers must verify signatures, enforce timestamp tolerance, deduplicate event IDs and reject unverified payloads.
+- Webhook URL validation alone does not guarantee protection from DNS rebinding or private-network access; use callback hosts controlled by the account owner and review network safety.
+- Provider acceptance, queue acceptance, SMTP acceptance and inbox delivery are distinct outcomes.
+- The queue prototype has unresolved recovery, retention and dead-letter requirements.
+- Mocked tests do not replace Cloudflare runtime, SES, browser acceptance or independent security testing.
+
+~~~mermaid
+flowchart TD
+  R[Incoming request] --> TLS[HTTPS edge]
+  TLS --> V[Validate method, body, schema]
+  V --> I{Human session or API key?}
+  I --> H[Human: origin, Turnstile, password, OTP]
+  I --> M[API: bearer key, scope, account match]
+  H --> L[Rate limits and session state]
+  M --> L
+  L --> D[Account-owned D1 records]
+  D --> S[Read required runtime secret]
+  S --> A[Authorized operation]
+  A --> O[Persist status and evidence]
+  V -->|Invalid| X[Fail closed]
+  H -->|Invalid| X
+  M -->|Invalid| X
+  L -->|Limit exceeded| X
+~~~
+
+## Email API and webhook lifecycle
+
+The exact REST contract and examples live in docs/API.md. Current constraints:
+
+- One recipient per request; accepted fields are to, subject, text and optional html.
+- Sender identity is configured by LeadMASTER and cannot be overridden by clients.
+- No attachments, CC/BCC, multiple recipients, bulk sending or campaign scheduling.
+- Stable 16–128 character Idempotency-Key is required.
+- Current per-key limit is 30 requests per minute.
+- Maximum JSON body is 250,000 bytes on the developer API route.
+- accepted means the downstream provider accepted the submission, not inbox delivery or reading.
+- unknown means outcome is uncertain; reconcile before a new send.
+- Webhook events: email.accepted, email.failed and email.unknown.
+- Webhook delivery currently makes one synchronous attempt with a seven-second timeout. Automatic retries, replay, dead-letter recovery and delivery guarantees are not implemented.
+
+~~~mermaid
+flowchart TD
+  S[Authorized email request] --> V[Validate payload and idempotency]
+  V --> A[Validate API key, scope and account]
+  A --> D{Existing idempotency record?}
+  D -- Yes --> R[Return existing request outcome]
+  D -- No --> P[Persist request]
+  P --> SES[Submit through SES SMTP]
+  SES --> O{Known provider result?}
+  O -->|Accepted| OK[Record accepted]
+  O -->|Rejected| F[Record failed]
+  O -->|Uncertain| U[Record unknown]
+  OK --> E[Select matching account webhook]
+  F --> E
+  U --> E
+  E --> H[HMAC-sign timestamp and raw payload]
+  H --> C[One HTTPS callback attempt]
+  C --> L[Record delivery attempt]
+~~~
+
+## Experimental queue design — not production enabled
+
+Repository modules include a Cloudflare Queue consumer, Durable Object coordinator and enqueue helper. The intended design serializes outbound messages and coordinates a global send-rate ceiling. The authenticated producer, production bindings, durable outbox, reconciliation, monitoring, retention and operator recovery are incomplete. This is not the current production email submission path.
+
+~~~mermaid
+flowchart LR
+  Producer[Future authenticated producer] -. disabled .-> Q[Cloudflare Queue]
+  Q -. prototype consumer .-> DO[EmailCoordinator Durable Object]
+  DO --> Rate[Rate and daily attempt counters]
+  Rate --> SES[SES SMTP adapter]
+  SES --> State[Coordinator state]
+  Q -. future failure route .-> DLQ[Dead-letter queue]
+  State -. recovery interface missing .-> Ops[Authorized reconciliation]
+~~~
+
+Do not enable EMAIL_API_ENABLED, attach production queues or claim a hard global SES quota guarantee until every gate in docs/QUEUE_DESIGN.md is implemented and tested. The coordinator cannot account for other applications sending through the same SES account and region.
+
+## Legal, privacy and acceptable-use documentation
+
+The repository includes public/terms.html and public/privacy.html. **Both are drafts, not effective agreements or finalized privacy notices.** They explicitly require confirmation of the operator's legal details, privacy contact, governing law, retention periods and qualified legal review. Do not remove the draft warning or present either page as legally approved.
+
+### Terms and Conditions — completion checklist
+
+Before publication, obtain qualified legal review and finalize:
+
+1. Contracting operator/legal entity, registered address and verified contact details.
+2. Effective date, version history, acceptance method and change-notification process.
+3. Service description, preview/beta status, feature availability and limitations.
+4. Account eligibility, administrator authority and credential responsibilities.
+5. Permitted use and prohibited conduct, including spam, phishing, fraud, malware, unlawful content and unauthorized access.
+6. Sender authorization, verified sender identity, recipient permission, consent, suppression and unsubscribe responsibilities.
+7. API credentials, scopes, rate limits, fair-use rules, suspension and revocation.
+8. Third-party service dependencies, outages, maintenance and provider terms.
+9. User content ownership and confirmation that users have rights to submit content.
+10. Fees, taxes, refunds and cancellation only if paid plans are introduced.
+11. Warranties, disclaimers and liability limitations drafted for applicable law.
+12. Suspension, termination, export/deletion and post-termination obligations.
+13. Governing law, dispute resolution, notices and mandatory consumer rights.
+14. Verified legal-notice and complaint contact channel.
+
+### Data Privacy Notice — completion checklist
+
+1. Data controller/operator identity and privacy contact.
+2. Data categories: account identity, authentication records, IP/device/security signals, recipient addresses, subject/content, API metadata, webhook payloads and support communications.
+3. Purpose and lawful basis for each processing activity.
+4. Data-subject categories and controller/processor roles for each workflow.
+5. Cloudflare, AWS/SES and other processors/subprocessors, locations and cross-border transfer safeguards.
+6. Retention periods by category, deletion schedules, backups and provider log retention.
+7. Security safeguards and incident/breach notification process.
+8. Cookies and similar technologies, including session cookie purpose and duration.
+9. Data-subject rights, verified request channel and response procedure.
+10. Children/minors policy where relevant.
+11. Email recipient notice obligations and customer/operator responsibilities.
+12. Complaint/escalation route and applicable regulator information.
+13. Effective date, revision history and material-change notice.
+
+**Current legal/compliance limitations:** no verified privacy contact, effective date, retention schedule or governing law is supplied in the current legal pages. Consent evidence, unsubscribe handling, suppression enforcement, bounce/complaint handling and marketing compliance workflows are not implemented. Do not invent legal identity, address, registration number, governing law or contractual warranties; confirm them with the operator and qualified counsel.
+
+~~~mermaid
+flowchart TD
+  L[Prepare legal publication] --> O[Confirm legal operator and contacts]
+  O --> D[Map data, purposes and roles]
+  D --> P[Confirm processors, locations and transfers]
+  P --> R[Approve retention and deletion schedule]
+  R --> Rights[Define privacy requests and incident process]
+  Rights --> T[Review service terms and acceptable use]
+  T --> Counsel[Qualified legal and privacy review]
+  Counsel --> Publish[Approve effective date and publish]
+  Publish --> Review[Reassess after material product/data changes]
+~~~
+
+## Design system and accessibility
+
+The current public interface uses a restrained editorial style: white and charcoal surfaces, dark text, muted gray secondary copy, fine borders, rounded controls and LeadMASTER brand assets under public/assets/brand/. The landing page includes responsive layouts, mobile navigation, keyboard-operable tabs, visible focus treatment and reduced-motion handling. Decorative halftone canvas content is hidden from assistive technology.
+
+For UI changes:
+- Preserve desktop and narrow mobile layouts.
+- Do not introduce literal escaped text such as a backslash-n sequence into HTML output.
+- Maintain readable contrast, semantic landmarks, labels, keyboard navigation and focus visibility.
+- Respect prefers-reduced-motion.
+- Keep generated assets synchronized with canonical public files.
+- Never present illustrative mockups as evidence of live product capability.
+
+## Local development, testing and release
+
+Requirements: Node.js 20+ and npm.
+
+~~~bash
+npm ci
+npm test
+npm run build:assets
+~~~
+
+Before release, verify affected UI, API, persistence, migrations, security boundaries, documentation and generated assets. Include negative tests for invalid credentials, expired/reused OTPs, revoked API keys, missing scopes, wrong account IDs, duplicate idempotency keys, invalid webhook signatures and unauthorized resource access. Validate on the actual Cloudflare runtime and use an approved test recipient for SES acceptance checks.
+
+A commit does not by itself mean a release is complete. Record separately:
+- Source change and commit SHA.
+- Test commands and observed results.
+- Migration state.
+- Worker deployment state.
+- Live route and browser verification.
+- SES provider acceptance versus inbox delivery.
+- Remaining limitations and rollback plan.
+
+## Documentation ownership
+
+| Document | Source of truth for |
+|---|---|
+| README.md | Product overview, stack, architecture, security, authentication, legal status and release process |
+| docs/API.md | Exact REST API and webhook contract |
+| docs/PRODUCTION_AUTH.md | Authentication implementation and production bindings |
+| docs/CLOUDFLARE_BINDINGS.md | Secret/binding mapping notes and deployment caveats |
+| docs/QUEUE_DESIGN.md | Experimental queue design and release gates |
+| docs/MCP.md | MCP prototype and security requirements |
+| public/index.html | Public landing page and integrated documentation |
+| public/llms.txt | Machine-readable product and agent guidance |
+| public/terms.html | Draft Terms and Conditions |
+| public/privacy.html | Draft Data Privacy Notice |
+| HANDOVER.md | Operational handover and verified deployment state |
+| CHANGELOG.md | Chronological source and release changes |
+
+Update related references when implementation changes. Never make README, landing-page or agent-instruction claims that are ahead of code, tests or production verification.
