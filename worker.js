@@ -4,8 +4,8 @@ import { emailOtpTemplate, emailSecurityAlertTemplate } from "./src/email-templa
 import { staticAssets } from "./src/static-assets.mjs";
 import { developerAdminRoute, developerEmailRoute, developerEmailStatus } from "./src/developer-api.mjs";
 import { webhookRoute } from "./src/developer-webhooks.mjs";
+import { verifyTurnstile } from "./src/turnstile.mjs";
 
-const SITEKEY = "0x4AAAAAAF5KTL83dA8wIZQH";
 const HOSTNAME = "leadmaster.jelvan.pro";
 const UPSTREAM = "https://leadmaster-preview.projects-public-portfolio.workers.dev";
 const CHALLENGE_COOKIE = "lm_turnstile";
@@ -63,23 +63,13 @@ async function readJson(request) {
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("bad-body");
   return body;
 }
-async function verifyTurnstile(token, request, env, action) {
-  if (typeof token !== "string" || token.length < 1 || token.length > 2048) return false;
-  const key = await secret(env.TURNSTILE_SECRET);
-  if (!key) return false;
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5000);
-    try {
-      const form = new FormData();
-      form.set("secret", key);
-      form.set("response", token);
-      const response = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body: form, signal: controller.signal });
-      if (!response.ok) return false;
-      const result = await response.json();
-      return result.success === true && result.hostname === HOSTNAME && result.action === action;
-    } finally { clearTimeout(timer); }
-  } catch { return false; }
+async function verifyLoginTurnstile(token, env, action) {
+  return verifyTurnstile({
+    token,
+    secret: env.TURNSTILE_SECRET,
+    expectedHostname: HOSTNAME,
+    expectedAction: action
+  });
 }
 async function challengeCookieValid(request, env) {
   const value = cookieValue(request, CHALLENGE_COOKIE);
@@ -163,7 +153,9 @@ async function sessionFor(request, env) {
 }
 async function authConfig(request) {
   if (request.method !== "GET") return json({ error: "Method not allowed" }, 405, { allow: "GET" });
-  return json({ turnstileSiteKey: SITEKEY });
+  const siteKey = await secret(env.TURNSTILE_SITE_KEY);
+  if (!siteKey || !/^0x4[A-Za-z0-9_-]{20,}$/.test(siteKey)) return json({ error: "Security verification is not configured" }, 503);
+  return json({ turnstileSiteKey: siteKey });
 }
 async function login(request, env) {
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405, { allow: "POST" });
@@ -172,7 +164,7 @@ async function login(request, env) {
   try { body = await readJson(request); } catch { return json({ error: "Invalid request" }, 400); }
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
   if (!(await rateLimit(env, "ip:" + ip, 10, 15 * 60 * 1000))) return json({ error: "Too many attempts" }, 429);
-  if (!(await verifyTurnstile(body.turnstileToken, request, env, "login"))) return json({ error: "Security verification failed" }, 403);
+  if (!(await verifyLoginTurnstile(body.turnstileToken, env, "login"))) return json({ error: "Security verification failed" }, 403);
   const identity = typeof body.identity === "string" ? body.identity.trim().toLowerCase() : "";
   const adminEmail = await configuredAdminEmail(env);
   if (!adminEmail || identity !== adminEmail || !(await rateLimit(env, "email:" + adminEmail, 8, 15 * 60 * 1000))) return json({ error: "Unable to sign in" }, 401);
@@ -333,7 +325,7 @@ async function handle(request, env) {
 export default {
   async fetch(request, env) {
     try {
-      if (!env.AUTH_DB || !env.ADMIN_EMAIL || !env.ADMIN_PASSWORD || !env.SESSION_SECRET || !env.SES_SMTP_HOST || !env.SES_SMTP_USERNAME || !env.SES_SMTP_PASSWORD || !env.SES_FROM_EMAIL) {
+      if (!env.AUTH_DB || !env.ADMIN_EMAIL || !env.ADMIN_PASSWORD || !env.SESSION_SECRET || !env.TURNSTILE_SITE_KEY || !env.TURNSTILE_SECRET || !env.SES_SMTP_HOST || !env.SES_SMTP_USERNAME || !env.SES_SMTP_PASSWORD || !env.SES_FROM_EMAIL) {
         // Public pages remain available while auth fails closed.
         const p = new URL(request.url).pathname;
         if (p.startsWith("/api/auth/") || p.startsWith("/dashboard")) return json({ error: "Authentication service is not configured" }, 503);
