@@ -36,3 +36,5 @@ test('proposed Secrets Store aliases resolve to the SMTP binding names',async()=
   const bindings=Object.fromEntries(config.secrets_store_secrets.map(({binding,secret_name})=>[binding,{get:async()=>fakeStore[secret_name]}]));
   const s=server();assert.equal((await sendSesEmail({...input,env:{...bindings,SES_FROM_EMAIL:env.SES_FROM_EMAIL},connect:s.connect})).status,'accepted');
 });
+
+test('uses the configured branded display name without changing the envelope sender',async()=>{const s=server();await sendSesEmail({...input,fromName:'LeadMaster',connect:s.connect});const message=s.commands.at(-1);assert.match(message,/From: LeadMaster <sender@example\\.com>/);assert.ok(s.commands.some(command=>command==='MAIL FROM:<sender@example.com>\\r\\n'));});
