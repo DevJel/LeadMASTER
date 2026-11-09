@@ -355,7 +355,8 @@ async function sesSnsEvents(request,env){
 
 
 async function accountProfileRoute(request,env,session){
- if(!session||session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
+ if(!session)return json({error:"Unauthorized"},401);
+ if(session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
  if(request.method==="GET"){const a=await env.AUTH_DB.prepare("SELECT owner_name FROM accounts WHERE id=?").bind(session.accountId).first();return json({fullName:a?.owner_name||""});}
  if(request.method!=="PATCH"||!sameOrigin(request))return json({error:"Invalid request"},403);
  let b;try{b=await readJson(request)}catch{return json({error:"Invalid request"},400)}
@@ -369,13 +370,15 @@ async function logWorkspaceAction(env,actor,action,summary,targetId=null,details
  await env.AUTH_DB.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at,details_json) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(),actor||"system",action,summary,targetId,Date.now(),details?JSON.stringify(details):null).run();
 }
 async function adminActivityRoute(request,env,session){
- if(!session||session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
+ if(!session)return json({error:"Unauthorized"},401);
+ if(session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
  if(request.method!=="GET")return json({error:"Method not allowed"},405);
  const rows=await env.AUTH_DB.prepare("SELECT id,action,summary,target_id,created_at FROM workspace_activity ORDER BY created_at DESC LIMIT 150").all();
  return json({items:rows.results||[]});
 }
 async function adminNotificationsRoute(request,env,session){
- if(!session||session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
+ if(!session)return json({error:"Unauthorized"},401);
+ if(session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
  const url=new URL(request.url),id=url.pathname.split("/").filter(Boolean).at(-1);
  if(request.method==="GET"){const rows=await env.AUTH_DB.prepare("SELECT id,type,title,message,target_id,created_at,read_at FROM mail_notifications ORDER BY created_at DESC LIMIT 50").all();return json({items:rows.results||[],unread:(rows.results||[]).filter(x=>!x.read_at).length});}
  if(request.method==="POST"&&id&&sameOrigin(request)){const n=await env.AUTH_DB.prepare("SELECT title FROM mail_notifications WHERE id=?").bind(id).first();await env.AUTH_DB.prepare("UPDATE mail_notifications SET read_at=? WHERE id=?").bind(Date.now(),id).run();if(n)await logWorkspaceAction(env,session.email,"notification_viewed","Viewed an update: "+n.title,id);return json({ok:true});}
@@ -390,7 +393,8 @@ function decodeMailBody(raw){
  return value.replace(/<[^>]*>/g," ").slice(0,30000);
 }
 async function adminAiSuggestRoute(request,env,session,id){
- if(!session||session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
+ if(!session)return json({error:"Unauthorized"},401);
+ if(session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
  if(request.method!=="POST"||!sameOrigin(request))return json({error:"Invalid request"},403);
  if(!env.AI)return json({error:"Reply suggestions are not available right now."},503);
  const row=await env.AUTH_DB.prepare("SELECT * FROM inbound_mail WHERE id=? AND deleted_at IS NULL").bind(id).first();
@@ -421,7 +425,8 @@ async function adminAiSuggestRoute(request,env,session,id){
 }
 
 async function adminMailboxRoute(request,env,session){
- if(!session||session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
+ if(!session)return json({error:"Unauthorized"},401);
+ if(session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
  if(!env.INBOUND_MAIL||!env.AUTH_DB)return json({error:"Mailbox storage unavailable"},503);
  const url=new URL(request.url),parts=url.pathname.split("/").filter(Boolean),folder=url.searchParams.get("folder")||"inbox",q=(url.searchParams.get("q")||"").trim().slice(0,100),domain=(url.searchParams.get("domain")||"").toLowerCase();
  const counts={};
@@ -499,7 +504,8 @@ async function adminMailboxRoute(request,env,session){
  return json({error:"Not found"},404);
 }
 async function adminSendRoute(request,env,session){
- if(!session||session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
+ if(!session)return json({error:"Unauthorized"},401);
+ if(session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
  if(request.method!=="POST")return json({error:"Method not allowed"},405,{allow:"POST"});
  if(!sameOrigin(request))return json({error:"Invalid request"},403);
  if(!env.MAIL_SEND_QUEUE)return json({error:"Sending is temporarily unavailable"},503);
