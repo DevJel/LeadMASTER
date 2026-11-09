@@ -90,3 +90,12 @@ Unit tests do not prove live Turnstile, SES inbox delivery or webhook callback r
 - Restricted in-app navigation to the exact HTTPS LeadMASTER origin; supported external web, email and telephone links are handed to Android safely.
 - Documented the cross-platform parity rule in AGENTS.md, README.md, the Android README and the public agent guide: relevant web changes must be assessed and aligned in Android, while shared business logic remains in the web/server layer.
 - Android build and device acceptance are pending the workflow result; no production web backend or account behavior was changed.
+
+
+## 2026-11-09 — Mandatory dashboard integration (initial production wiring)
+
+- Promoted `src/Mandatory LeadMASTER Dashboard.html` to the canonical dashboard source and synchronized the production `public/dashboard.html` / Worker static asset.
+- Preserved the supplied React component tree and embedded visual system while replacing preview account identity and sample activity with authenticated session, profile, mail counts, activity and API-key data.
+- Connected email folders to the live mailbox endpoints, message detail/delete actions to the mailbox API, compose to the production sending queue, profile save/logout to authenticated endpoints, and API-key list/create to account-scoped key management.
+- Removed sample audience, activity, automation, webhook and campaign records from the initial data collections; unsupported backend features must not be represented as live records.
+- Updated the asset build script, tests, agent instructions and Android navigation parity. Full feature coverage for templates, audience/contact CRUD, campaign scheduling, automation workflows, domain verification, engagement analytics and session-based webhook management remains outstanding.
