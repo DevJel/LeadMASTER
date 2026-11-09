@@ -104,7 +104,7 @@ print(response.json())
 
 Statuses:
 - `sending` — request recorded and being processed.
-- `accepted` — SES returned a successful SMTP acceptance response.
+- `accepted` — SES returned a successful provider acceptance response.
 - `failed` — SES did not accept the message.
 - `unknown` — the connection ended after transmission began; acceptance is uncertain.
 
@@ -112,7 +112,7 @@ Statuses:
 
 ## 5. Webhooks
 
-Webhooks notify your backend when an email submission reaches a terminal SMTP outcome. Create a key with the `webhook:manage` scope, then register your HTTPS endpoint.
+Webhooks notify your backend when an email submission reaches a terminal submission outcome. Create a key with the `webhook:manage` scope, then register your HTTPS endpoint.
 
 ### Create a webhook
 
@@ -132,9 +132,9 @@ curl -X POST "https://leadmaster.jelvan.pro/api/v1/webhooks" \
 The response includes a `signing_secret` exactly once. Copy it into your server's secret manager. It is encrypted at rest by the Worker using the configured `SESSION_SECRET`; do not put it in client code or logs.
 
 Supported events:
-- `email.accepted` — SES accepted the SMTP submission.
+- `email.accepted` — the downstream email provider accepted the submission.
 - `email.failed` — SES did not accept the submission.
-- `email.unknown` — the SMTP outcome could not be determined.
+- `email.unknown` — the submission outcome could not be determined.
 
 Webhook payload:
 
@@ -188,7 +188,7 @@ export function verifyLeadMasterWebhook(req, rawBody, secret) {
 
 A webhook URL must use HTTPS and cannot contain URL credentials. Literal IP addresses and local/internal hostnames are rejected, but validation does not pin DNS answers or guarantee protection from DNS rebinding. Register only callback hosts you control and prevent them from resolving or rebinding to private network addresses. LeadMASTER sends a POST with redirects disabled and a seven-second timeout. Each matching event currently receives one delivery attempt; non-2xx responses and network errors are recorded as unsuccessful. Automatic retries, replay controls, dead-letter recovery and delivery guarantees are not yet implemented. Your endpoint should respond quickly with a 2xx status and process work asynchronously. Treat event delivery as at-least-once from your application's perspective and deduplicate by event ID.
 
-Delivery events describe SMTP submission outcomes only. They are not SES bounce, complaint, unsubscribe, open or click events.
+Delivery events describe email submission outcomes only. They are not SES bounce, complaint, unsubscribe, open or click events.
 
 ## 6. Errors and operational semantics
 
@@ -203,7 +203,7 @@ Delivery events describe SMTP submission outcomes only. They are not SES bounce,
 | 409 | Duplicate/conflicting email request |
 | 429 | Per-key rate limit exceeded |
 | 502 | SES did not accept the message |
-| 202 | SMTP outcome unknown |
+| 202 | submission outcome unknown |
 | 503 | Required service configuration unavailable |
 
 ## 7. Security and release requirements
@@ -218,4 +218,4 @@ Delivery events describe SMTP submission outcomes only. They are not SES bounce,
 
 ## 8. Release checklist
 
-Deployment completed: the Worker has `AUTH_DB`, SES SMTP, sender, Turnstile, administrator and session-secret bindings; the D1 schema includes the developer API and webhook tables. The configured sender identity is verified and used by another application. Public route checks passed. Remaining release verification: use an authorized administrator session to create/revoke a scoped key, submit a controlled email to an approved test mailbox, register a controlled HTTPS webhook, validate HMAC signatures and inspect delivery logs. Until those authenticated end-to-end tests pass, do not claim verified LeadMASTER inbox delivery or fully tested webhook callbacks.
+Deployment completed: the Worker has `AUTH_DB`, LeadMASTER's configured email service, sender, Turnstile, administrator and session-secret bindings; the D1 schema includes the developer API and webhook tables. The configured sender identity is verified and used by another application. Public route checks passed. Remaining release verification: use an authorized administrator session to create/revoke a scoped key, submit a controlled email to an approved test mailbox, register a controlled HTTPS webhook, validate HMAC signatures and inspect delivery logs. Until those authenticated end-to-end tests pass, do not claim verified LeadMASTER inbox delivery or fully tested webhook callbacks.
