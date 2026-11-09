@@ -82,7 +82,7 @@ export async function developerEmailRoute(request,env,connect,accountId){
  const submission=await submitInOrder([()=>env.MAIL_SEND_QUEUE.send({id,source:"developer",apiKeyId:row.id,accountId})]);
  if(submission.status!=="queued")return json({id,status:"submission_unconfirmed",error:"Queue acceptance is uncertain. Do not submit a new request; check this request and reconcile it before retrying."},503);
  await writeBestEffort([()=>env.AUTH_DB.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at) VALUES (?,?,'email_queued',?,?,?)").bind(crypto.randomUUID(),registeredEmail,"Added a message to the sending list for "+body.to,id,Date.now()).run()]);
- return json({id,status:"queued",message:"Your message has been added to the sending list. It will be sent in order, at no more than 10 messages per second."},202);
+ return json({id,status:"queued",message:"Your message has been added to the sending list. Queue acceptance is not delivery."},202);
 }
 export async function developerEmailStatus(request,env,accountId){
  if(request.method!=="GET")return json({error:"Method not allowed"},405,{allow:"GET"});

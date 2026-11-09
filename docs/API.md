@@ -77,7 +77,7 @@ curl -X POST "https://leadmaster.jelvan.pro/api/v1/accounts/$LEADMASTER_ACCOUNT_
 ### Node.js
 
 ```js
-const response = await fetch("https://leadmaster.jelvan.pro/api/v1/accounts/$LEADMASTER_ACCOUNT_ID/emails", {
+const response = await fetch(`https://leadmaster.jelvan.pro/api/v1/accounts/${encodeURIComponent(process.env.LEADMASTER_ACCOUNT_ID)}/emails`, {
   method: "POST",
   headers: {
     Authorization: `Bearer ${process.env.LEADMASTER_API_KEY}`,
@@ -100,7 +100,7 @@ if (!response.ok) throw new Error(result.error || "LeadMASTER request failed");
 import os, requests
 
 response = requests.post(
-    "https://leadmaster.jelvan.pro/api/v1/accounts/$LEADMASTER_ACCOUNT_ID/emails",
+    f"https://leadmaster.jelvan.pro/api/v1/accounts/{os.environ['LEADMASTER_ACCOUNT_ID']}/emails",
     headers={
         "Authorization": f"Bearer {os.environ['LEADMASTER_API_KEY']}",
         "Content-Type": "application/json",
@@ -130,7 +130,7 @@ The response also includes `delivery_status` when AWS SES reports a later event,
 
 The superadmin dashboard includes a dedicated inbox at **inbound@inbound.leadmaster.jelvan.pro**. Only mail sent to this exact address is captured by the new LeadMASTER receiving Worker. Existing forwarding rules for jelvan.pro and operavaglobal.com remain unchanged. Original messages are retained in a private R2 bucket; searchable message details are stored in D1. The dashboard can download the original .eml file. Individual attachment extraction is not yet available.
 
-Dashboard sending supports up to 500 unique recipients in one request. Those messages enter the shared queue and are sent at no more than 10 per second. The account API remains one recipient per request.
+Dashboard sending supports up to 500 unique recipients in one request. Those messages enter the shared queue. The configured single consumer paces sends, but a strict account-wide 10-per-second limit has not been verified, including login and security messages that bypass this queue. The account API remains one recipient per request.
 
 The superadmin can choose hello@work.jelvan.pro, hello@operavaglobal.com or another sender address under a verified sending identity. Regular account API messages use the account holder's full name as the display name and the registered account email as Reply-To.
 
