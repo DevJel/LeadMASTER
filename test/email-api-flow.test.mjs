@@ -6,10 +6,18 @@ import { EmailDispatchCore } from '../src/email-queue-core.mjs';
 import { sendSesEmail } from '../src/ses-smtp.mjs';
 class Storage { constructor(){this.m=new Map()} async get(k){return this.m.get(k)} async put(k,v){this.m.set(k,v)} async delete(k){this.m.delete(k)} async transaction(fn){return fn(this)} }
 function mockSmtp(){
-  let reader; const commands=[];const enc=new TextEncoder();
-  const readable=new ReadableStream({start(c){reader=c;c.enqueue(enc.encode('220 ready\r\n'))}});
-  const writable=new WritableStream({write(bytes){const s=new TextDecoder().decode(bytes);commands.push(s);const response=s.startsWith('EHLO')?'250 ok':s.startsWith('AUTH')?'235 ok':s.startsWith('DATA')?'354 ready':'250 ok';reader.enqueue(enc.encode(response+'\r\n'));}});
-  return {commands,connect:()=>({opened:Promise.resolve(),readable,writable,close:async()=>{}})};
+  const commands=[];const enc=new TextEncoder();
+  function socket(secure=false){
+    let reader;
+    const readable=new ReadableStream({start(c){reader=c;if(!secure)c.enqueue(enc.encode('220 ready\r\n'));}});
+    const writable=new WritableStream({write(bytes){
+      const s=new TextDecoder().decode(bytes);commands.push(s);
+      const response=s.startsWith('EHLO')?'250 ok':s.startsWith('STARTTLS')?'220 ready to start TLS':s.startsWith('AUTH')?'235 ok':s.startsWith('DATA')?'354 ready':'250 ok';
+      reader.enqueue(enc.encode(response+'\r\n'));
+    }});
+    return {opened:Promise.resolve(),readable,writable,startTls:()=>socket(true),close:async()=>{}};
+  }
+  return {commands,connect:(address,options)=>{assert.equal(address.port,587);assert.equal(options.secureTransport,'starttls');return socket(false);}};
 }
 test('authenticated HTML submission flows through queue and coordinator into MIME SMTP',async()=>{
   const key='Q'.repeat(43), id='test_message_123456', messages=[], smtp=mockSmtp();
