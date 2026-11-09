@@ -150,7 +150,7 @@ async function accountForEmail(env, email) {
   if (!account) {
     const id = "acct_" + randomToken(16);
     const now = Date.now();
-    const initialName=ownerEmail.split("@")[0].replace(/[._-]+/g," ").replace(/\\b[a-z]/g,x=>x.toUpperCase()).slice(0,80);
+    const initialName=ownerEmail.split("@")[0].replace(/[._-]+/g," ").replace(/\b[a-z]/g,x=>x.toUpperCase()).slice(0,80);
     await env.AUTH_DB.prepare("INSERT INTO accounts (id,name,owner_email,owner_name,created_at,updated_at) VALUES (?, 'My LeadMASTER workspace', ?, ?, ?, ?) ON CONFLICT(owner_email) DO NOTHING").bind(id,ownerEmail,initialName,now,now).run();
     account = await env.AUTH_DB.prepare("SELECT id,name,owner_name,created_at,updated_at FROM accounts WHERE owner_email=?").bind(ownerEmail).first();
   }
