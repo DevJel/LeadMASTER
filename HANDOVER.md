@@ -149,3 +149,13 @@ Use Cloudflare Worker versions/deployments to route traffic to the last known-go
 
 ## 12. Handover status
 Authentication, API-key, email and webhook route implementations are deployed. Landing-page documentation is the canonical public destination. Queue and MCP remain experimental/not deployed. Dashboard remains a shell. Real authenticated browser, SES inbox and webhook callback acceptance tests remain outstanding.
+
+
+## 12. AI-agent and public-documentation handover
+- Public machine-readable guide: `/llms.txt`; crawler policy: `/robots.txt`. Both are served from the same production asset bundle as the landing page.
+- The landing page Documentation tab links to the AI-agent guide and contains copy-ready REST API instructions. Agent docs must never expose the human sign-in challenge, challenge tokens, public site key or internal provider details.
+- Agent authentication is a server-to-server LeadMASTER API key with the minimum required scope. Do not automate human administrator login or request an OTP/challenge from the user.
+- MCP is not deployed. `/mcp` returns an explicit 404 with guidance to use the REST API. Do not publish a production MCP URL until a complete authorization, transport, tool, rate-limit, monitoring and end-to-end security release is completed.
+- Public product surfaces must say LeadMASTER and describe product capabilities only. Keep infrastructure/vendor details in internal engineering documents and private configuration; do not expose internal worker names, database bindings, account IDs or provider status in the app UI.
+- Legal privacy notices may need to identify processors depending on applicable law and actual data flows. Do not conceal a legally required processor disclosure; obtain privacy/legal review before publishing changes.
+- Every feature or route change must update `llms.txt`, `robots.txt` where relevant, the landing-page documentation, API reference, README, this handover and the changelog.
