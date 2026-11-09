@@ -1,0 +1,40 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "leadmaster",
+  "main": "worker.js",
+  "compatibility_date": "2026-11-04",
+  "compatibility_flags": [],
+  "vars": {
+    "SES_FROM_EMAIL": "hello@work.jelvan.pro"
+  },
+  "d1_databases": [
+    {
+      "binding": "AUTH_DB",
+      "database_name": "leadmaster-auth",
+      "database_id": "e2ea3d34-1fca-46a9-b70e-1ca07d78f48e",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "secrets_store_secrets": [
+    { "binding": "SES_SMTP_HOST", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "SES_SMTP_HOST" },
+    { "binding": "SES_SMTP_USERNAME", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "SES_SMTP_USERNAME" },
+    { "binding": "SES_SMTP_PASSWORD", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "SES_SMTP_PASSWORD" },
+    { "binding": "ADMIN_EMAIL", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "ADMIN_EMAIL" },
+    { "binding": "ADMIN_PASSWORD", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "ADMIN_PASSWORD" },
+    { "binding": "SESSION_SECRET", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "ADMIN_JWT_TOKEN" },
+    { "binding": "TURNSTILE_SECRET", "store_id": "1a77c40addba476788aea7c043ca33db", "secret_name": "TURNSTILE_SECRET_KEY" }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+      "persist": true
+    },
+    "traces": {
+      "enabled": false,
+      "persist": true
+    }
+  }
+}
