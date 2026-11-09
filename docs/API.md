@@ -1,5 +1,8 @@
 # LeadMASTER Developer Email & Webhooks API
 
+> **Public documentation hub:** [LeadMASTER landing page → Documentation](https://leadmaster.jelvan.pro/#documentation). This file is the repository's detailed engineering reference; the public product guide is maintained in the landing page, not on a separate public documentation site.
+
+
 Base URL: `https://leadmaster.jelvan.pro`
 
 LeadMASTER provides a server-to-server email API and signed webhooks. Create a separate API key for each application/environment, store it in a server-side secret manager, and never expose it in browser code, a mobile bundle, source control or client-side HTML.
