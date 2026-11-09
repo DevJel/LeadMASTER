@@ -224,7 +224,7 @@ async function verifyOtp(request, env) {
   try { body = await readJson(request); } catch { return json({ error: "Invalid request" }, 400); }
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
   if (!(await rateLimit(env, "verify-ip:" + ip, 12, 15 * 60 * 1000))) return json({ error: "Too many attempts" }, 429);
-  const code = typeof body.code === "string" ? body.code : "";
+  const code = typeof body.code === "string" ? body.code.replace(/[^0-9]/g, "").slice(0, 6) : "";
   if (!/^\d{6}$/.test(code)) return json({ error: "Invalid code" }, 400);
   const row = await env.AUTH_DB.prepare("SELECT id,code_hash,expires_at,attempts FROM auth_challenges WHERE email = ? ORDER BY created_at DESC LIMIT 1").bind(adminEmail).first();
   if (!row || row.expires_at <= Date.now() || row.attempts >= 5) return json({ error: "Invalid or expired code" }, 401);
