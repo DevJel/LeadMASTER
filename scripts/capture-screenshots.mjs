@@ -93,7 +93,7 @@ try {
   await mark();
   const sections = [
     ["Homepage","home"],["Emails","emails"],["Templates","templates"],["Audience","audience"],
-    ["Inboxes","inboxes"],["Broadcasts","broadcasts"],["Automations","automations"],["Metrics","metrics"],
+    ["Inboxes","inboxes"],["Campaigns","campaigns"],["Automations","automations"],["Metrics","metrics"],
     ["Domains","domains"],["Logs","logs"],["API keys","api"],["Webhooks","webhooks"],
     ["Settings","settings"],["Help","help"],["Appearance","appearance"],["Onboarding","onboarding"],["Profile","profile"]
   ];
@@ -113,7 +113,13 @@ try {
   await page.waitForFunction(()=>document.getElementById("html-preview") && !document.getElementById("html-preview").hidden,null,{timeout:5000});
   await page.screenshot({path:output+"/dashboard-template-html-preview.png",fullPage:true});
   await page.locator("#preview-close").click();
+  await page.locator(".tab-link").filter({hasText:"Emails"}).first().click();
+  await page.getByRole("button",{name:"Compose",exact:true}).first().click();
+  await page.waitForSelector("#lm-compose-page:not([hidden])");
+  await page.screenshot({path:output+"/dashboard-compose.png",fullPage:true});
   await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:output+"/dashboard-compose-mobile.png",fullPage:true});
+  await page.locator("#lm-compose-close").click();
   await page.screenshot({path:output+"/dashboard-mobile-home.png",fullPage:true});
   for (const [label,slug] of [["Audience","audience"],["Profile","profile"]]) {
     await page.locator(".bottom-tab").filter({hasText:label}).first().click();
