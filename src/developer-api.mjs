@@ -61,11 +61,11 @@ export async function developerEmailRoute(request,env,connect,accountId){
  const suppressed=await env.AUTH_DB.prepare("SELECT email FROM email_unsubscribes WHERE lower(email)=lower(?)").bind(body.to).first();
  if(suppressed)return json({error:"Recipient is on the LeadMASTER suppression list"},409);
  const id=crypto.randomUUID(),now=Date.now();
- const account=await env.AUTH_DB.prepare("SELECT name,owner_email FROM accounts WHERE id=?").bind(accountId).first();
+ const account=await env.AUTH_DB.prepare("SELECT name,owner_email,owner_name FROM accounts WHERE id=?").bind(accountId).first();
  const registeredEmail=String(account?.owner_email||row.created_by||"").trim().toLowerCase();
  const accountName=String(account?.name||"").trim();
  const fallbackName=(registeredEmail.split("@")[0]||"user").replace(/[._-]+/g," ").replace(/\\b[a-z]/g,x=>x.toUpperCase());
- const senderName=accountName&&accountName!=="My LeadMASTER workspace"?accountName:fallbackName;
+ const senderName=String(account?.owner_name||"").trim()|| (accountName&&accountName!=="My LeadMASTER workspace"?accountName:fallbackName);
  const senderLocal=(senderName.toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,48)||"user");
  const senderEmail=senderLocal+"@leadmaster.jelvan.pro";
  try{await env.AUTH_DB.prepare("INSERT INTO developer_email_requests (id,api_key_id,idempotency_key,recipient,subject,status,created_at,updated_at,error_code,account_id,from_email,sender_name,reply_to,text_body,html_body) VALUES (?,?,?,?,?,'sending',?,?,NULL,?,?,?,?,?,?)").bind(id,row.id,idem,body.to,body.subject,now,now,accountId,senderEmail,senderName,registeredEmail,body.text,body.html??null).run();}
