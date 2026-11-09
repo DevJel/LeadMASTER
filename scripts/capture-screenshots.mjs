@@ -55,25 +55,27 @@ try {
   const page = await browser.newPage({viewport:{width:1440,height:1000},deviceScaleFactor:1});
   const mark = async () => page.addStyleTag({content:watermarkCss});
 
-  await page.goto("http://127.0.0.1:"+port+"/",{waitUntil:"networkidle"});
+  await page.goto("http://127.0.0.1:"+port+"/",{waitUntil:"domcontentloaded"});
   await mark();
+  await page.waitForTimeout(500);
   await page.screenshot({path:output+"/landing.png",fullPage:true});
 
-  await page.goto("http://127.0.0.1:"+port+"/login.html",{waitUntil:"networkidle"});
+  await page.goto("http://127.0.0.1:"+port+"/login.html",{waitUntil:"domcontentloaded"});
   await mark();
+  await page.waitForTimeout(500);
   await page.screenshot({path:output+"/login.png",fullPage:true});
 
-  await page.goto("http://127.0.0.1:"+port+"/dashboard.html#overview",{waitUntil:"networkidle"});
+  await page.goto("http://127.0.0.1:"+port+"/dashboard.html#overview",{waitUntil:"domcontentloaded"});
   await mark();
   await page.waitForSelector("#workspace-name");
   for (const section of ["overview","emails","logs","broadcasts","audiences","templates","domains","webhooks","settings"]) {
-    await page.goto("http://127.0.0.1:"+port+"/dashboard.html#"+section,{waitUntil:"networkidle"});
+    await page.goto("http://127.0.0.1:"+port+"/dashboard.html#"+section,{waitUntil:"domcontentloaded"});
     await mark();
     await page.waitForFunction(value=>document.querySelector("#section-title")?.textContent?.toLowerCase()===value,section,{timeout:5000});
     await page.screenshot({path:output+"/dashboard-"+section+".png",fullPage:true});
   }
 
-  await page.goto("http://127.0.0.1:"+port+"/developer-api-keys.html",{waitUntil:"networkidle"});
+  await page.goto("http://127.0.0.1:"+port+"/developer-api-keys.html",{waitUntil:"domcontentloaded"});
   await mark();
   await page.waitForSelector("#keys");
   await page.screenshot({path:output+"/dashboard-api-keys.png",fullPage:true});
