@@ -319,7 +319,7 @@ async function sesSnsEvents(request,env){
  const statusMap={BOUNCE:"bounced",COMPLAINT:"complaint",DELIVERY:"delivered",DELIVERY_DELAY:"delayed",REJECT:"rejected",RENDERING_FAILURE:"failed",SEND:"sent",SUBSCRIPTION:"subscription"};
  const status=statusMap[type];if(!status)return json({ok:true,ignored:true});
  const eventId=String(envelope.MessageId||"");if(eventId){const once=await env.AUTH_DB.prepare("INSERT OR IGNORE INTO mail_event_dedup (event_id,received_at) VALUES (?,?)").bind(eventId,timestamp).run();if((once.meta?.changes||0)===0)return json({ok:true,duplicate:true});}
- const correlation=String((mail.tags?.leadmaster_message_id?.[0]||"")||(mail.headers||[]).find(h=>String(h.name||"").toLowerCase()==="x-leadmaster-message-id")?.value||"");
+ const messageTag=mail.tags?.leadmaster_message_id;const correlation=String((Array.isArray(messageTag)?messageTag[0]:messageTag)||((mail.headers||[]).find(h=>String(h.name||"").toLowerCase()==="x-leadmaster-message-id")?.value)||"");
  let recipients=[];
  if(type==="BOUNCE")recipients=(event.bounce?.bouncedRecipients||[]).map(x=>({email:x.emailAddress,detail:x.diagnosticCode||event.bounce?.bounceType||"Bounce"}));
  else if(type==="COMPLAINT")recipients=(event.complaint?.complainedRecipients||[]).map(x=>({email:x.emailAddress,detail:event.complaint?.complaintFeedbackType||"Complaint"}));
