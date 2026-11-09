@@ -19,6 +19,7 @@ Disallow: /html-preview.js
 Disallow: /html-preview.css
 Disallow: /assets/vendor/
 Disallow: /mcp
+Disallow: /mcp/\nDisallow: /mcp.html
 Disallow: /mcp/
 
 User-agent: GPTBot

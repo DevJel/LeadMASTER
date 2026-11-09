@@ -1,0 +1,48 @@
+name: LeadMASTER CI
+on:
+  push:
+    branches:
+      - main
+      - feature/**
+  pull_request:
+    branches:
+      - main
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:assets
+      - name: Ensure generated asset bundle is committed
+        run: git diff --exit-code -- src/static-assets.mjs
+      - name: Syntax-check account and route modules
+        run: |
+          node --check worker.js
+          node --check src/developer-api.mjs
+          node --check src/developer-webhooks.mjs
+          node --check test/account-isolation.test.mjs
+          node --check scripts/capture-screenshots.mjs
+
+  screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false playwright
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/capture-screenshots.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: leadmaster-ui-screenshots
+          path: docs/screenshots/generated/*.png
+          if-no-files-found: error
+          retention-days: 30

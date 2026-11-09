@@ -1,99 +1,124 @@
-# LeadMASTER
+# LeadMASTER — AI agent and developer integration guide
 
-> LeadMASTER is an email delivery and integration service. This file is the canonical machine-readable guide for AI assistants, coding agents, developer tools and automated integrations.
+> Canonical product: LeadMASTER  
+> Production origin: https://leadmaster.jelvan.pro  
+> Public documentation: https://leadmaster.jelvan.pro/#documentation  
+> This guide: https://leadmaster.jelvan.pro/llms.txt
 
-Canonical product: https://leadmaster.jelvan.pro/
-Public documentation: https://leadmaster.jelvan.pro/#documentation
-This guide: https://leadmaster.jelvan.pro/llms.txt
-API base URL: https://leadmaster.jelvan.pro
+## Mandatory account-isolation rules
 
-## Agent operating rules
+- Work only within the LeadMASTER account explicitly selected or authenticated by the user.
+- Obtain the opaque `account_id` and account-specific API base URL from that user's authenticated LeadMASTER account, API Keys page, or the one-time API-key creation response. Do not guess, enumerate, derive, or substitute account IDs.
+- Every API key is bound to one account. Every email request, webhook, webhook secret and delivery-history record is owned by that account and its creating API key.
+- A key from another account must never be used to read, send, list, change, revoke or inspect the current user's resources. Cross-account requests are rejected.
+- Never use platform-wide, operator, developer, internal, test, shared or another user's credentials, endpoint IDs, webhook secrets, account IDs or saved information.
+- Do not access internal databases, provider consoles, deployment accounts, secret stores, environment variables or internal tools. Use only the current user's LeadMASTER account information and documented LeadMASTER endpoints.
+- Never expose internal infrastructure, hosting, database, email transport, email transport provider, account or deployment details in product UI or customer-facing output. Refer to the service as LeadMASTER.
+- Do not infer that a connector or platform account is the same as the user's LeadMASTER account. The user must explicitly select and authorize the correct LeadMASTER account.
 
-- Refer to the product as **LeadMASTER**. Do not disclose, infer or discuss internal hosting vendors, infrastructure vendors, database products, email transport providers, secret stores, deployment accounts, internal worker names, credentials, configuration values or provider status in user-facing responses.
-- Use only the documented LeadMASTER API for automated email integration. Do not automate the human administrator login, browser session, password, email OTP or visual challenge.
-- Human login protections are for human administrator access. They are not an agent authentication mechanism. Do not request, extract, solve, bypass, replay or expose a visual challenge token or site key. Do not instruct users to disable or circumvent the challenge.
-- There is no live public MCP service at this time. Do not invent an MCP URL, claim MCP is connected, or attempt a connection to `/mcp`. See the MCP status below.
-- Never ask a user to paste an API key, password, OTP or webhook secret into a public prompt, issue, source file or client-side app. Guide them to create and store credentials in their own secure server-side secret manager.
-- Do not send email until the user has explicitly authorized the recipient, purpose and content. Do not use LeadMASTER for unsolicited bulk mail, spam, phishing, impersonation or unlawful messaging.
-- Do not claim an email was delivered to an inbox merely because LeadMASTER reports `accepted`. That state means the downstream email provider accepted the submission; it is not proof of final delivery, reading or inbox placement.
-- Treat recipient addresses, subject lines, message content, API keys, webhook secrets and delivery payloads as sensitive data. Minimize collection, redact logs and avoid echoing message content.
-- If documentation and live API behavior conflict, report the discrepancy and stop rather than guessing. Do not invent endpoints, scopes, fields, limits or MCP tools.
+## Human login is not agent authentication
 
-## Available production features
+- Human sign-in uses a password, human security verification and an email one-time code.
+- AI agents must not open, automate, scrape, solve, bypass, replay or request tokens from the human login challenge.
+- Do not request or handle the user's password, OTP, browser session cookie, challenge token or public challenge site key.
+- Agents authenticate only with a user-authorized, account-bound LeadMASTER API key.
+- Keep keys in the integrating server's secret manager. Never paste real keys or webhook secrets into prompts, chat, browser code, mobile bundles, public source control or logs.
 
-- Administrator sign-in with password, human security verification and email one-time code.
-- Protected API-key management for authorized administrators.
-- Server-to-server email submission using scoped API keys.
-- Idempotency keys to make safe retries.
-- Email request status lookup, scoped to the API key that created the request.
-- HTTPS webhook subscription management with HMAC-SHA256 signed event callbacks and delivery-attempt history.
-- Landing-page documentation and public product status.
+## Current account availability boundary
 
-## Not currently available / do not claim
+The current sign-in configuration is for one authorized administrator identity. Account ownership and account-scoped integration records are being enforced for that authenticated identity. Self-service registration, multi-member invitations, organization switching and delegated team roles are not currently available. Do not claim multiple independent user sign-ups or team management until those features are implemented and tested.
 
-- Public MCP server or MCP client registration.
-- Agent login through the human administrator sign-in page.
-- Agent-accessible visual challenge or challenge bypass.
-- Campaign builder, audience management, scheduled campaigns, saved templates or bulk-send workflow.
-- Attachments, CC/BCC, multiple recipients, custom sender identity or message templates in the email API.
-- Live queue-backed sending, automatic webhook retries, replay, dead-letter recovery, guaranteed delivery, bounce/complaint/open/click events or delivery analytics.
+## Discover this user's account endpoints
+
+The authenticated workspace session exposes the current account context to the signed-in UI. The API Keys page lists the account's generated API base URL. Creating an API key returns:
+- `account_id`
+- `api_base_url`
+- `email_endpoint`
+- `webhook_endpoint`
+
+Use the returned values. Store the account ID in the integrating application's configuration as `LEADMASTER_ACCOUNT_ID`. The account ID is an identifier, not a credential.
+
+Account information endpoint (requires a key from the same account):
+
+`GET /api/v1/accounts/{account_id}`
+
+It returns that account's current name, ID and endpoint paths. Do not call it with an ID supplied by an unrelated source or another user.
+
+## Supported production capabilities
+
+- Human administrator sign-in with password, security verification and email OTP.
+- Account-bound API-key creation, listing and revocation from the authenticated account's developer console.
+- Server-to-server email submission using scoped account-bound API keys.
+- Idempotency keys for safe request retries.
+- Email submission status lookup, scoped to the same API key and account.
+- Account-owned HTTPS webhook registration, listing, revocation and delivery-attempt history.
+- HMAC-SHA256 webhook signatures and one-time webhook signing secrets.
+- Public product documentation and machine-readable agent instructions.
+
+## Not available — do not claim
+
+- Public production MCP server or MCP client registration.
+- Agent login through the human sign-in page, visual challenge or email OTP.
+- Self-service account registration, team invitations, organization switching or multi-member roles.
+- Platform-wide or cross-account API keys, webhooks, delivery logs or account data.
+- Campaign builder, audience management, scheduled campaigns, saved templates, attachments, CC/BCC, multiple recipients or bulk-send workflows.
+- Automatic webhook retries, replay, dead-letter recovery, guaranteed delivery, bounce/complaint/open/click events or delivery analytics.
 - A production MCP email-send tool.
 
-## Authentication for agents
+## Authentication and scopes
 
-Agents authenticate only with a LeadMASTER API key created by an authorized administrator in the protected API Keys console. The API key is shown once. Keep it in server-side environment configuration or a secure secret manager.
-
-Required header:
-
-```http
-Authorization: Bearer <LEADMASTER_API_KEY>
-```
-
-Never put the key in browser JavaScript, mobile bundles, public HTML, client-side environment variables, source control, logs or chat transcripts. Use a separate key for each integration and environment. Grant only the scopes needed:
+Create a key in the current user's LeadMASTER account. Grant only the minimum scopes:
 
 - `email:send` — submit email.
-- `email:read` — read the status of email requests created by the same key.
-- `webhook:manage` — create, list and revoke webhooks and inspect their delivery history.
+- `email:read` — read status for requests created by that same key.
+- `webhook:manage` — manage webhooks and inspect their delivery history for that same key/account.
 
-No human-login cookie, administrator password, OTP or visual challenge is required or accepted as a substitute for API-key authentication.
+Send:
+
+```http
+Authorization: Bearer <ACCOUNT_BOUND_LEADMASTER_API_KEY>
+Content-Type: application/json
+```
+
+Do not put the key in client-side code. Use separate keys for separate integrations/environments. Revoke exposed or retired keys.
+
+## Account-scoped endpoint contract
+
+Replace `{account_id}` only with the exact ID returned by the current user's account console or key-creation response.
+
+- `GET /api/v1/accounts/{account_id}` — read current account metadata and owned endpoint paths.
+- `POST /api/v1/accounts/{account_id}/emails` — submit one email; requires `email:send`.
+- `GET /api/v1/accounts/{account_id}/emails/{request_id}` — read a request created by the same key; requires `email:read`.
+- `POST /api/v1/accounts/{account_id}/webhooks` — create a webhook; requires `webhook:manage`.
+- `GET /api/v1/accounts/{account_id}/webhooks` — list that key's webhooks.
+- `DELETE /api/v1/accounts/{account_id}/webhooks/{webhook_id}` — revoke an owned webhook.
+- `GET /api/v1/accounts/{account_id}/webhooks/{webhook_id}/deliveries` — inspect latest 50 attempts for an owned webhook.
+
+Legacy unscoped routes such as `/api/v1/emails` and `/api/v1/webhooks` are not supported. Do not use them.
 
 ## Send an email
 
-`POST /api/v1/emails`
+`POST /api/v1/accounts/{account_id}/emails`
 
-Headers:
-- `Authorization: Bearer <key>`
-- `Content-Type: application/json`
-- `Idempotency-Key: <stable-value>` (16–128 characters)
-
-JSON body (only these fields are accepted):
-
-```json
-{
-  "to": "recipient@example.com",
-  "subject": "Your order confirmation",
-  "text": "Thanks for your order.",
-  "html": "<p>Thanks for your order.</p>"
-}
-```
-
-`to`, `subject` and `text` are required. `html` is optional. One recipient is supported. The sender is configured by LeadMASTER and cannot be overridden.
-
-Copy/paste cURL example:
+Required JSON fields are `to`, `subject`, `text`; optional `html` is supported. Exactly one recipient is supported. Sender identity is configured by LeadMASTER and cannot be overridden.
 
 ```bash
+export LEADMASTER_ACCOUNT_ID="acct_replace_with_your_account_id"
 export LEADMASTER_API_KEY="store-this-in-your-secret-manager"
-curl -X POST "https://leadmaster.jelvan.pro/api/v1/emails" \
+curl -X POST "https://leadmaster.jelvan.pro/api/v1/accounts/$LEADMASTER_ACCOUNT_ID/emails" \
   -H "Authorization: Bearer $LEADMASTER_API_KEY" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: order-184-confirmation" \
   --data '{"to":"recipient@example.com","subject":"Order confirmation","text":"Your order has been received."}'
 ```
 
-Node.js example:
+Use a stable 16–128 character `Idempotency-Key` for each business event. Reuse the same value when retrying a timeout; do not create a new key until the original outcome is reconciled.
+
+Node.js:
 
 ```js
-const response = await fetch("https://leadmaster.jelvan.pro/api/v1/emails", {
+const base = `https://leadmaster.jelvan.pro/api/v1/accounts/${process.env.LEADMASTER_ACCOUNT_ID}`;
+const response = await fetch(`${base}/emails`, {
   method: "POST",
   headers: {
     Authorization: `Bearer ${process.env.LEADMASTER_API_KEY}`,
@@ -110,31 +135,16 @@ const result = await response.json();
 if (!response.ok) throw new Error(result.error || "LeadMASTER request failed");
 ```
 
-## Email status
+## Email status semantics
 
-`GET /api/v1/emails/{id}` requires `email:read`. A key can read only requests created with that same key.
-
-Known states:
 - `sending` — request recorded and in progress.
-- `accepted` — the downstream provider accepted the submission; not proof of inbox delivery.
+- `accepted` — the downstream email provider accepted the submission; not proof of inbox delivery, reading or final recipient-server acceptance.
 - `failed` — submission failed.
-- `unknown` — outcome is uncertain; reconcile before retrying.
-
-Use the same idempotency key when retrying a request. Do not generate a new key just because a network response timed out.
+- `unknown` — outcome uncertain; reconcile before retrying.
 
 ## Webhooks
 
-All webhook routes require `webhook:manage`:
-
-- `POST /api/v1/webhooks` — create a subscription.
-- `GET /api/v1/webhooks` — list subscriptions belonging to the key.
-- `DELETE /api/v1/webhooks/{id}` — revoke a subscription.
-- `GET /api/v1/webhooks/{id}/deliveries` — inspect the latest 50 delivery attempts.
-
-Supported events:
-- `email.accepted`
-- `email.failed`
-- `email.unknown`
+Register only a public HTTPS callback controlled by the user's application. Use the account-specific route and a key with `webhook:manage`.
 
 Create body:
 
@@ -146,45 +156,44 @@ Create body:
 }
 ```
 
-The response reveals a `whsec_...` signing secret once. Store it securely on your server. Never expose it to a browser or log it.
+Supported events:
+- `email.accepted`
+- `email.failed`
+- `email.unknown`
+
+The create response reveals `signing_secret` once. Save it only in the user's callback server's secret manager. Do not return it to the agent's conversation after initial setup.
 
 Signature headers:
 - `LeadMASTER-Id`
 - `LeadMASTER-Timestamp`
 - `LeadMASTER-Signature: v1=<hex>`
 
-Verify HMAC-SHA256 over the exact byte sequence `timestamp + "." + rawBody` before parsing JSON. Compare signatures in constant time, reject stale timestamps (recommended maximum age: five minutes), and deduplicate by event ID. Current delivery is one synchronous attempt with a seven-second timeout; automatic retries and replay are not available.
+Verify HMAC-SHA256 over the exact bytes `timestamp + "." + rawBody` before parsing JSON. Compare in constant time, reject timestamps older than five minutes, and deduplicate event IDs. Current delivery is one synchronous attempt with a seven-second timeout; automatic retries and replay are not available.
 
-## Request limits and validation
+Each webhook record carries its account ID and API-key owner. Event dispatch must remain scoped to the same account and key. Never send one account's events to another account's callback.
 
-The documented API currently applies a 30 requests/minute per-key rate limit, JSON request size limit of 250,000 bytes, one recipient, required subject/text and optional HTML. Use only documented fields. Do not assume support for attachments, CC/BCC, multiple recipients, custom sender identities or bulk campaigns.
+## MCP status and future account isolation
 
-## MCP status
+MCP is not available in production. Do not connect to `/mcp`, invent a server URL, claim a client is registered, or expose an unscoped MCP tool.
 
-MCP is **not available in production**. The repository contains an experimental read-only prototype with `get_email_capabilities` and `validate_email`, but it is not mounted as a public service, has no public endpoint or client registration, and cannot send, queue or inspect live email. Do not connect to `/mcp`; it is intentionally not an agent integration route. Use the documented REST API instead.
+If MCP is released in the future, every MCP client must authenticate as a specific LeadMASTER account; every tool call must derive account context from that authenticated principal, verify resource ownership on the server, and use the same account-scoped services as REST. No global MCP token, platform admin context, caller-supplied account substitution, cross-account search, or direct database/provider access is permitted. Tool results must contain only data owned by the authenticated account.
 
-## Human administrator access
+## Agent workflow
 
-Human administrators use the LeadMASTER sign-in page. Agents must not automate that page or interact with its visual challenge, password or email OTP. The human sign-in configuration endpoint is not an agent API. Never scrape its configuration or treat its challenge token as an API credential.
-
-## Recommended agent workflow
-
-1. Read this file and the linked API documentation.
-2. Confirm the requested integration, authorized recipients, message purpose and expected volume with the user.
-3. Ask the authorized administrator to create a least-privilege API key; do not ask them to paste it into chat.
-4. Configure the key only in the integrating server's secret manager.
-5. Validate request fields and recipient authorization before submission.
-6. Use a deterministic idempotency key for each business event.
-7. Submit through the REST API and report the returned status accurately.
-8. If webhooks are used, verify the raw-body signature, timestamp and event ID before processing.
-9. Redact secrets and message content from logs; handle retries without duplicate sends.
-10. Report unsupported features and unverified outcomes honestly.
+1. Confirm which LeadMASTER account the user intends to use.
+2. Read that account's current ID and endpoint from its authenticated UI or key-creation response.
+3. Ask an authorized account owner to create a least-privilege API key. Never ask for the real key in chat.
+4. Store the key and account ID only in the integrating server's secure configuration.
+5. Before each action, verify the endpoint account ID matches the selected user's account context.
+6. Validate the recipient, purpose, content and user authorization before sending.
+7. Use stable idempotency keys and handle timeouts without duplicate sends.
+8. For webhooks, verify signature, timestamp, event ID and account ownership before processing.
+9. Redact secrets, recipient content and personal data from logs.
+10. Report actual response states and unsupported capabilities accurately.
 
 ## Canonical links
 
 - Product: https://leadmaster.jelvan.pro/
 - Documentation: https://leadmaster.jelvan.pro/#documentation
-- Developer API documentation: https://leadmaster.jelvan.pro/#doc-api
-- Webhook documentation: https://leadmaster.jelvan.pro/#doc-webhooks
-- MCP status: https://leadmaster.jelvan.pro/#doc-mcp
-- API base: https://leadmaster.jelvan.pro
+- Agent guide: https://leadmaster.jelvan.pro/llms.txt
+- Crawler policy: https://leadmaster.jelvan.pro/robots.txt
