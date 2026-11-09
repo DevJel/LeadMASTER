@@ -527,7 +527,7 @@ async function handle(request, env) {
   const url = new URL(request.url);
   let decodedPath;
   try { decodedPath = decodeURIComponent(url.pathname); } catch { return new Response("Bad request", { status: 400, headers: { "cache-control": "no-store" } }); }
-  const normalizedPath = decodedPath.replace(/\\/+$/, "") || "/";
+  const normalizedPath = decodedPath.replace(/\/+$/, "") || "/";
   const routePath = normalizedPath.toLowerCase();
 
   // Enforce the dashboard gate before API routing, static asset lookup or upstream proxying.
