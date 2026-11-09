@@ -24,10 +24,10 @@
     try {
       const token=window.turnstile.getResponse(widgetId);if(!token)throw Error();
       const res=await request('/api/auth/login',{method:'POST',body:JSON.stringify({identity:$('identity').value.trim(),password:$('password').value,turnstileToken:token})});
-      if(!res.ok){const body=await res.json().catch(()=>({}));const message=res.status===429?'Too many attempts. Please wait and try again.':res.status===403?'Security verification failed. Please complete the check again.':res.status===503?'Email verification is temporarily unavailable. Please try again later.':res.status===401?'Unable to sign in. Check your email and password.':'Sign-in service is temporarily unavailable. Please try again.';error('login-error',message);return;}
+      if(!res.ok){const body=await res.json().catch(()=>({}));const message=typeof body.error==='string'?body.error:res.status===429?'Too many sign-in attempts. Please wait before trying again.':res.status===403?'Cloudflare security verification failed. Complete the check again.':res.status===503?'Email verification is temporarily unavailable. Please try again shortly.':res.status===401?'Unable to sign in. Check the registered email and password.':'Sign-in service is temporarily unavailable. Please try again.';error('login-error',message);return;}
       const body=await res.json(); if(body.next!=='verify_email')throw Error();
       $('password').value='';$('login-step').hidden=true;$('otp-step').hidden=false;$('code').focus();
-    }catch{error('login-error','Sign-in is temporarily unavailable. Please try again.');}
+    }catch(err){error('login-error',err?.name==='AbortError'?'The sign-in request timed out. Check your connection and retry.':'Could not reach the sign-in service. Check your connection and retry.');}
     finally{busy=false;loginButton.textContent='Log in';turnstileReady=false;loginButton.disabled=true;if(window.turnstile&&widgetId!==undefined)window.turnstile.reset(widgetId);}
   });
   $('code').addEventListener('input',()=>{$('code').value=$('code').value.replace(/[^0-9]/g,'').slice(0,6);});
