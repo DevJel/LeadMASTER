@@ -162,8 +162,8 @@ Authentication, API-key, email and webhook route implementations are deployed. L
 
 
 ## 13. Latest deployment record
-- Active Worker version: `5ce0609c-ecbb-43f5-9a0d-4c4638511e03` (version 133).
-- Deployment: `b05aed77-ff9b-45df-a3cd-11d60edc02c7`, 100% traffic.
+- Active Worker version: `050eacd1-e8e6-4f4b-935e-b202390dcf2c` (version 137).
+- Deployment: `a6fa638f-4704-45c4-9bc5-57dd1ba3128a`, 100% traffic.
 - Uploaded module validation: successful; seven Worker modules included.
 - Static bundle: 25 assets, including `/index.html`, `/llms.txt` and `/robots.txt`.
 - Source-level checks: public landing page contains the agent integration section; the public UI no longer names underlying infrastructure vendors; `/mcp` returns an explicit unavailable response in source.
