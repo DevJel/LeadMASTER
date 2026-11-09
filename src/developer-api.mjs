@@ -89,7 +89,7 @@ export async function developerEmailStatus(request,env,accountId){
  if(!row||row.account_id!==accountId||row.revoked_at||await hash(m[1])!==row.key_hash)return json({error:"Unauthorized"},401);
  if(!JSON.parse(row.scopes||"[]").includes("email:read"))return json({error:"Insufficient scope"},403);
  const id=new URL(request.url).pathname.split("/").filter(Boolean).at(-1);
- const item=await env.AUTH_DB.prepare("SELECT id,status,recipient,subject,created_at,updated_at,error_code FROM developer_email_requests WHERE id=? AND api_key_id=? AND account_id=?").bind(id,row.id,accountId).first();
+ const item=await env.AUTH_DB.prepare("SELECT id,status,recipient,subject,created_at,updated_at,error_code,delivery_status,from_email,reply_to FROM developer_email_requests WHERE id=? AND api_key_id=? AND account_id=?").bind(id,row.id,accountId).first();
  return item?json(item):json({error:"Not found"},404);
 }
 
