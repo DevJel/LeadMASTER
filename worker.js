@@ -320,6 +320,8 @@ async function adminSendRoute(request,env,session,connect){
 async function handle(request, env) {
   const url = new URL(request.url);
 
+  if (url.pathname === "/api/admin/mail" || url.pathname.startsWith("/api/admin/mail/")) return adminMailboxRoute(request,env,await sessionFor(request,env));
+  if (url.pathname === "/api/admin/send") return adminSendRoute(request,env,await sessionFor(request,env),connect);
 
   if (url.pathname === "/api/developer/keys" || url.pathname.startsWith("/api/developer/keys/")) {
     const session = await sessionFor(request, env);
