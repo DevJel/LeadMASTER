@@ -255,6 +255,7 @@ Before deployment:
 
 Store genuine screenshots under `docs/screenshots/` with descriptive filenames:
 - `landing.png`
+- `landing-documentation.png`
 - `login.png`
 - `dashboard-overview.png`
 - `dashboard-emails.png`
