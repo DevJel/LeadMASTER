@@ -316,7 +316,8 @@ async function adminSendRoute(request,env,session,connect){
  try{await sendSesEmail({connect,env,to,subject,text:textBody,fromEmail:from,fromName:name,replyTo:session.email});await env.AUTH_DB.prepare("UPDATE admin_sent_mail SET status='accepted',updated_at=? WHERE id=?").bind(Date.now(),id).run();return json({id,status:"accepted",message:"SES accepted the SMTP submission; inbox delivery is not confirmed."});}
  catch(e){const status=e?.deliveryOutcome==="unknown"?"unknown":"failed";await env.AUTH_DB.prepare("UPDATE admin_sent_mail SET status=?,updated_at=?,error_code=? WHERE id=?").bind(status,Date.now(),status==="unknown"?"delivery_outcome_unknown":"delivery_not_accepted",id).run();return json({id,status,error:"Submission did not complete. See Unsuccessful."},status==="unknown"?202:502);}
 }
-\nasync function handle(request, env) {
+
+async function handle(request, env) {
   const url = new URL(request.url);
 
 
