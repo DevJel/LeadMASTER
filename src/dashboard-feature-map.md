@@ -65,3 +65,8 @@ Every dashboard document and supporting bundle must be protected by a server-val
 ## Dashboard authentication is mandatory
 
 Every dashboard document and supporting bundle must be protected by a server-validated `lm_session` cookie using `sessionFor()` before static asset lookup or upstream proxying. Normalize and decode URL paths before checking access; reject malformed paths, case variants, encoded separators and trailing-slash aliases. Unauthenticated dashboard requests must redirect to `/login.html`; never rely on React/client-side checks or hidden navigation. Keep the dashboard's HTML, JS, CSS, preview scripts and DOMPurify asset protected. Add regression tests whenever routes or assets change. Never proxy an unknown dashboard-like path to the preview upstream.
+
+
+## Pending inbound deletion change (not deployed)
+
+A feature branch requires migration 0008 and prevents restoring an inbound message while permanent deletion is pending; failed cleanup requires retry. No dashboard design or Android navigation changes are included. Validate shared WebView behavior and the full delete/restore confirmation experience before release.
