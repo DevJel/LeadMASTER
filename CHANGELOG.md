@@ -109,3 +109,13 @@ Unit tests do not prove live Turnstile, SES inbox delivery or webhook callback r
 - Updated Android native navigation to mirror Home, Emails, Audience, Metrics and Profile section IDs.
 - Updated dashboard feature map, agent instructions, README, handover, dashboard tests and desktop/mobile screenshot capture workflow.
 - Build, tests, screenshot review and production browser acceptance are pending CI results; no deployment is claimed by this changelog entry.
+
+
+## 2026-11-09 — Mandatory dashboard integration
+
+- Preserved the mandatory React dashboard visual system and synchronized its public mirror.
+- Connected suppression list and manual suppression, live accepted-send list, existing send composer, account-scoped webhook management, one-time signing-secret display, and optional least-privilege webhook API-key scope.
+- Replaced unsupported sample records and simulated states with live data or clear unavailable states.
+- Restored the sanitized HTML preview separately for Emails and Templates.
+- Aligned Android native navigation with Home, Emails, Audience, Metrics and Profile.
+- Updated feature map, agent rules, tests and desktop/mobile screenshot capture. CI and production browser acceptance remain pending.
