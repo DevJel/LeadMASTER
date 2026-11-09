@@ -72,9 +72,10 @@ export async function developerEmailRoute(request,env,connect,accountId){
  catch{return json({error:"Request already submitted or could not be recorded; retry with the same idempotency key"},409);}
  await env.AUTH_DB.prepare("UPDATE developer_api_keys SET last_used_at=? WHERE id=?").bind(now,row.id).run();
  try{
-  if(!env.MAIL_SEND_QUEUE)throw new Error("queue-unavailable");
-  await env.MAIL_SEND_QUEUE.send({id,source:"developer",apiKeyId:row.id,accountId});
-  return json({id,status:"queued",message:"Your message has been added to the sending list."},202);
+  await sendSesEmail({connect,env,to:body.to,subject:body.subject,text:body.text,...(body.html===undefined?{}:{html:body.html}),fromEmail:senderEmail,fromName:senderName,replyTo:registeredEmail});
+  await env.AUTH_DB.prepare("UPDATE developer_email_requests SET status='accepted',updated_at=? WHERE id=?").bind(Date.now(),id).run();
+  try{await deliverWebhookEvent(env,"email.accepted",{request_id:id,recipient:body.to,subject:body.subject},row.id,accountId)}catch{}
+  return json({id,status:"accepted",message:"SES accepted the SMTP submission; this does not confirm inbox delivery."},200);
  }catch(error){
   const status=error?.deliveryOutcome==="unknown"?"unknown":"failed";
   await env.AUTH_DB.prepare("UPDATE developer_email_requests SET status=?,updated_at=?,error_code=? WHERE id=?").bind(status,Date.now(),status==="unknown"?"delivery_outcome_unknown":"delivery_not_accepted",id).run();
