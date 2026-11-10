@@ -33,12 +33,14 @@ export async function developerAdminRoute(request,env,session){
   const raw=token(), id=crypto.randomUUID(), now=Date.now();
   await env.AUTH_DB.prepare("INSERT INTO developer_api_keys (id,name,key_prefix,key_hash,scopes,created_by,created_at,last_used_at,revoked_at,account_id) VALUES (?,?,?,?,?,?,?,NULL,NULL,?)")
    .bind(id,name,raw.slice(0,16),await hash(raw),JSON.stringify(scopes),session.email,now,session.accountId).run();
+  try{await env.AUTH_DB.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at) VALUES (?,?,'api_key_created',?,?,?)").bind(crypto.randomUUID(),session.email,"Created an API key named “"+name+"”.",id,now).run()}catch{}
   return json({id,name,api_key:raw,key_prefix:raw.slice(0,16),scopes,account_id:session.accountId,api_base_url:"https://leadmaster.jelvan.pro/api/v1/accounts/"+session.accountId,email_endpoint:"https://leadmaster.jelvan.pro/api/v1/accounts/"+session.accountId+"/emails",webhook_endpoint:"https://leadmaster.jelvan.pro/api/v1/accounts/"+session.accountId+"/webhooks",created_at:now,warning:"Copy this key now. It will not be shown again."},201);
  }
  if(url.pathname.startsWith("/api/developer/keys/")&&request.method==="DELETE"){
   if(!/^[0-9a-f-]{36}$/i.test(id))return json({error:"Not found"},404);
   const result=await env.AUTH_DB.prepare("UPDATE developer_api_keys SET revoked_at=? WHERE id=? AND account_id=? AND revoked_at IS NULL").bind(Date.now(),id,session.accountId).run();
-  return (result.meta?.changes||0)?json({revoked:true}):json({error:"Not found or already revoked"},404);
+  if(result.meta?.changes||0){try{await env.AUTH_DB.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at) VALUES (?,?,'api_key_revoked','Revoked an API key.',?,?)").bind(crypto.randomUUID(),session.email,id,Date.now()).run()}catch{}return json({revoked:true})}
+  return json({error:"Not found or already revoked"},404);
  }
  return json({error:"Not found"},404);
 }
