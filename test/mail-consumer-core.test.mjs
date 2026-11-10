@@ -7,7 +7,7 @@ const id='12345678-1234-4123-8123-123456789abc';
 function message(source='admin') {return {body:{id,source},acks:0,retries:[],ack(){this.acks++},retry(v){this.retries.push(v)}}}
 function setup(source='admin') {
  const sql=new DatabaseSync(':memory:');
- sql.exec(`CREATE TABLE admin_sent_mail (id TEXT PRIMARY KEY,recipient TEXT,subject TEXT,text_body TEXT,html_body TEXT,status TEXT,from_email TEXT,from_name TEXT,reply_to TEXT,queue_status TEXT,batch_id TEXT,updated_at INTEGER,error_code TEXT,created_at INTEGER,cc TEXT NOT NULL DEFAULT '[]',bcc TEXT NOT NULL DEFAULT '[]');
+ sql.exec(`CREATE TABLE admin_sent_mail (id TEXT PRIMARY KEY,recipient TEXT,subject TEXT,text_body TEXT,html_body TEXT,status TEXT,from_email TEXT,from_name TEXT,reply_to TEXT,queue_status TEXT,batch_id TEXT,updated_at INTEGER,error_code TEXT,created_at INTEGER,cc TEXT NOT NULL DEFAULT '[]',bcc TEXT NOT NULL DEFAULT '[]',created_by TEXT NOT NULL DEFAULT '');
  CREATE TABLE developer_email_requests (id TEXT PRIMARY KEY,recipient TEXT,subject TEXT,text_body TEXT,html_body TEXT,status TEXT,from_email TEXT,sender_name TEXT,reply_to TEXT,api_key_id TEXT,account_id TEXT,updated_at INTEGER,error_code TEXT);
  CREATE TABLE email_unsubscribes (email TEXT NOT NULL);
  CREATE TABLE workspace_activity (id TEXT,actor_email TEXT,action TEXT,summary TEXT,target_id TEXT,created_at INTEGER);
