@@ -164,10 +164,12 @@ class MainActivity : ComponentActivity() {
                 if (workspaceViewModel.uiState.value.showNavigation) {
                     if (workspaceViewModel.uiState.value.selectedSection != "home") {
                         navigateToSection("home")
-                    } else if (web.canGoBack()) {
+                    } else if (web?.canGoBack() == true) {
                         web.goBack()
-                    } else {
+                    } else if (web != null) {
                         web.evaluateJavascript("location.href='/login.html'", null)
+                    } else {
+                        finish()
                     }
                 } else if (web?.canGoBack() == true) {
                     web.goBack()
