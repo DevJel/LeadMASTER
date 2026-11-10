@@ -17,6 +17,10 @@ const HOSTNAME = "leadmaster.jelvan.pro";
 const UPSTREAM = "https://leadmaster-preview.projects-public-portfolio.workers.dev";
 const CHALLENGE_COOKIE = "lm_turnstile";
 const SESSION_COOKIE = "lm_session";
+// Persistent browser/mobile login: remains valid across app restarts until
+// explicit sign-out or the 180-day inactivity/security expiry.
+const SESSION_TTL_MS = 180 * 24 * 60 * 60 * 1000;
+const SESSION_COOKIE_MAX_AGE = 180 * 24 * 60 * 60;
 const enc = new TextEncoder();
 
 function b64url(bytes) {
@@ -244,7 +248,7 @@ async function verifyOtp(request, env) {
   const token = randomToken(32);
   const tokenHash = await sha256(token);
   const now = Date.now();
-  const expires = now + 8 * 60 * 60 * 1000;
+  const expires = now + SESSION_TTL_MS;
   await env.AUTH_DB.prepare("INSERT INTO auth_sessions (token_hash,email,created_at,expires_at,revoked_at) VALUES (?,?,?,?,NULL)")
     .bind(tokenHash, adminEmail, now, expires).run();
   // Session creation is the authentication commit point. Activity logging and notifications
@@ -287,7 +291,7 @@ async function verifyOtp(request, env) {
     // Authentication remains successful; do not expose delivery internals.
   }
   return json({ authenticated: true }, 200, {
-    "set-cookie": SESSION_COOKIE + "=" + token + "; Path=/; Max-Age=28800; HttpOnly; Secure; SameSite=Strict"
+    "set-cookie": SESSION_COOKIE + "=" + token + "; Path=/; Max-Age=" + SESSION_COOKIE_MAX_AGE + "; HttpOnly; Secure; SameSite=Strict"
   });
 }
 async function logout(request, env) {
