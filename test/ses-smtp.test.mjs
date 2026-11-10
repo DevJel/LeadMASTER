@@ -76,3 +76,19 @@ test('rejects a message with neither text nor HTML before connecting',async()=>{
  await assert.rejects(sendSesEmail({...input,text:'',html:'',connect:()=>{connected=true}}));
  assert.equal(connected,false);
 });
+
+test('sends CC in the visible header, BCC only as envelope recipients, and omits Reply-To by default',async()=>{
+ const s=server();
+ await sendSesEmail({...input,to:['to-one@example.com','to-two@example.com'],cc:['copy@example.com'],bcc:['blind@example.com'],connect:s.connect});
+ const data=s.commands.at(-1);
+ assert.match(data,/^To: to-one@example\.com, to-two@example\.com/m);
+ assert.match(data,/^Cc: copy@example\.com/m);
+ assert.doesNotMatch(data,/^Bcc:/m);
+ assert.doesNotMatch(data,/^Reply-To:/m);
+ const rcpts=s.commands.filter(x=>x.startsWith('RCPT TO:'));
+ assert.deepEqual(rcpts,['RCPT TO:<to-one@example.com>\\r\\n','RCPT TO:<to-two@example.com>\\r\\n','RCPT TO:<copy@example.com>\\r\\n','RCPT TO:<blind@example.com>\\r\\n']);
+});
+test('adds Reply-To only when explicitly supplied',async()=>{
+ const s=server();await sendSesEmail({...input,replyTo:'replies@example.com',connect:s.connect});
+ assert.match(s.commands.at(-1),/^Reply-To: replies@example\.com/m);
+});
