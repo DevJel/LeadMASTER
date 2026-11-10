@@ -7,7 +7,7 @@ const id='12345678-1234-4123-8123-123456789abc';
 function message(source='admin') {return {body:{id,source},acks:0,retries:[],ack(){this.acks++},retry(v){this.retries.push(v)}}}
 function setup(source='admin') {
  const sql=new DatabaseSync(':memory:');
- sql.exec(`CREATE TABLE admin_sent_mail (id TEXT PRIMARY KEY,recipient TEXT,subject TEXT,text_body TEXT,html_body TEXT,status TEXT,from_email TEXT,from_name TEXT,reply_to TEXT,queue_status TEXT,batch_id TEXT,updated_at INTEGER,error_code TEXT);
+ sql.exec(`CREATE TABLE admin_sent_mail (id TEXT PRIMARY KEY,recipient TEXT,subject TEXT,text_body TEXT,html_body TEXT,status TEXT,from_email TEXT,from_name TEXT,reply_to TEXT,queue_status TEXT,batch_id TEXT,updated_at INTEGER,error_code TEXT,created_at INTEGER,cc TEXT NOT NULL DEFAULT '[]',bcc TEXT NOT NULL DEFAULT '[]');
  CREATE TABLE developer_email_requests (id TEXT PRIMARY KEY,recipient TEXT,subject TEXT,text_body TEXT,html_body TEXT,status TEXT,from_email TEXT,sender_name TEXT,reply_to TEXT,api_key_id TEXT,account_id TEXT,updated_at INTEGER,error_code TEXT);
  CREATE TABLE email_unsubscribes (email TEXT NOT NULL);
  CREATE TABLE workspace_activity (id TEXT,actor_email TEXT,action TEXT,summary TEXT,target_id TEXT,created_at INTEGER);
@@ -103,4 +103,19 @@ test('mail consumer forwards text-only and HTML-only bodies independently',async
   let textSent;await consumer(async options=>{textSent=options}).queue({messages:[message(source)]},plain.env);
   assert.equal(textSent.text,'Only text');assert.equal(Object.hasOwn(textSent,'html'),false);
  }
+});
+
+test('composed batch is sent once with all To, CC and BCC recipients and no implicit Reply-To',async()=>{
+ const s=setup();const batchId='22345678-1234-4123-8123-123456789abc';
+ s.sql.prepare('UPDATE admin_sent_mail SET batch_id=?,reply_to=?,cc=?,bcc=?,created_at=? WHERE id=?').run(batchId,'','["copy@example.test"]','["blind@example.test"]',1,id);
+ const second='32345678-1234-4123-8123-123456789abc';
+ s.sql.prepare('INSERT INTO admin_sent_mail (id,recipient,subject,text_body,status,from_email,from_name,reply_to,queue_status,batch_id,created_at,cc,bcc) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)').run(second,'other@example.test','Hello','body','sending','sender@example.test','Sender','', 'queued',batchId,2,'["copy@example.test"]','["blind@example.test"]');
+ let sent;const msg={body:{id:batchId,source:'admin',batch:true},acks:0,retries:[],ack(){this.acks++},retry(v){this.retries.push(v)}};
+ await consumer(async options=>{sent=options}).queue({messages:[msg]},s.env);
+ assert.deepEqual(sent.to,['recipient@example.test','other@example.test']);
+ assert.deepEqual(sent.cc,['copy@example.test']);assert.deepEqual(sent.bcc,['blind@example.test']);
+ assert.equal(Object.hasOwn(sent,'replyTo'),false);
+ assert.equal(s.sql.prepare('SELECT status FROM admin_sent_mail WHERE id=?').get(id).status,'accepted');
+ assert.equal(s.sql.prepare('SELECT status FROM admin_sent_mail WHERE id=?').get(second).status,'accepted');
+ assert.equal(msg.acks,1);
 });
