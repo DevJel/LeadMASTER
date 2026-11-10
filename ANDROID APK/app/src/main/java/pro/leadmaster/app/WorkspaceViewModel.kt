@@ -48,6 +48,7 @@ class WorkspaceViewModel : ViewModel() {
         val section = when (label.orEmpty().trim().lowercase()) {
             "home", "homepage", "overview", "dashboard" -> "home"
             "emails", "email" -> "emails"
+            "templates", "template" -> "templates"
             "audience", "audiences", "contacts" -> "audience"
             "metrics", "analytics" -> "metrics"
             "profile", "account", "settings" -> "profile"
@@ -58,7 +59,7 @@ class WorkspaceViewModel : ViewModel() {
 
     companion object {
         const val APP_HOST = "leadmaster.jelvan.pro"
-        val DESTINATIONS = setOf("home", "emails", "audience", "metrics", "profile")
+        val DESTINATIONS = setOf("home", "emails", "templates", "audience", "metrics", "profile")
         const val HOME_URL = "https://leadmaster.jelvan.pro/login.html"
     }
 }
