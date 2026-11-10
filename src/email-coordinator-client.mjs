@@ -16,7 +16,7 @@ export async function sendThroughEmailCoordinator(env,options) {
     to:options.to,
     subject:options.subject,
     text:options.text,
-    ...(options.html===undefined||options.html===null||options.html===''?{}:{html:options.html}),
+    ...(options.html===undefined||options.html===null||(typeof options.html==='string'&&!options.html.trim())?{}:{html:options.html}),
     ...(typeof options.fromEmail==='string' && options.fromEmail ? {fromEmail:options.fromEmail} : {}),
     ...(typeof options.fromName==='string' && options.fromName ? {fromName:options.fromName} : {}),
     ...(typeof options.replyTo==='string' && options.replyTo ? {replyTo:options.replyTo} : {}),
