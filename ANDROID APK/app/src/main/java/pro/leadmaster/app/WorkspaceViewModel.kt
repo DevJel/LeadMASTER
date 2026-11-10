@@ -9,7 +9,8 @@ import kotlinx.coroutines.flow.update
 
 data class WorkspaceUiState(
     val showNavigation: Boolean = false,
-    val selectedSection: String = "home"
+    val selectedSection: String = "home",
+    val isDarkTheme: Boolean = false
 )
 
 /**
@@ -31,6 +32,10 @@ class WorkspaceViewModel : ViewModel() {
 
     fun onWorkspaceReady(ready: Boolean) {
         _uiState.update { it.copy(showNavigation = ready) }
+    }
+
+    fun onThemeChanged(isDark: Boolean) {
+        _uiState.update { it.copy(isDarkTheme = isDark) }
     }
 
     fun selectSection(section: String) {
