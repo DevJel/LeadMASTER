@@ -37,11 +37,11 @@ function buildMessage({ from, fromName, replyTo, configurationSet, messageId, to
   if (chunk) words.push(chunk);
   const encodedSubject = words.map(word => `=?UTF-8?B?${utf8b64(word)}?=`).join('\r\n ');
   const headers = [`From: ${fromHeader}`, `To: ${to}`, ...(replyTo ? [`Reply-To: ${mailbox(replyTo)}`] : []), ...(messageId && /^[0-9a-f-]{36}$/i.test(messageId) ? [`X-LeadMASTER-Message-ID: ${messageId}`, `X-SES-MESSAGE-TAGS: leadmaster_message_id=${messageId}`] : []), ...(configurationSet ? [`X-SES-CONFIGURATION-SET: ${configurationSet}`] : []), `Subject: ${encodedSubject}`, 'MIME-Version: 1.0'];
-  if (!hasHtml) return [...headers, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(utf8b64(text)), ''].join('\\r\\n');
-  if (!hasText) return [...headers, 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(utf8b64(html)), ''].join('\\r\\n');
+  if (!hasHtml) return [...headers, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(utf8b64(text)), ''].join('\r\n');
+  if (!hasText) return [...headers, 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(utf8b64(html)), ''].join('\r\n');
   // When both versions are supplied, use multipart/alternative.
   const boundary = 'leadmaster-' + crypto.randomUUID();
-  return [...headers, `Content-Type: multipart/alternative; boundary="${boundary}"`, '', `--${boundary}`, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(utf8b64(text)), `--${boundary}`, 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(utf8b64(html)), `--${boundary}--`, ''].join('\\r\\n');
+  return [...headers, `Content-Type: multipart/alternative; boundary="${boundary}"`, '', `--${boundary}`, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(utf8b64(text)), `--${boundary}`, 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(utf8b64(html)), `--${boundary}--`, ''].join('\r\n');
 }
 class ReplyReader {
   constructor(reader) { this.reader = reader; this.buffer = ''; }
