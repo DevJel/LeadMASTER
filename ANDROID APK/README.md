@@ -1,43 +1,38 @@
 # LeadMASTER Android app
 
-The Android companion app opens the same authenticated LeadMASTER production workspace as the website. It does not create a second email service or a separate account-data store.
+The Android companion opens the same authenticated LeadMASTER workspace as the website. The canonical dashboard is the UI source of truth; Android does not render a second set of navigation controls or re-create dashboard screens.
 
 ## App experience
 
-- Jetpack Compose with Material 3 navigation.
-- Five primary destinations: Home, Emails, Audience, Metrics and Profile.
-- Compact phones use a fixed bottom navigation bar; larger screens use a Navigation Rail.
-- The active destination follows navigation inside the shared dashboard.
-- The WebView content scrolls independently; native navigation stays in place.
-- The website's own bottom bar is hidden only inside the native app, avoiding duplicate navigation.
-- Native Back returns to Home before leaving the workspace.
-- System edge-to-edge layout and safe-area insets are respected.
-- Existing notification, download, HTTPS link handling and WebView cookie-session behavior are retained.
+- Full-screen Android host for the canonical responsive LeadMASTER dashboard.
+- The dashboard owns its own mobile bottom navigation, desktop sidebar, responsive breakpoints, page spacing, cards, forms, dialogs, icons, theme and interactions.
+- No additional native bottom bar or desktop Navigation Rail is layered over the web app.
+- The dashboard's existing light/dark theme is preserved; Android system-bar icon contrast follows the active dashboard theme.
+- WebView viewport handling uses the page's responsive viewport without desktop overview scaling or forced text zoom.
+- Native Back follows WebView page history and exits only when there is no page history.
+- Existing notification, multi-file picker, download, HTTPS link handling and WebView cookie-session behavior are retained.
 
 ## Architecture alignment
 
-This app follows the applicable principles in [Android-References](https://github.com/DevJel/Android-References):
-
-- **UI:** Jetpack Compose and Material 3; adaptive bottom navigation / navigation rail.
-- **State:** `WorkspaceViewModel` exposes immutable `StateFlow<WorkspaceUiState>`. UI collects state lifecycle-aware; user actions flow back through ViewModel events (UDF).
-- **Platform integration:** `MainActivity` owns the trusted-origin WebView, navigation bridge, notifications, external intents and downloads.
+- **UI:** the canonical dashboard in `src/Mandatory LeadMASTER Dashboard.html` supplies the complete responsive UI. Jetpack Compose hosts the full-screen WebView; it does not duplicate dashboard controls.
+- **Platform integration:** `MainActivity` owns the trusted-origin WebView, restricted JavaScript bridge, notifications, external intents and downloads.
 - **Security:** only HTTPS requests to the exact `leadmaster.jelvan.pro` origin remain inside the app. File/content access and third-party cookies are disabled.
 - **Single source of truth:** authentication, email, templates, contacts, metrics, account permissions and activity records stay in the production LeadMASTER services and D1. The Android app does not maintain a competing copy of business records.
 
-The reference describes a larger multi-module, Room-backed offline-first architecture for apps that own substantial native data. LeadMASTER Android is intentionally a thin native shell around the production web workspace; adding Room, Hilt, sync workers or duplicate feature modules for data already owned by the server would create a second source of truth. If native-owned offline data is introduced later, it should be added through the reference's repository/Room/WorkManager pattern.
+The app intentionally remains a thin companion to the production workspace. Do not add Room, offline copies, duplicate API business logic or native versions of existing dashboard workflows unless a separately approved native-only capability requires them.
 
 ## Web and Android feature parity
 
-The mandatory dashboard source is `src/Mandatory LeadMASTER Dashboard.html`. The Android app opens the same production dashboard and uses the same authenticated WebView cookie session.
+The mandatory dashboard source is `src/Mandatory LeadMASTER Dashboard.html`. Android loads the same production dashboard and uses the same authenticated WebView cookie session.
 
 When a web feature changes:
 1. Check whether it is reachable or materially affects the Android app.
 2. Reuse the shared dashboard and authenticated API for account and email operations.
-3. Update the native shell only for navigation, responsive layout, device integrations or Android-specific behavior.
+3. Update native code only for device integrations, platform behavior or an Android-specific issue.
 4. Do not fork validation, authorization, sending or persistence logic.
-5. Run the web tests and Android build after changes; a successful build is not a substitute for device testing.
+5. Run web tests and the Android build after changes; a successful build is not a substitute for device testing.
 
-Native navigation maps to the mandatory dashboard destinations: Home (`home`), Emails (`emails`), Audience (`audience`), Metrics (`metrics`) and Profile (`profile`). Other workspace modules remain accessible from the dashboard menu. Do not add navigation for unavailable modules.
+The five primary mobile destinations remain the canonical dashboard destinations: Home (`home`), Emails (`emails`), Audience (`audience`), Metrics (`metrics`) and Profile (`profile`). Templates and other workspace modules remain reachable through the dashboard's own navigation and must not be substituted into the primary navigation.
 
 ## Build a debug APK
 
@@ -63,5 +58,5 @@ A production-signed APK must be signed with an owner-controlled Android upload/r
 
 - Cleartext traffic, file URL access, content URL access and third-party cookies are disabled.
 - Authentication and account authorization remain server-side.
-- The JavaScript bridge is used only for local navigation state and Android notifications; it does not expose account data, credentials or platform controls.
+- The JavaScript bridge exposes only theme synchronization and local notifications; it does not expose account data, credentials or platform controls.
 - The app does not connect to Google Mail or another external inbox.
