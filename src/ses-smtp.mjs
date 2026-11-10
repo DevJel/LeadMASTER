@@ -84,8 +84,12 @@ async function secret(value) {
 export async function sendSesEmail({ connect, env, to, cc, bcc, subject, text, html, fromName, fromEmail, replyTo, messageId, timeoutMs = 15000 }) {
   if (!env || typeof connect !== 'function' || !Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 30000) throw new Error('SMTP configuration unavailable');
   const from = mailbox(fromEmail || env.SES_FROM_EMAIL);
-  const toList=mailboxList(to,'To',1000),ccList=cc===undefined?[]:mailboxList(cc,'CC',1000),bccList=bcc===undefined?[]:mailboxList(bcc,'BCC',1000);
-  const allRecipients=[...new Set([...toList,...ccList,...bccList])];
+  const toList=mailboxList(to,'To',1000);
+  const toSet=new Set(toList);
+  const ccList=(cc===undefined?[]:mailboxList(cc,'CC',1000)).filter(x=>!toSet.has(x));
+  const copySet=new Set([...toSet,...ccList]);
+  const bccList=(bcc===undefined?[]:mailboxList(bcc,'BCC',1000)).filter(x=>!copySet.has(x));
+  const allRecipients=[...toList,...ccList,...bccList];
   if(!toList.length||allRecipients.length>1000)throw new TypeError('A send must contain 1 to 1,000 unique recipients');
   if(ccList.length+bccList.length>=50)throw new TypeError('CC and BCC must total fewer than 50 recipients when To recipients are present');
   const firstToCapacity=50-ccList.length-bccList.length;
