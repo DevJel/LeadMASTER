@@ -303,3 +303,6 @@ For diagnosis, capture the app version, Android version, device model, workflow 
 - Do not claim a feature is complete solely because the APK compiles.
 - Do not claim device acceptance without actual device testing.
 - Do not claim a release is production-signed unless the artifact's signing certificate has been verified.
+
+
+The web dashboard remains the single source of truth for workspace features, account data, and authentication; the Android app provides the companion shell around that shared production experience.
