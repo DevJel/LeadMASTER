@@ -162,7 +162,7 @@ class MainActivity : ComponentActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 val web = webView
-                if (web?.url?.contains("/dashboard") == true) {
+                if (workspaceViewModel.uiState.value.showNavigation) {
                     if (workspaceViewModel.uiState.value.selectedSection != "home") {
                         navigateToSection("home")
                     } else if (web.canGoBack()) {
@@ -274,29 +274,37 @@ class MainActivity : ComponentActivity() {
 
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
-                    workspaceViewModel.onPageFinished(url)
                     view?.evaluateJavascript(
                         """
                         (function(){
-                          document.documentElement.dataset.lmNativeApp='true';
-                          document.documentElement.style.setProperty('--lm-native-app','1');
-                          if(!window.__lmNativeSectionListener){
-                            window.__lmNativeSectionListener=true;
-                            document.addEventListener('click',function(event){
-                              if(event.defaultPrevented)return;
-                              var button=event.target.closest('.tab-link,.bottom-tab');
-                              if(button&&window.LeadMasterNative){
-                                window.LeadMasterNative.sectionChanged((button.textContent||'').trim());
-                              }
-                            },false);
+                          var root=document.querySelector('#root .app-shell');
+                          var scroller=document.querySelector('#root .app-scroll');
+                          var ready=!!(root&&scroller);
+                          if(ready){
+                            document.documentElement.dataset.lmNativeApp='true';
+                            document.documentElement.style.setProperty('--lm-native-app','1');
+                            if(!window.__lmNativeSectionListener){
+                              window.__lmNativeSectionListener=true;
+                              document.addEventListener('click',function(event){
+                                if(event.defaultPrevented)return;
+                                var button=event.target.closest('.tab-link,.bottom-tab,[role="tab"],[data-section]');
+                                if(button&&window.LeadMasterNative){
+                                  window.LeadMasterNative.sectionChanged(
+                                    button.getAttribute('aria-label')||button.getAttribute('data-section')||
+                                    (button.textContent||'').trim()
+                                  );
+                                }
+                              },false);
+                            }
                           }
+                          if(window.LeadMasterNative)window.LeadMasterNative.workspaceReady(ready);
                           return document.querySelector('.bottom-tab.active')?.textContent?.trim()
                             ||document.querySelector('.tab-link.active')?.textContent?.trim()
-                            ||'Home';
+                            ||'Overview';
                         })();
                         """.trimIndent()
                     ) { value ->
-                        workspaceViewModel.onSectionChanged(value?.trim('"') ?: "Home")
+                        workspaceViewModel.onSectionChanged(value?.trim('"') ?: "Overview")
                     }
                 }
 
@@ -327,17 +335,17 @@ class MainActivity : ComponentActivity() {
     private fun navigateToSection(section: String) {
         if (section !in WorkspaceViewModel.DESTINATIONS) return
         workspaceViewModel.selectSection(section)
-        val label = when (section) {
-            "home" -> "Home"
-            "emails" -> "Emails"
-            "audience" -> "Audience"
-            "metrics" -> "Metrics"
-            "profile" -> "Profile"
+        val labels = when (section) {
+            "home" -> listOf("overview", "dashboard", "homepage", "home")
+            "emails" -> listOf("emails", "email")
+            "audience" -> listOf("audience", "audiences", "contacts")
+            "metrics" -> listOf("metrics", "analytics")
+            "profile" -> listOf("profile", "account", "settings")
             else -> return
         }
-        val script = "(function(){var label=" + org.json.JSONObject.quote(label) + ";" +
-            "var buttons=Array.from(document.querySelectorAll('.tab-link,.bottom-tab'));" +
-            "var target=buttons.find(function(button){return (button.textContent||'').trim().toLowerCase().startsWith(label.toLowerCase());});" +
+        val script = "(function(){var labels=" + org.json.JSONArray(labels).toString() + ";" +
+            "var buttons=Array.from(document.querySelectorAll('.tab-link,.bottom-tab,[role=tab],[data-section]'));" +
+            "var target=buttons.find(function(button){var value=(button.getAttribute('data-section')||button.getAttribute('aria-label')||button.textContent||'').trim().toLowerCase();return labels.some(function(label){return value===label||value.startsWith(label+' ');});});" +
             "if(target){target.click();var scroller=document.querySelector('.app-scroll');" +
             "if(scroller)scroller.scrollTo({top:0,behavior:'auto'});else window.scrollTo({top:0,behavior:'auto'});return true;}return false;})();"
         webView?.evaluateJavascript(script, null)
@@ -357,6 +365,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private inner class NativeBridge {
+        @JavascriptInterface
+        fun workspaceReady(ready: Boolean) {
+            runOnUiThread { workspaceViewModel.onWorkspaceReady(ready) }
+        }
+
         @JavascriptInterface
         fun sectionChanged(label: String?) {
             runOnUiThread { workspaceViewModel.onSectionChanged(label) }
