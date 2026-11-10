@@ -92,3 +92,22 @@ test('adds Reply-To only when explicitly supplied',async()=>{
  const s=server();await sendSesEmail({...input,replyTo:'replies@example.com',connect:s.connect});
  assert.match(s.commands.at(-1),/^Reply-To: replies@example\.com/m);
 });
+
+test('splits 1000 recipients into SES-safe messages of no more than 50 envelope recipients',async()=>{
+ const s=server(),to=Array.from({length:1000},(_,i)=>`person${i}@example.com`);
+ const result=await sendSesEmail({...input,to,connect:s.connect});
+ assert.deepEqual(result,{status:'accepted'});
+ assert.equal(s.commands.filter(x=>x.startsWith('DATA')).length,20);
+ assert.equal(s.commands.filter(x=>x.startsWith('MAIL FROM:')).length,20);
+ assert.equal(s.commands.filter(x=>x.startsWith('RCPT TO:')).length,1000);
+});
+test('includes CC and BCC only in the first chunk when a send is split',async()=>{
+ const s=server(),to=Array.from({length:60},(_,i)=>`person${i}@example.com`);
+ await sendSesEmail({...input,to,cc:['copy@example.com'],bcc:['blind@example.com'],connect:s.connect});
+ const messages=s.commands.filter(x=>x.includes('MIME-Version:'));
+ assert.equal(messages.length,2);
+ assert.match(messages[0],/^Cc: copy@example\.com/m);
+ assert.doesNotMatch(messages[1],/^Cc:/m);
+ assert.equal(s.commands.filter(x=>x==='RCPT TO:<copy@example.com>\\r\\n').length,1);
+ assert.equal(s.commands.filter(x=>x==='RCPT TO:<blind@example.com>\\r\\n').length,1);
+});
