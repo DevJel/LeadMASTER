@@ -2,9 +2,10 @@
 
 ## 2026-11-10 — Persistent Android sign-in (v1.5.0)
 
-- Extended the server-side session and matching Secure, HttpOnly, SameSite=Strict cookie lifetime to 180 days so the user remains signed in after closing and reopening the Android app.
+- Extended the server-side session and matching Secure, HttpOnly, SameSite=Strict cookie lifetime to 180 days, renewed on each successful session restore, so the user remains signed in across app closure and continued use.
 - Preserved explicit sign-out: the existing logout action revokes the server-side session and clears the cookie.
 - Android now flushes WebView cookies after page load and during pause, stop and destroy so the persistent session survives app process closure.
+- Added regression coverage for sliding session renewal and explicit logout revocation.
 - No credentials are copied into local storage or SharedPreferences; account recognition continues through the existing authenticated server session.
 - No email, account data, database schema or business workflow changes.
 - Automated build and auth regression checks pending.
