@@ -51,3 +51,33 @@ test('dashboard routes and static bundles are gated by a server-validated sessio
  assert.ok(worker.includes('if (!session) return Response.redirect(new URL("/login.html", request.url), 302);'));
  for (const path of ["/dashboard.js", "/dashboard.css", "/developer-api-keys.html", "/html-preview.js", "/html-preview.css", "/assets/vendor/dompurify.min.js"]) assert.ok(worker.includes(JSON.stringify(path)), 'Missing protected asset '+path);
 });
+
+test('mobile primary navigation stays fixed while the dashboard content scrolls', async () => {
+ const html = await read('../src/Mandatory LeadMASTER Dashboard.html');
+ assert.match(html, /\.bottom-bar\{[\s\S]*?position:sticky;[\s\S]*?bottom:0;/);
+ assert.match(html, /\.app-scroll\{[\s\S]*?overflow-y:auto/);
+ assert.match(html, /\.bottom-tab\{[\s\S]*?flex:1 1 20%;min-width:0/);
+ assert.match(html, /data-lm-native-app="true"\] \.bottom-bar\{display:none!important\}/);
+});
+
+test('Android companion follows Compose Material 3 and UDF while preserving the shared production workspace', async () => {
+ const [activity, state, gradle, readme] = await Promise.all([
+  read('../ANDROID APK/app/src/main/java/pro/leadmaster/app/MainActivity.kt'),
+  read('../ANDROID APK/app/src/main/java/pro/leadmaster/app/WorkspaceViewModel.kt'),
+  read('../ANDROID APK/app/build.gradle.kts'),
+  read('../ANDROID APK/README.md')
+ ]);
+ assert.match(activity, /setContent\s*\{/);
+ assert.match(activity, /NavigationBar/);
+ assert.match(activity, /NavigationRail/);
+ assert.match(activity, /enableEdgeToEdge\(\)/);
+ assert.match(activity, /document\.documentElement\.dataset\.lmNativeApp='true'/);
+ assert.match(activity, /setAcceptThirdPartyCookies\(this, false\)/);
+ assert.match(state, /StateFlow<WorkspaceUiState>/);
+ assert.match(state, /fun selectSection/);
+ assert.match(gradle, /minSdk = 26/);
+ assert.match(gradle, /id\("org\.jetbrains\.kotlin\.plugin\.compose"\)/);
+ assert.match(gradle, /androidx\.compose\.material3:material3/);
+ assert.match(readme, /Android-References/);
+ assert.match(readme, /single source of truth/i);
+});
