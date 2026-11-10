@@ -1,7 +1,7 @@
 import { readBoundedJson } from './bounded-json.mjs';
 const enc=new TextEncoder();
 const json=(body,status=200)=>Response.json(body,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff'}});
-const NAME=/[\\x00-\\x1f\\x7f]/;
+const NAME=/[\x00-\x1f\x7f]/;
 function validTemplate(value){
  if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(x=>!['name','subject','text','html'].includes(x)))return null;
  const name=value.name,subject=value.subject,text=value.text===undefined?'':value.text,html=value.html===undefined||value.html===null?'':value.html;
@@ -19,7 +19,7 @@ export async function emailTemplatesRoute(request,env,session,adminEmail){
  if(!session?.email||!session?.accountId)return json({error:'Unauthorized'},401);
  if(session.email!==adminEmail)return json({error:'Forbidden'},403);
  if(!env.AUTH_DB)return json({error:'Service unavailable'},503);
- const u=new URL(request.url),match=/^\\/api\\/admin\\/templates(?:\\/([0-9a-f-]{36}))?$/.exec(u.pathname);
+ const u=new URL(request.url),match=/^\/api\/admin\/templates(?:\/([0-9a-f-]{36}))?$/.exec(u.pathname);
  if(!match)return json({error:'Not found'},404);
  const id=match[1],db=env.AUTH_DB;
  if(!['GET','POST','PUT','DELETE'].includes(request.method))return json({error:'Method not allowed'},405,{allow:'GET, POST, PUT, DELETE'});
@@ -42,7 +42,7 @@ export async function emailTemplatesRoute(request,env,session,adminEmail){
    await activity(db,session,'template_deleted','Deleted the email template “'+row.name+'”.',id);
    return json({ok:true});
   }
-  if(!/^application\\/json(?:\\s*;|$)/i.test(request.headers.get('content-type')||''))return json({error:'Content-Type must be application/json'},415);
+  if(!/^application\/json(?:\\s*;|$)/i.test(request.headers.get('content-type')||''))return json({error:'Content-Type must be application/json'},415);
   let value;try{value=await readBoundedJson(request,600000)}catch{return json({error:'Invalid or oversized request'},400)}
   const template=validTemplate(value);
   if(!template)return json({error:'Add a template name, subject, and either a text or HTML message.'},400);
