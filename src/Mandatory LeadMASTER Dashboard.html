@@ -1,4 +1,28 @@
-<html lang="en"><head><style>* { -webkit-text-size-adjust: 91% !important; }</style><style>
+<html lang="en"><head><style>* { -webkit-text-size-adjust: 91% !important; }
+/* Mobile app navigation: keep the five primary destinations fixed while content scrolls. */
+.bottom-bar{
+  position:sticky;
+  bottom:0;
+  flex:0 0 auto;
+  z-index:40;
+  width:100%;
+  flex-shrink:0;
+  isolation:isolate;
+  background:var(--surface);
+  padding-bottom:calc(6px + var(--safe-area-inset-bottom));
+}
+.bottom-bar-inner{width:100%;min-width:0;overflow:visible}
+.bottom-tab{flex:1 1 20%;min-width:0;touch-action:manipulation}
+@media(max-width:639px){
+  .app-shell{height:100dvh;min-height:100dvh;max-height:100dvh;overflow:hidden}
+  .app-body{min-height:0;flex:1 1 auto;overflow:hidden}
+  .app-scroll{min-height:0;overscroll-behavior-y:contain;scrollbar-width:none}
+  .app-scroll::-webkit-scrollbar{display:none}
+  .bottom-bar{display:flex;position:sticky;bottom:0;left:0;right:0}
+  .bottom-tab{padding:8px 2px 6px;font-size:10px;white-space:nowrap}
+}
+html[data-lm-native-app="true"] .bottom-bar{display:none!important}
+</style><style>
 @font-face {
   font-family: "Optimistic";
   font-style: normal;
