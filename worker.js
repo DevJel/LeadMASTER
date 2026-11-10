@@ -625,7 +625,18 @@ async function handle(request, env) {
   if (url.pathname === "/api/auth/logout") return logout(request, env);
   if (url.pathname === "/api/auth/session" && request.method === "GET") {
     const session = await sessionFor(request, env);
-    return json({ authenticated: Boolean(session), email: session?.email || null, account: session ? { id: session.accountId, name: session.accountName, owner_name: session.ownerName, api_base_url: "https://leadmaster.jelvan.pro/api/v1/accounts/" + session.accountId, endpoints: { account: "/api/v1/accounts/" + session.accountId, emails: "/api/v1/accounts/" + session.accountId + "/emails", webhooks: "/api/v1/accounts/" + session.accountId + "/webhooks" } } : null });
+    if (session) {
+      // Sliding remember-me window: each successful app/workspace restore renews the
+      // server-side expiry and the HttpOnly cookie, unless the user explicitly signs out.
+      const expires = Date.now() + SESSION_TTL_MS;
+      await env.AUTH_DB.prepare("UPDATE auth_sessions SET expires_at = ? WHERE token_hash = ? AND revoked_at IS NULL")
+        .bind(expires, session.tokenHash).run();
+      const token = cookieValue(request, SESSION_COOKIE);
+      return json({ authenticated: true, email: session.email, account: { id: session.accountId, name: session.accountName, owner_name: session.ownerName, api_base_url: "https://leadmaster.jelvan.pro/api/v1/accounts/" + session.accountId, endpoints: { account: "/api/v1/accounts/" + session.accountId, emails: "/api/v1/accounts/" + session.accountId + "/emails", webhooks: "/api/v1/accounts/" + session.accountId + "/webhooks" } } }, 200, {
+        "set-cookie": SESSION_COOKIE + "=" + token + "; Path=/; Max-Age=" + SESSION_COOKIE_MAX_AGE + "; HttpOnly; Secure; SameSite=Strict"
+      });
+    }
+    return json({ authenticated: false, email: null, account: null });
   }
 
   if (url.pathname === "/logout" && request.method === "GET") return Response.redirect(new URL("/login.html", request.url), 302);
