@@ -2447,3 +2447,59 @@ button{
 .doc-architecture span{display:block;font-size:13px;line-height:1.65;color:#666}
 .doc-note{border-left:3px solid #c77a31;padding:10px 14px;background:#f7f4ef}
 @media(max-width:720px){.doc-status-grid,.doc-architecture{grid-template-columns:1fr}.doc-reference-section{padding:28px 0}.docs-reference{margin-top:34px}}
+
+
+/* HERO CAMPAIGN WORKFLOW PREVIEW */
+.campaign-demo{align-self:start}
+.campaign-demo-head{padding-bottom:12px}
+.campaign-demo-head h3{font-size:clamp(23px,2.5vw,29px)}
+.campaign-preview-badge{display:inline-flex;align-items:center;gap:7px;border:1px solid #d9e5dc;border-radius:999px;padding:7px 9px;color:#315b40;font-size:9px;font-weight:800;letter-spacing:.08em;white-space:nowrap}
+.campaign-preview-badge i,.campaign-cycle-dot{width:7px;height:7px;border-radius:50%;background:#4b9a67;display:inline-block;animation:campaign-pulse 1.5s ease-in-out infinite}
+.campaign-demo-content{padding:0 20px 15px}
+.campaign-demo-meta{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px;color:#777;font-size:9px;font-weight:800;letter-spacing:.12em}
+.sample-label{border-radius:4px;background:#f3f1ed;padding:5px 7px;color:#777;font-size:8px;letter-spacing:.08em}
+.campaign-audience{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #e9e7e3;border-radius:10px;background:#fcfbf9}
+.campaign-icon{width:32px;height:32px;display:grid;place-items:center;border-radius:9px;background:#eeeae3;color:#24211d;font-size:20px}
+.campaign-audience-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}
+.campaign-audience-copy b{font-size:12px}
+.campaign-audience-copy small,.campaign-count small{font-size:10px;color:#85817b}
+.campaign-count{font-size:15px;font-weight:800;text-align:right;white-space:nowrap}
+.campaign-count small{display:block;font-weight:500}
+.campaign-email{margin-top:10px;border:1px solid #e9e7e3;border-radius:10px;padding:12px 13px;background:#fff}
+.campaign-email-top{display:flex;align-items:center;gap:7px;color:#777;font-size:9px;font-weight:800;letter-spacing:.1em}
+.campaign-mail-icon{display:grid;place-items:center;width:22px;height:22px;border-radius:6px;background:#f1eee9;color:#333;font-size:12px}
+.campaign-draft{margin-left:auto;padding:4px 6px;border-radius:4px;background:#f4f1e9;color:#796b4c;font-size:8px}
+.campaign-subject{display:block;margin-top:10px;font-size:14px;letter-spacing:-.02em}
+.campaign-email p{margin:5px 0 10px;color:#777;font-size:11px;line-height:1.5}
+.campaign-email-cta{display:flex;justify-content:space-between;align-items:center;border-radius:6px;background:#111;color:#fff;padding:8px 10px;font-size:10px;font-weight:700}
+.campaign-flow{display:flex;align-items:center;gap:5px;margin:15px 0 9px}
+.campaign-flow-step{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;color:#aaa;opacity:.55;white-space:nowrap}
+.campaign-flow-step span{display:grid;place-items:center;width:22px;height:22px;border:1px solid #ddd;border-radius:50%;font-size:8px;font-weight:800}
+.campaign-flow-step b{font-size:9px;font-weight:700}
+.campaign-flow-line{height:1px;flex:1;background:#e7e4df;min-width:5px}
+.campaign-progress{height:4px;border-radius:10px;background:#efede9;overflow:hidden}
+.campaign-progress span{display:block;width:100%;height:100%;background:#333;transform:scaleX(0);transform-origin:left;animation:campaign-progress 8s ease-in-out infinite}
+.campaign-demo-foot{display:flex;align-items:center;gap:7px;min-height:27px;margin-top:6px;color:#777;font-size:10px}
+.campaign-cycle-label{display:none}
+.campaign-cycle-label-1{display:inline}
+.campaign-demo .step-audience{animation:campaign-step-1 8s infinite}
+.campaign-demo .step-review{animation:campaign-step-2 8s infinite}
+.campaign-demo .step-queue{animation:campaign-step-3 8s infinite}
+.campaign-demo .step-send{animation:campaign-step-4 8s infinite}
+.campaign-cycle-label{display:none}
+.campaign-demo-foot .campaign-cycle-label:first-of-type{display:inline;animation:campaign-label-1 8s infinite}
+.campaign-demo-foot .campaign-cycle-label-2{animation:campaign-label-2 8s infinite}
+.campaign-demo-foot .campaign-cycle-label-3{animation:campaign-label-3 8s infinite}
+.campaign-demo-foot .campaign-cycle-label-4{animation:campaign-label-4 8s infinite}
+@keyframes campaign-pulse{0%,100%{opacity:.45;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
+@keyframes campaign-progress{0%,8%{transform:scaleX(0)}24%{transform:scaleX(.25)}48%{transform:scaleX(.5)}72%{transform:scaleX(.76)}92%,100%{transform:scaleX(1)}}
+@keyframes campaign-step-1{0%,22%{opacity:1;color:#222}23%,100%{opacity:.55;color:#aaa}}
+@keyframes campaign-step-2{0%,22%{opacity:.55;color:#aaa}23%,46%{opacity:1;color:#222}47%,100%{opacity:.55;color:#aaa}}
+@keyframes campaign-step-3{0%,46%{opacity:.55;color:#aaa}47%,70%{opacity:1;color:#222}71%,100%{opacity:.55;color:#aaa}}
+@keyframes campaign-step-4{0%,70%{opacity:.55;color:#aaa}71%,100%{opacity:1;color:#222}}
+@keyframes campaign-label-1{0%,22%{display:inline}23%,100%{display:none}}
+@keyframes campaign-label-2{0%,22%{display:none}23%,46%{display:inline}47%,100%{display:none}}
+@keyframes campaign-label-3{0%,46%{display:none}47%,70%{display:inline}71%,100%{display:none}}
+@keyframes campaign-label-4{0%,70%{display:none}71%,100%{display:inline}}
+@media(prefers-reduced-motion:reduce){.campaign-preview-badge i,.campaign-cycle-dot,.campaign-progress span,.campaign-flow-step,.campaign-cycle-label{animation:none!important}.campaign-progress span{transform:scaleX(1)}.campaign-flow-step{opacity:1!important;color:#333!important}.campaign-cycle-label{display:none!important}.campaign-cycle-label-4{display:inline!important}}
+@media(max-width:600px){.campaign-demo-content{padding-right:14px;padding-left:14px}.campaign-demo-head{padding-right:14px;padding-left:14px}.campaign-preview-badge{font-size:8px;padding:6px 7px}.campaign-flow{gap:3px}.campaign-flow-step b{font-size:8px}}
