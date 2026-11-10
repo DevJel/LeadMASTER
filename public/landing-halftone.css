@@ -2480,26 +2480,17 @@ button{
 .campaign-progress{height:4px;border-radius:10px;background:#efede9;overflow:hidden}
 .campaign-progress span{display:block;width:100%;height:100%;background:#333;transform:scaleX(0);transform-origin:left;animation:campaign-progress 8s ease-in-out infinite}
 .campaign-demo-foot{display:flex;align-items:center;gap:7px;min-height:27px;margin-top:6px;color:#777;font-size:10px}
-.campaign-cycle-label{display:none}
 .campaign-cycle-label-1{display:inline}
 .campaign-demo .step-audience{animation:campaign-step-1 8s infinite}
 .campaign-demo .step-review{animation:campaign-step-2 8s infinite}
 .campaign-demo .step-queue{animation:campaign-step-3 8s infinite}
 .campaign-demo .step-send{animation:campaign-step-4 8s infinite}
 .campaign-cycle-label{display:none}
-.campaign-demo-foot .campaign-cycle-label:first-of-type{display:inline;animation:campaign-label-1 8s infinite}
-.campaign-demo-foot .campaign-cycle-label-2{animation:campaign-label-2 8s infinite}
-.campaign-demo-foot .campaign-cycle-label-3{animation:campaign-label-3 8s infinite}
-.campaign-demo-foot .campaign-cycle-label-4{animation:campaign-label-4 8s infinite}
 @keyframes campaign-pulse{0%,100%{opacity:.45;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
 @keyframes campaign-progress{0%,8%{transform:scaleX(0)}24%{transform:scaleX(.25)}48%{transform:scaleX(.5)}72%{transform:scaleX(.76)}92%,100%{transform:scaleX(1)}}
 @keyframes campaign-step-1{0%,22%{opacity:1;color:#222}23%,100%{opacity:.55;color:#aaa}}
 @keyframes campaign-step-2{0%,22%{opacity:.55;color:#aaa}23%,46%{opacity:1;color:#222}47%,100%{opacity:.55;color:#aaa}}
 @keyframes campaign-step-3{0%,46%{opacity:.55;color:#aaa}47%,70%{opacity:1;color:#222}71%,100%{opacity:.55;color:#aaa}}
 @keyframes campaign-step-4{0%,70%{opacity:.55;color:#aaa}71%,100%{opacity:1;color:#222}}
-@keyframes campaign-label-1{0%,22%{display:inline}23%,100%{display:none}}
-@keyframes campaign-label-2{0%,22%{display:none}23%,46%{display:inline}47%,100%{display:none}}
-@keyframes campaign-label-3{0%,46%{display:none}47%,70%{display:inline}71%,100%{display:none}}
-@keyframes campaign-label-4{0%,70%{display:none}71%,100%{display:inline}}
-@media(prefers-reduced-motion:reduce){.campaign-preview-badge i,.campaign-cycle-dot,.campaign-progress span,.campaign-flow-step,.campaign-cycle-label{animation:none!important}.campaign-progress span{transform:scaleX(1)}.campaign-flow-step{opacity:1!important;color:#333!important}.campaign-cycle-label{display:none!important}.campaign-cycle-label-4{display:inline!important}}
+@media(prefers-reduced-motion:reduce){.campaign-preview-badge i,.campaign-cycle-dot,.campaign-progress span,.campaign-flow-step,.campaign-progress span{transform:scaleX(1)}.campaign-flow-step{opacity:1!important;color:#333!important}}
 @media(max-width:600px){.campaign-demo-content{padding-right:14px;padding-left:14px}.campaign-demo-head{padding-right:14px;padding-left:14px}.campaign-preview-badge{font-size:8px;padding:6px 7px}.campaign-flow{gap:3px}.campaign-flow-step b{font-size:8px}}
