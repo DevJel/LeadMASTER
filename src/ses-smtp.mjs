@@ -17,8 +17,14 @@ function mailbox(value) {
   if (typeof value !== 'string' || value.length > 254 || !EMAIL.test(value) || value.includes('..')) throw new TypeError('Invalid email address');
   return value;
 }
-function buildMessage({ from, fromName, replyTo, configurationSet, messageId, to, subject, text, html }) {
-  mailbox(from); mailbox(to);
+function mailboxList(value,label,max=100) {
+  const list=Array.isArray(value)?value:[value];
+  if(!list.length||list.length>max)throw new TypeError('Invalid '+label+' addresses');
+  return [...new Set(list.map(mailbox))];
+}
+function buildMessage({ from, fromName, replyTo, configurationSet, messageId, to, cc, subject, text, html }) {
+  mailbox(from);
+  const toList=mailboxList(to,'To',500),ccList=cc===undefined?[]:mailboxList(cc,'CC',100);
   if (fromName !== undefined && (typeof fromName !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9 .'-]{0,63}$/.test(fromName))) throw new TypeError('Invalid sender name');
   const fromHeader = fromName ? `${fromName} <${from}>` : from;
   if (typeof subject !== 'string' || !subject.trim() || /[\r\n\x00-\x1f\x7f]/.test(subject) || encoder.encode(subject).length > 300) throw new TypeError('Invalid subject');
@@ -36,7 +42,7 @@ function buildMessage({ from, fromName, replyTo, configurationSet, messageId, to
   }
   if (chunk) words.push(chunk);
   const encodedSubject = words.map(word => `=?UTF-8?B?${utf8b64(word)}?=`).join('\r\n ');
-  const headers = [`From: ${fromHeader}`, `To: ${to}`, ...(replyTo ? [`Reply-To: ${mailbox(replyTo)}`] : []), ...(messageId && /^[0-9a-f-]{36}$/i.test(messageId) ? [`X-LeadMASTER-Message-ID: ${messageId}`, `X-SES-MESSAGE-TAGS: leadmaster_message_id=${messageId}`] : []), ...(configurationSet ? [`X-SES-CONFIGURATION-SET: ${configurationSet}`] : []), `Subject: ${encodedSubject}`, 'MIME-Version: 1.0'];
+  const headers = [`From: ${fromHeader}`, `To: ${toList.join(', ')}`, ...(ccList.length ? [`Cc: ${ccList.join(', ')}`] : []), ...(replyTo ? [`Reply-To: ${mailbox(replyTo)}`] : []), ...(messageId && /^[0-9a-f-]{36}$/i.test(messageId) ? [`X-LeadMASTER-Message-ID: ${messageId}`, `X-SES-MESSAGE-TAGS: leadmaster_message_id=${messageId}`] : []), ...(configurationSet ? [`X-SES-CONFIGURATION-SET: ${configurationSet}`] : []), `Subject: ${encodedSubject}`, 'MIME-Version: 1.0'];
   if (!hasHtml) return [...headers, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(utf8b64(text)), ''].join('\r\n');
   if (!hasText) return [...headers, 'Content-Type: text/html; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', wrap(utf8b64(html)), ''].join('\r\n');
   // When both versions are supplied, use multipart/alternative.
@@ -75,9 +81,9 @@ async function secret(value) {
  * Returns accepted only after SES responds 250 to DATA. 'unknown' errors mean
  * delivery may have occurred: caller MUST reconcile and must not blindly retry.
  */
-export async function sendSesEmail({ connect, env, to, subject, text, html, fromName, fromEmail, replyTo, messageId, timeoutMs = 15000 }) {
+export async function sendSesEmail({ connect, env, to, cc, bcc, subject, text, html, fromName, fromEmail, replyTo, messageId, timeoutMs = 15000 }) {
   if (!env || typeof connect !== 'function' || !Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 30000) throw new Error('SMTP configuration unavailable');
-  const from = mailbox(fromEmail || env.SES_FROM_EMAIL); const configurationSet = typeof env.SES_CONFIGURATION_SET === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(env.SES_CONFIGURATION_SET) ? env.SES_CONFIGURATION_SET : undefined; const message = buildMessage({ from, fromName, replyTo, configurationSet, messageId, to, subject, text, html });
+  const from = mailbox(fromEmail || env.SES_FROM_EMAIL); const envelopeRecipients=[...new Set([...mailboxList(to,'To',500),...(cc===undefined?[]:mailboxList(cc,'CC',100)),...(bcc===undefined?[]:mailboxList(bcc,'BCC',100))])]; const configurationSet = typeof env.SES_CONFIGURATION_SET === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(env.SES_CONFIGURATION_SET) ? env.SES_CONFIGURATION_SET : undefined; const message = buildMessage({ from, fromName, replyTo, configurationSet, messageId, to, cc, subject, text, html });
   const [host, username, password] = await Promise.all([secret(env.SES_SMTP_HOST), secret(env.SES_SMTP_USERNAME), secret(env.SES_SMTP_PASSWORD)]);
   if (!HOST.test(host)) throw new Error('SMTP configuration unavailable');
   let socket; let timer; let dataSent = false; let accepted = false;
@@ -109,7 +115,7 @@ export async function sendSesEmail({ connect, env, to, subject, text, html, from
       await command('EHLO leadmaster.local', [250]);
       await command('AUTH PLAIN ' + utf8b64('\0' + username + '\0' + password), [235]);
       await command(`MAIL FROM:<${from}>`, [250]);
-      await command(`RCPT TO:<${to}>`, [250,251]);
+      for(const recipient of envelopeRecipients)await command(`RCPT TO:<${recipient}>`, [250,251]);
       await command('DATA', [354]);
       // A timeout or disconnect from this point is an ambiguous delivery.
       dataSent = true;
