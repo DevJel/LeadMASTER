@@ -32,3 +32,17 @@ test('maps unknown outcomes without retrying or fallback',async()=>{
 test('missing coordinator fails closed instead of sending directly',async()=>{
   await assert.rejects(sendThroughEmailCoordinator({}, {to:'to@example.com',subject:'Hello',text:'Body'}),e=>e.deliveryOutcome==='not_accepted');
 });
+
+test('forwards text-only and HTML-only bodies without a null placeholder',async()=>{
+  const id='123e4567-e89b-12d3-a456-426614174000';
+  const textOnly=fakeEnv({status:'accepted'});
+  await sendThroughEmailCoordinator(textOnly.env,{id,to:'to@example.com',subject:'Text only',text:'Hello',html:null});
+  const textBody=JSON.parse(textOnly.get().init.body);
+  assert.equal(textBody.text,'Hello');
+  assert.equal(Object.hasOwn(textBody,'html'),false);
+  const htmlOnly=fakeEnv({status:'accepted'});
+  await sendThroughEmailCoordinator(htmlOnly.env,{id,to:'to@example.com',subject:'HTML only',text:'',html:'<h1>Hello</h1>'});
+  const htmlBody=JSON.parse(htmlOnly.get().init.body);
+  assert.equal(htmlBody.text,'');
+  assert.equal(htmlBody.html,'<h1>Hello</h1>');
+});
