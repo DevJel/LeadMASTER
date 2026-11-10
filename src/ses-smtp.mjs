@@ -125,7 +125,7 @@ export async function sendSesEmail({ connect, env, to, cc, bcc, subject, text, h
         await writer.write(encoder.encode(message+'.\\r\\n'));
         await expect([250]);accepted=true;
       }
-      return {status:'accepted',messages:chunks.length,recipients:allRecipients.length};
+      return {status:'accepted'};
     };
     return await Promise.race([run(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('SMTP request timed out')),timeoutMs);})]);
   } catch(error) {
