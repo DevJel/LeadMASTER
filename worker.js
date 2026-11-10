@@ -529,9 +529,9 @@ async function adminMailboxRoute(request,env,session){
  return json({error:"Not found"},404);
 }
 function parseOptionalAddressList(value){
- const values=Array.isArray(value)?value:(typeof value==="string"?value.split(/[\\s,;]+/):[]);
+ const values=Array.isArray(value)?value:(typeof value==="string"?value.split(/[\s,;]+/):[]);
  const normalized=[...new Set(values.map(x=>String(x||"").trim().toLowerCase()).filter(Boolean))];
- if(normalized.length>100||normalized.some(x=>x.length>254||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(x)))return null;
+ if(normalized.length>100||normalized.some(x=>x.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x)))return null;
  return normalized;
 }
 async function adminSendRoute(request,env,session){
@@ -549,7 +549,7 @@ async function adminSendRoute(request,env,session){
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(from)||!verifiedDomain)return json({error:"Choose a sender under a verified jelvan.pro or operavaglobal.com identity."},400);
  const cc=parseOptionalAddressList(b.cc),bcc=parseOptionalAddressList(b.bcc);
  const replyTo=String(b.replyTo||"").trim().toLowerCase();
- if(!cc||!bcc||(replyTo&&(replyTo.length>254||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(replyTo))))return json({error:"Check CC, BCC and Reply-To addresses. Use up to 100 valid addresses in CC and BCC."},400);
+ if(!cc||!bcc||(replyTo&&(replyTo.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyTo))))return json({error:"Check CC, BCC and Reply-To addresses. Use up to 100 valid addresses in CC and BCC."},400);
  const subject=String(b.subject||"").trim(),textBody=typeof b.text==="string"?b.text:"",htmlBody=b.html===undefined||b.html===null?null:b.html;
  const hasText=Boolean(textBody.trim()),hasHtml=typeof htmlBody==="string"&&Boolean(htmlBody.trim());
  if(!subject||/[\r\n\x00-\x1f\x7f]/.test(subject)||new TextEncoder().encode(subject).length>300||(!hasText&&!hasHtml)||new TextEncoder().encode(textBody).length>200000||(htmlBody!==null&&(typeof htmlBody!=="string"||!hasHtml||new TextEncoder().encode(htmlBody).length>200000)))return json({error:"Add a subject and either a text or HTML message. The message is too long or invalid."},400);
