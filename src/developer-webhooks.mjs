@@ -7,6 +7,9 @@ async function seal(value,env){const iv=crypto.getRandomValues(new Uint8Array(12
 async function unseal(value,env){const bytes=Uint8Array.from(atob(value.replaceAll("-","+").replaceAll("_","/")),c=>c.charCodeAt(0)),iv=bytes.slice(0,12),data=bytes.slice(12),key=await cryptKey(env);return new TextDecoder().decode(await crypto.subtle.decrypt({name:"AES-GCM",iv},key,data))}
 const sha=async v=>Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",enc.encode(v))),b=>b.toString(16).padStart(2,"0")).join("");
 const EVENTS=["email.accepted","email.failed","email.unknown"];
+async function activity(env,session,action,summary,id){
+ try{await env.AUTH_DB.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at) VALUES (?,?,?,?,?,?)").bind(crypto.randomUUID(),session.email,action,summary,id,Date.now()).run()}catch{}
+}
 async function auth(req,env){
  const m=/^Bearer (lm_live_[A-Za-z0-9_-]{43,})$/.exec(req.headers.get("authorization")||"");
  if(!m)return null;
@@ -79,11 +82,13 @@ export async function adminWebhookRoute(req,env,session){
   if(!key||!JSON.parse(key.scopes||"[]").includes("webhook:manage"))return json({error:"Choose an active account API key with webhook:manage scope."},400);
   const webhookId=crypto.randomUUID(),signingSecret=makeSecret(),now=Date.now();
   await env.AUTH_DB.prepare("INSERT INTO developer_webhooks (id,api_key_id,name,target_url,secret_hash,secret_value,events,created_at,revoked_at,last_delivery_at,account_id) VALUES (?,?,?,?,?,?,?,?,NULL,NULL,?)").bind(webhookId,key.id,name,target.href,await sha(signingSecret),await seal(signingSecret,env),JSON.stringify(events),now,session.accountId).run();
+  await activity(env,session,"webhook_created","Added the webhook “"+name+"”.",webhookId);
   return json({id:webhookId,name,url:target.href,events,api_key_id:key.id,signing_secret:signingSecret,created_at:now,warning:"Copy this signing secret now. It is shown only once."},201);
  }
  if(parts.length===4&&req.method==="DELETE"&&/^[0-9a-f-]{36}$/i.test(id)){
   const result=await env.AUTH_DB.prepare("UPDATE developer_webhooks SET revoked_at=? WHERE id=? AND account_id=? AND revoked_at IS NULL").bind(Date.now(),id,session.accountId).run();
-  return (result.meta?.changes||0)?json({revoked:true}):json({error:"Not found or already revoked"},404);
+  if(result.meta?.changes||0){await activity(env,session,"webhook_revoked","Removed a webhook.",id);return json({revoked:true})}
+  return json({error:"Not found or already revoked"},404);
  }
  if(parts.length===5&&parts[4]==="deliveries"&&req.method==="GET"&&/^[0-9a-f-]{36}$/i.test(id)){
   const owned=await env.AUTH_DB.prepare("SELECT id FROM developer_webhooks WHERE id=? AND account_id=?").bind(id,session.accountId).first();
