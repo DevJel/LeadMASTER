@@ -108,6 +108,6 @@ test('includes CC and BCC only in the first chunk when a send is split',async()=
  assert.equal(messages.length,2);
  assert.match(messages[0],/^Cc: copy@example\.com/m);
  assert.doesNotMatch(messages[1],/^Cc:/m);
- assert.equal(s.commands.filter(x=>x==='RCPT TO:<copy@example.com>\\r\\n').length,1);
- assert.equal(s.commands.filter(x=>x==='RCPT TO:<blind@example.com>\\r\\n').length,1);
+ assert.equal(s.commands.filter(x=>x.startsWith('RCPT TO:<copy@example.com>')).length,1);
+ assert.equal(s.commands.filter(x=>x.startsWith('RCPT TO:<blind@example.com>')).length,1);
 });
