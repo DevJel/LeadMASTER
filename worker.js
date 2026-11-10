@@ -383,7 +383,17 @@ async function logWorkspaceAction(env,actor,action,summary,targetId=null,details
 async function adminActivityRoute(request,env,session){
  if(!session)return json({error:"Unauthorized"},401);
  if(session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
- if(request.method!=="GET")return json({error:"Method not allowed"},405);
+ if(request.method==="POST"){
+  if(!sameOrigin(request))return json({error:"Invalid request"},403);
+  let body;try{body=await readJson(request)}catch{return json({error:"Invalid request"},400)}
+  const sections=new Set(["overview","emails","contacts","audiences","templates","campaigns","sending","activity","domains","settings","connections","webhooks","api"]);
+  const section=String(body.section||"").toLowerCase();
+  if(body.action!=="section_viewed"||!sections.has(section))return json({error:"Invalid activity"},400);
+  const label=({overview:"Overview",emails:"Emails",contacts:"Contacts",audiences:"Audiences",templates:"Templates",campaigns:"Campaigns",sending:"Sending",activity:"Activity",domains:"Sending addresses",settings:"Settings",connections:"Connections",webhooks:"Webhooks",api:"API access"})[section];
+  await logWorkspaceAction(env,session.email,"section_viewed","Viewed "+label+".",null,{section});
+  return json({ok:true});
+ }
+ if(request.method!=="GET")return json({error:"Method not allowed"},405,{allow:"GET, POST"});
  const rows=await env.AUTH_DB.prepare("SELECT id,action,summary,target_id,created_at FROM workspace_activity ORDER BY created_at DESC LIMIT 150").all();
  return json({items:rows.results||[]});
 }
