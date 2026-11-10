@@ -11,9 +11,10 @@ function validMessage(v){
  if(!v||typeof v!=="object"||Array.isArray(v)||Object.keys(v).some(k=>!["to","subject","text","html","sender_name"].includes(k)))return false;
  if(typeof v.to!=="string"||v.to.length>254||!email.test(v.to)||v.to.includes(".."))return false;
  if(typeof v.subject!=="string"||!v.subject.trim()||/[\r\n\x00-\x1f\x7f]/.test(v.subject)||enc.encode(v.subject).length>300)return false;
- if(typeof v.text!=="string"||!v.text.trim()||enc.encode(v.text).length>200000)return false;
+ const text=v.text==null?"":v.text,html=v.html==null?"":v.html;
+ if(typeof text!=="string"||enc.encode(text).length>200000||typeof html!=="string"||enc.encode(html).length>200000||(!text.trim()&&!html.trim()))return false;
  if(v.sender_name!==undefined&&(typeof v.sender_name!=="string"||!/^[A-Za-z][A-Za-z .'-]{1,79}$/.test(v.sender_name.trim())))return false;
- return v.html===undefined||(typeof v.html==="string"&&!!v.html.trim()&&enc.encode(v.html).length<=200000);
+ return true;
 }
 async function readBody(req,max=250000){const raw=await req.text();if(enc.encode(raw).length>max)throw Error("large");const v=JSON.parse(raw);if(!v||typeof v!=="object"||Array.isArray(v))throw Error("invalid");return v;}
 export async function developerAdminRoute(request,env,session){
@@ -70,11 +71,12 @@ export async function developerEmailRoute(request,env,connect,accountId){
  const accountName=String(account?.name||"").trim();
  const fallbackName=(registeredEmail.split("@")[0]||"user").replace(/[._-]+/g," ").replace(/\\b[a-z]/g,x=>x.toUpperCase());
  const requestedName=String(body.sender_name||"").trim();
+ const textBody=typeof body.text==="string"?body.text:"",htmlBody=typeof body.html==="string"&&body.html.trim()?body.html:null;
  const senderName=requestedName||String(account?.owner_name||"").trim()|| (accountName&&accountName!=="My LeadMASTER workspace"?accountName:fallbackName);
  if(requestedName&&requestedName!==account?.owner_name)await env.AUTH_DB.prepare("UPDATE accounts SET owner_name=?,updated_at=? WHERE id=?").bind(requestedName,now,accountId).run();
  const senderLocal=(senderName.toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,48)||"user");
  const senderEmail=senderLocal+"@leadmaster.jelvan.pro";
- try{await env.AUTH_DB.prepare("INSERT INTO developer_email_requests (id,api_key_id,idempotency_key,recipient,subject,status,created_at,updated_at,error_code,account_id,from_email,sender_name,reply_to,text_body,html_body) VALUES (?,?,?,?,?,'sending',?,?,NULL,?,?,?,?,?,?)").bind(id,row.id,idem,body.to,body.subject,now,now,accountId,senderEmail,senderName,registeredEmail,body.text,body.html??null).run();}
+ try{await env.AUTH_DB.prepare("INSERT INTO developer_email_requests (id,api_key_id,idempotency_key,recipient,subject,status,created_at,updated_at,error_code,account_id,from_email,sender_name,reply_to,text_body,html_body) VALUES (?,?,?,?,?,'sending',?,?,NULL,?,?,?,?,?,?)").bind(id,row.id,idem,body.to,body.subject,now,now,accountId,senderEmail,senderName,registeredEmail,textBody,htmlBody).run();}
  catch{return json({error:"Request already submitted or could not be recorded; retry with the same idempotency key"},409);}
  await env.AUTH_DB.prepare("UPDATE developer_api_keys SET last_used_at=? WHERE id=?").bind(now,row.id).run();
  if(!env.MAIL_SEND_QUEUE){
