@@ -215,7 +215,7 @@ class MainActivity : ComponentActivity() {
           var seenActivity=new Set(),seenInbox=new Set(),activityReady=false,inboxReady=false;
           function trimSeen(set){if(set.size>300){var first=set.values().next().value;set.delete(first);}}
           function notify(title,message,type){try{window.LeadMasterNative.notifyEvent(String(title||'LeadMASTER'),String(message||'You have a new update.'),String(type||'general'));}catch(_){}}
-          function clean(value){return String(value||'').replace(/[\\r\\n]+/g,' ').slice(0,150);}
+          function clean(value){return String(value||'').replace(/\s+/g,' ').slice(0,150);}
           async function checkActivity(){
             try{
               var response=await fetch('/api/admin/activity',{credentials:'same-origin',cache:'no-store'});
