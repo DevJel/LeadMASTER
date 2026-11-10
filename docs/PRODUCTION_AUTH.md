@@ -22,7 +22,7 @@
 3. `POST /api/auth/login` enforces same-origin, IP/email rate limits, server-side Turnstile Siteverify, expected hostname and action, administrator allowlist, and configured password verification.
 4. A successful password check generates a six-digit OTP, stores an HMAC hash in D1 and sends the code through SES SMTP. The OTP expires after 10 minutes.
 5. `POST /api/auth/verify` validates the code, enforces expiry, single use and a maximum of five incorrect attempts (without an IP-based verification throttle for the primary administrator), consumes it and creates a 32-byte random opaque session token.
-6. Only the SHA-256 hash of the session token is stored in D1. The cookie is Secure, HttpOnly, SameSite=Strict and expires after eight hours.
+6. Only the SHA-256 hash of the session token is stored in D1. The cookie is Secure, HttpOnly, SameSite=Strict and persists for 180 days. The server-side session and cookie use the same expiry; closing the Android app does not revoke or clear it. Explicit sign-out revokes the D1 session and clears the cookie.
 7. `GET /api/auth/session` checks the server-side session. `POST /api/auth/logout` revokes it.
 
 There is no JWT session implementation. The `SESSION_SECRET` Worker binding currently points to the legacy Secrets Store entry `ADMIN_JWT_TOKEN`; this is a naming mismatch only, not evidence of JWT usage. It is used for OTP HMAC and webhook-secret encryption. Do not rotate it without a migration plan for encrypted webhook secrets.
