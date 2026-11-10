@@ -9,6 +9,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.media.AudioAttributes
+import android.provider.Settings
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -42,6 +44,7 @@ class MainActivity : ComponentActivity() {
         fileChooserCallback = null
     }
     private val channelId = "leadmaster_updates"
+    private val notificationChannelIds = mapOf("sent" to "leadmaster_email_sent", "deleted" to "leadmaster_email_deleted", "received" to "leadmaster_mail_received", "general" to "leadmaster_general")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -175,6 +178,7 @@ class MainActivity : ComponentActivity() {
                         """.trimIndent(),
                         null
                     )
+                    view?.evaluateJavascript(notificationMonitorScript, null)
                 }
 
 
@@ -204,17 +208,103 @@ class MainActivity : ComponentActivity() {
         controller.isAppearanceLightNavigationBars = !dark
     }
 
+    private val notificationMonitorScript = """
+        (function(){
+          if(window.__lmNativeNotificationMonitor||!window.LeadMasterNative||location.pathname==='/login.html')return;
+          window.__lmNativeNotificationMonitor=true;
+          var seenActivity=new Set(),seenInbox=new Set(),activityReady=false,inboxReady=false;
+          function trimSeen(set){if(set.size>300){var first=set.values().next().value;set.delete(first);}}
+          function notify(title,message,type){try{window.LeadMasterNative.notifyEvent(String(title||'LeadMASTER'),String(message||'You have a new update.'),String(type||'general'));}catch(_){}}
+          function clean(value){return String(value||'').replace(/[\\r\\n]+/g,' ').slice(0,150);}
+          async function checkActivity(){
+            try{
+              var response=await fetch('/api/admin/activity',{credentials:'same-origin',cache:'no-store'});
+              if(!response.ok)return;
+              var data=await response.json(),items=Array.isArray(data.items)?data.items:[];
+              if(!activityReady){items.forEach(function(x){if(x.id)seenActivity.add(String(x.id));});activityReady=true;return;}
+              items.slice().reverse().forEach(function(x){
+                var id=x.id?String(x.id):'';
+                if(!id||seenActivity.has(id))return;
+                seenActivity.add(id);trimSeen(seenActivity);
+                var action=String(x.action||'').toLowerCase(),message=clean(x.summary||x.subject||x.from_address||x.sender);
+                if(action==='email_sent')notify('Email sent',message||'Your email was sent successfully.','sent');
+                else if(action==='email_deleted'||action==='email_permanently_deleted')notify('Email deleted',message||'An email was moved to Deleted.','deleted');
+                else if(action==='email_queued')notify('Email queued',message||'Your email was accepted for sending.','general');
+                else if(action==='email_failed'||action==='email_unknown')notify('Email status update',message||'Check the sending status in LeadMASTER.','general');
+                else if(!['section_viewed','notification_viewed','email_opened','email_read','signed_in','signed_out'].includes(action)){
+                  var label=action.replace(/_/g,' ').replace(/^./,function(ch){return ch.toUpperCase();})||'Workspace update';
+                  notify('LeadMASTER update',message||label,'general');
+                }
+              });
+            }catch(_){}
+          }
+          async function checkInbox(){
+            try{
+              var response=await fetch('/api/admin/mail?folder=inbox',{credentials:'same-origin',cache:'no-store'});
+              if(!response.ok)return;
+              var data=await response.json(),items=Array.isArray(data.items)?data.items:[];
+              if(!inboxReady){items.forEach(function(x){if(x.id)seenInbox.add(String(x.id));});inboxReady=true;return;}
+              items.slice().reverse().forEach(function(x){
+                var id=x.id?String(x.id):'';
+                if(!id||seenInbox.has(id))return;
+                seenInbox.add(id);trimSeen(seenInbox);
+                var sender=clean(x.from_address||x.sender||x.from).slice(0,70);
+                var subject=clean(x.subject||'New message').slice(0,90);
+                notify('New email received',[sender,subject].filter(Boolean).join(' · ')||'You have a new message.','received');
+              });
+            }catch(_){}
+          }
+          function poll(){if(document.visibilityState==='hidden')return;checkActivity();checkInbox();}
+          window.setTimeout(poll,5000);
+          window.setInterval(poll,30000);
+        })();
+    """.trimIndent()
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "LeadMASTER updates",
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = "New email and account updates"
+            val manager = getSystemService(NotificationManager::class.java)
+            val soundAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+            val definitions = listOf(
+                Triple(notificationChannelIds.getValue("sent"), "Email sent", "Sound for sent email events"),
+                Triple(notificationChannelIds.getValue("deleted"), "Email deleted", "Sound for email deletion events"),
+                Triple(notificationChannelIds.getValue("received"), "New mail received", "Sound for newly received email"),
+                Triple(notificationChannelIds.getValue("general"), "LeadMASTER notifications", "Sound for other LeadMASTER updates")
+            )
+            definitions.forEach { (id, name, description) ->
+                val channel = NotificationChannel(id, name, NotificationManager.IMPORTANCE_DEFAULT).apply {
+                    this.description = description
+                    setSound(Settings.System.DEFAULT_NOTIFICATION_URI, soundAttributes)
+                    enableVibration(true)
+                }
+                manager.createNotificationChannel(channel)
             }
-            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
+    }
+
+    private fun postNativeNotification(title: String?, message: String?, eventType: String?) {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) return
+        val category = when (eventType?.lowercase()) {
+            "sent" -> "sent"
+            "deleted" -> "deleted"
+            "received" -> "received"
+            else -> "general"
+        }
+        val notification = NotificationCompat.Builder(this, notificationChannelIds.getValue(category))
+            .setSmallIcon(android.R.drawable.ic_dialog_email)
+            .setContentTitle((title ?: "LeadMASTER").take(80))
+            .setContentText((message ?: "You have a new update.").take(180))
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .build()
+        getSystemService(NotificationManager::class.java).notify(
+            (System.currentTimeMillis() % Int.MAX_VALUE).toInt(), notification
+        )
     }
 
     private inner class NativeBridge {
@@ -225,27 +315,12 @@ class MainActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun notify(title: String?, message: String?) {
-            runOnUiThread {
-                if (
-                    Build.VERSION.SDK_INT >= 33 &&
-                    ContextCompat.checkSelfPermission(
-                        this@MainActivity,
-                        Manifest.permission.POST_NOTIFICATIONS
-                    ) != PackageManager.PERMISSION_GRANTED
-                ) return@runOnUiThread
+            runOnUiThread { postNativeNotification(title, message, "general") }
+        }
 
-                val notification = NotificationCompat.Builder(this@MainActivity, channelId)
-                    .setSmallIcon(android.R.drawable.ic_dialog_email)
-                    .setContentTitle((title ?: "LeadMASTER").take(80))
-                    .setContentText((message ?: "You have a new update.").take(180))
-                    .setAutoCancel(true)
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                    .build()
-                getSystemService(NotificationManager::class.java).notify(
-                    (System.currentTimeMillis() % Int.MAX_VALUE).toInt(),
-                    notification
-                )
-            }
+        @JavascriptInterface
+        fun notifyEvent(title: String?, message: String?, eventType: String?) {
+            runOnUiThread { postNativeNotification(title, message, eventType) }
         }
     }
 
