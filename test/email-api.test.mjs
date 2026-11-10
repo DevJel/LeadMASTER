@@ -15,3 +15,14 @@ test('accepts a secret binding without exposing the secret',async()=>{const {env
 test('rejects incorrect content type and invalid UTF-8 without queueing',async()=>{const {env,jobs}=setup();const wrong=req(job,{headers:{'content-type':'text/plain'}});assert.equal((await routeHttp(wrong,env)).status,415);const invalid=new Request('https://example.test/api/v1/emails',{method:'POST',headers:{'content-type':'application/json','idempotency-key':id,authorization:`Bearer ${key}`},body:new Uint8Array([0xff])});assert.equal((await routeHttp(invalid,env)).status,400);assert.equal(jobs.length,0)});
 test('accepts a text and HTML email without exposing credentials',async()=>{const {env,jobs}=setup();const html='<h1>Hello</h1>';const r=await routeHttp(req({...job,html}),env);assert.equal(r.status,202);assert.deepEqual(jobs,[{id,...job,html}]);assert.doesNotMatch(await r.text(),new RegExp(key));});
 test('rejects malformed or oversized HTML before queueing',async()=>{const {env,jobs}=setup();for(const html of ['',3,'x'.repeat(100001)])assert.ok([400,413].includes((await routeHttp(req({...job,html}),env)).status));assert.equal(jobs.length,0)});
+
+test('accepts HTML-only and text-only payloads without requiring the other format',async()=>{
+ const htmlOnly=setup(),html='<h1>Only HTML</h1>';
+ const h=await routeHttp(req({to:'recipient@example.test',subject:'HTML only',html}),htmlOnly.env);
+ assert.equal(h.status,202);
+ assert.deepEqual(htmlOnly.jobs,[{id,to:'recipient@example.test',subject:'HTML only',html}]);
+ const textOnly=setup();
+ const t=await routeHttp(req({to:'recipient@example.test',subject:'Text only',text:'Only text',html:''}),textOnly.env);
+ assert.equal(t.status,202);
+ assert.deepEqual(textOnly.jobs,[{id,to:'recipient@example.test',subject:'Text only',text:'Only text'}]);
+});
