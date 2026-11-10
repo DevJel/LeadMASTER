@@ -57,6 +57,6 @@ A production-signed APK must be signed with an owner-controlled Android upload/r
 ## Security notes
 
 - Cleartext traffic, file URL access, content URL access and third-party cookies are disabled.
-- Authentication and account authorization remain server-side.
+- Authentication and account authorization remain server-side. The HttpOnly `lm_session` cookie is persisted by Android WebView and flushed on page completion, app pause, stop and close; closing the app does not sign out. The server-side session persists for 180 days unless the user explicitly signs out or the session expires.
 - The JavaScript bridge exposes only theme synchronization and local notifications; it does not expose account data, credentials or platform controls.
 - The app does not connect to Google Mail or another external inbox.
