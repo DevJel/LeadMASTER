@@ -156,6 +156,7 @@ class MainActivity : ComponentActivity() {
 
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
+                    CookieManager.getInstance().flush()
                     view?.evaluateJavascript(
                         """
                         (function(){
@@ -248,12 +249,24 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onPause() {
+        CookieManager.getInstance().flush()
+        super.onPause()
+    }
+
+    override fun onStop() {
+        CookieManager.getInstance().flush()
+        super.onStop()
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         webView?.saveState(outState)
         super.onSaveInstanceState(outState)
     }
 
     override fun onDestroy() {
+        // Persist the authenticated HttpOnly session cookie; closing the app is not sign-out.
+        CookieManager.getInstance().flush()
         webView?.let { view ->
             view.removeJavascriptInterface("LeadMasterNative")
             view.stopLoading()
