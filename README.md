@@ -719,16 +719,9 @@ The production dashboard UI is governed by `src/Mandatory LeadMASTER Dashboard.h
 
 ## Dashboard feature coverage
 
-The mandatory React dashboard is the canonical production UI. Its current live integrations and intentionally unavailable modules are mapped in [src/dashboard-feature-map.md](src/dashboard-feature-map.md). Live features include the authenticated account overview, mailbox and send queue, suppression list, account-scoped API keys and webhooks. Saved templates, contact lists, multi-inbox management, scheduled campaigns, automations, engagement tracking and DNS verification remain unavailable until their backend services exist. This prevents sample data or simulated actions from being presented as real account activity.
+The mandatory React dashboard is the canonical production UI. Its current live integrations and intentionally unavailable modules are documented in [src/dashboard-feature-map.md](src/dashboard-feature-map.md). Live features include the authenticated account overview, mailbox and sending queue, suppression management, account-scoped API keys and webhooks, and sandboxed HTML preview. Saved templates, contact lists and segments, multiple inboxes, scheduled campaigns, automations, engagement tracking and DNS verification remain unavailable until their backend services exist. Sample data and simulated success must never be presented as live account activity.
 
-The dashboard and Android companion share the same authenticated account context. Android renders the canonical dashboard's responsive navigation; it does not add a separate native navigation hierarchy.
-
-
-## Mandatory dashboard feature coverage
-
-The mandatory React dashboard is the canonical production UI. Live integrations and unavailable modules are documented in [src/dashboard-feature-map.md](src/dashboard-feature-map.md). Live features include account overview, mailbox and sending queue, suppression management, API keys, webhooks and sandboxed HTML preview. Saved templates, contacts/segments, multiple inboxes, scheduled campaigns, automations, engagement tracking and DNS verification remain unavailable until their backend services exist. No sample data or simulated success is used for those modules.
-
-Android native navigation mirrors the mandatory dashboard mobile sections: Home, Emails, Audience, Metrics and Profile. Other modules remain available through the dashboard navigation drawer.
+The Android companion shares the same authenticated account context and renders this dashboard's own responsive navigation. It does not add a parallel native navigation hierarchy; see the [Android engineering guide](ANDROID%20APK/README.md).
 
 
 ## Inbound deletion safety status
