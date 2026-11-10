@@ -429,7 +429,7 @@ async function adminAiSuggestRoute(request,env,session,id){
  const subjectTerm=String(row.subject||"").trim().split(/\s+/).slice(0,5).join(" ").slice(0,80);
  const subjectLike=subjectTerm?"%"+subjectTerm.toLowerCase()+"%":"";
  const [sentHistory,receivedHistory]=await Promise.all([
-  env.AUTH_DB.prepare("SELECT subject,text_body,from_email,recipient,created_at FROM admin_sent_mail WHERE lower(reply_to)=lower(?) AND deleted_at IS NULL AND (lower(recipient)=lower(?) OR (?<>'' AND lower(subject) LIKE ?)) ORDER BY created_at DESC LIMIT 5").bind(session.email,row.from_address,subjectLike,subjectLike).all(),
+  env.AUTH_DB.prepare("SELECT subject,text_body,from_email,recipient,created_at FROM admin_sent_mail WHERE lower(created_by)=lower(?) AND deleted_at IS NULL AND (lower(recipient)=lower(?) OR (?<>'' AND lower(subject) LIKE ?)) ORDER BY created_at DESC LIMIT 5").bind(session.email,row.from_address,subjectLike,subjectLike).all(),
   env.AUTH_DB.prepare("SELECT id,from_address,subject,received_at,r2_key FROM inbound_mail WHERE id<>? AND deleted_at IS NULL AND (lower(from_address)=lower(?) OR (?<>'' AND lower(subject) LIKE ?)) ORDER BY received_at DESC LIMIT 5").bind(id,row.from_address,subjectLike,subjectLike).all()
  ]);
  const sentContext=(sentHistory.results||[]).map(x=>"Previous sent message to "+x.recipient+" | "+x.subject+"\n"+String(x.text_body||"").slice(0,1800));
@@ -561,8 +561,8 @@ async function adminSendRoute(request,env,session){
   const suppressed=await env.AUTH_DB.prepare("SELECT email FROM email_unsubscribes WHERE lower(email)=lower(?)").bind(recipient).first();
   if(suppressed)continue;
   const id=crypto.randomUUID();ids.push(id);
-  if(htmlBody===null)statements.push(env.AUTH_DB.prepare("INSERT INTO admin_sent_mail (id,recipient,subject,status,created_at,updated_at,from_email,from_name,reply_to,text_body,error_code,queue_status,batch_id,cc,bcc) VALUES (?,?,?,'sending',?,?,?,?,?,?,NULL,'queued',?,?,?)").bind(id,recipient,subject,now,now,from,name,replyTo,textBody,batchId,JSON.stringify(cc),JSON.stringify(bcc)));
-  else statements.push(env.AUTH_DB.prepare("INSERT INTO admin_sent_mail (id,recipient,subject,status,created_at,updated_at,from_email,from_name,reply_to,text_body,error_code,queue_status,batch_id,html_body,cc,bcc) VALUES (?,?,?,'sending',?,?,?,?,?,?,NULL,'queued',?,?,?,?)").bind(id,recipient,subject,now,now,from,name,replyTo,textBody,batchId,htmlBody,JSON.stringify(cc),JSON.stringify(bcc)));
+  if(htmlBody===null)statements.push(env.AUTH_DB.prepare("INSERT INTO admin_sent_mail (id,recipient,subject,status,created_at,updated_at,from_email,from_name,reply_to,text_body,error_code,queue_status,batch_id,cc,bcc,created_by) VALUES (?,?,?,'sending',?,?,?,?,?,?,NULL,'queued',?,?,?,?)").bind(id,recipient,subject,now,now,from,name,replyTo,textBody,batchId,JSON.stringify(cc),JSON.stringify(bcc),session.email));
+  else statements.push(env.AUTH_DB.prepare("INSERT INTO admin_sent_mail (id,recipient,subject,status,created_at,updated_at,from_email,from_name,reply_to,text_body,error_code,queue_status,batch_id,html_body,cc,bcc,created_by) VALUES (?,?,?,'sending',?,?,?,?,?,?,NULL,'queued',?,?,?,?,?)").bind(id,recipient,subject,now,now,from,name,replyTo,textBody,batchId,htmlBody,JSON.stringify(cc),JSON.stringify(bcc),session.email));
  }
  if(!ids.length)return json({error:"All selected recipients are on your do-not-contact list."},409);
  try{
