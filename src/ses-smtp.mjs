@@ -108,7 +108,7 @@ export async function sendSesEmail({ connect, env, to, cc, bcc, subject, text, h
       let writer = socket.writable.getWriter();
       let replies = new ReplyReader(reader);
       async function expect(allowed) { const code = await replies.reply(); if (!allowed.includes(code)) throw new Error('SMTP request rejected'); }
-      async function command(value, allowed) { await writer.write(encoder.encode(value + '\\r\\n')); await expect(allowed); }
+      async function command(value, allowed) { await writer.write(encoder.encode(value + '\r\n')); await expect(allowed); }
       await expect([220]);
       await command('EHLO leadmaster.local', [250]);
       await command('STARTTLS', [220]);
@@ -117,7 +117,7 @@ export async function sendSesEmail({ connect, env, to, cc, bcc, subject, text, h
       await socket.opened;
       reader = socket.readable.getReader(); writer = socket.writable.getWriter(); replies = new ReplyReader(reader);
       await command('EHLO leadmaster.local', [250]);
-      await command('AUTH PLAIN ' + utf8b64('\\0' + username + '\\0' + password), [235]);
+      await command('AUTH PLAIN ' + utf8b64('\0' + username + '\0' + password), [235]);
       for(let i=0;i<chunks.length;i++){
         const chunk=chunks[i],isFirst=i===0;
         const envelope=[...chunk,...(isFirst?ccList:[]),...(isFirst?bccList:[])];
@@ -126,7 +126,7 @@ export async function sendSesEmail({ connect, env, to, cc, bcc, subject, text, h
         for(const recipient of envelope)await command(`RCPT TO:<${recipient}>`,[250,251]);
         await command('DATA',[354]);
         dataSent=true;
-        await writer.write(encoder.encode(message+'.\\r\\n'));
+        await writer.write(encoder.encode(message+'.\r\n'));
         await expect([250]);accepted=true;
       }
       return {status:'accepted'};
