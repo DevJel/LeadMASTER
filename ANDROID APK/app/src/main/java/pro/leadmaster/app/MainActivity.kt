@@ -18,10 +18,12 @@ import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
+import android.webkit.ValueCallback
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +33,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Insights
@@ -47,11 +50,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -67,8 +74,8 @@ private data class AppDestination(
 )
 
 private val appDestinations = listOf(
-    AppDestination("home", "Home", Icons.Outlined.Home),
     AppDestination("emails", "Emails", Icons.Outlined.Email),
+    AppDestination("templates", "Templates", Icons.Outlined.Description),
     AppDestination("audience", "Audience", Icons.Outlined.Groups),
     AppDestination("metrics", "Metrics", Icons.Outlined.Insights),
     AppDestination("profile", "Profile", Icons.Outlined.Person)
@@ -77,6 +84,11 @@ private val appDestinations = listOf(
 class MainActivity : ComponentActivity() {
     private val workspaceViewModel: WorkspaceViewModel by viewModels()
     private var webView: WebView? = null
+    private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
+    private val filePicker = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        fileChooserCallback?.onReceiveValue(uris.toTypedArray())
+        fileChooserCallback = null
+    }
     private val channelId = "leadmaster_updates"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -199,10 +211,15 @@ class MainActivity : ComponentActivity() {
             windowInsets = NavigationBarDefaults.windowInsets
         ) {
             appDestinations.forEach { destination ->
+                val selectedScale by animateFloatAsState(
+                    targetValue = if (selected == destination.id) 1.12f else 1f,
+                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                    label = "leadmaster-nav-icon"
+                )
                 NavigationBarItem(
                     selected = selected == destination.id,
                     onClick = { onSelect(destination.id) },
-                    icon = { Icon(destination.icon, contentDescription = destination.label) },
+                    icon = { Icon(destination.icon, contentDescription = destination.label, modifier = Modifier.scale(selectedScale)) },
                     label = { Text(destination.label) },
                     alwaysShowLabel = true,
                     colors = NavigationBarItemDefaults.colors(
@@ -250,7 +267,24 @@ class MainActivity : ComponentActivity() {
             CookieManager.getInstance().setAcceptCookie(true)
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
             addJavascriptInterface(NativeBridge(), "LeadMasterNative")
-            webChromeClient = WebChromeClient()
+            webChromeClient = object : WebChromeClient() {
+                override fun onShowFileChooser(
+                    webView: WebView?,
+                    filePathCallback: ValueCallback<Array<Uri>>?,
+                    fileChooserParams: FileChooserParams?
+                ): Boolean {
+                    fileChooserCallback?.onReceiveValue(null)
+                    fileChooserCallback = filePathCallback
+                    return try {
+                        filePicker.launch(arrayOf("*/*"))
+                        true
+                    } catch (_: Exception) {
+                        fileChooserCallback?.onReceiveValue(null)
+                        fileChooserCallback = null
+                        false
+                    }
+                }
+            }
             webViewClient = object : WebViewClient() {
                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                     val uri = request?.url ?: return true
@@ -344,8 +378,8 @@ class MainActivity : ComponentActivity() {
         if (section !in WorkspaceViewModel.DESTINATIONS) return
         workspaceViewModel.selectSection(section)
         val labels = when (section) {
-            "home" -> listOf("overview", "dashboard", "homepage", "home")
             "emails" -> listOf("emails", "email")
+            "templates" -> listOf("templates", "template")
             "audience" -> listOf("audience", "audiences", "contacts")
             "metrics" -> listOf("metrics", "analytics")
             "profile" -> listOf("profile", "account", "settings")
