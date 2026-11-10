@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-10 — Persistent Android sign-in (v1.5.0)
+
+- Extended the server-side session and matching Secure, HttpOnly, SameSite=Strict cookie lifetime to 180 days so the user remains signed in after closing and reopening the Android app.
+- Preserved explicit sign-out: the existing logout action revokes the server-side session and clears the cookie.
+- Android now flushes WebView cookies after page load and during pause, stop and destroy so the persistent session survives app process closure.
+- No credentials are copied into local storage or SharedPreferences; account recognition continues through the existing authenticated server session.
+- No email, account data, database schema or business workflow changes.
+- Automated build and auth regression checks pending.
+
+
 ## 2026-11-10 — Android responsive dashboard parity (v1.4.0)
 
 - Removed the extra native bottom navigation bar and desktop Navigation Rail so Android displays the canonical LeadMASTER dashboard's own responsive navigation and components without duplicate chrome.
