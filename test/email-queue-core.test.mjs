@@ -145,3 +145,11 @@ test('dispatches HTML-only email without a text field',async()=>{
  assert.equal((await core.dispatch({id:'html_only_2',to:'recipient@example.com',subject:'HTML only',html:'<p>Hello</p>'})).status,'accepted');
  assert.deepEqual(sent,[{to:'recipient@example.com',subject:'HTML only',html:'<p>Hello</p>'}]);
 });
+
+test('validates and forwards grouped To, CC and BCC recipients',async()=>{
+ const sent=[];const core=new EmailDispatchCore({storage:new Storage(),send:async value=>{sent.push(value);return {status:'accepted'};}});
+ const value={id:'grouped_1',to:['to@example.com','other@example.com'],cc:['copy@example.com'],bcc:['blind@example.com'],subject:'Group',text:'Body'};
+ assert.equal((await core.dispatch(value)).status,'accepted');
+ assert.deepEqual(sent[0].to,value.to);assert.deepEqual(sent[0].cc,value.cc);assert.deepEqual(sent[0].bcc,value.bcc);
+ await assert.rejects(core.dispatch({...value,id:'grouped_2',bcc:['bad address']}));
+});
