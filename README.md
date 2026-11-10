@@ -695,11 +695,21 @@ The production login page uses the shared full LeadMASTER logo from `public/asse
 See [LOGIN_UI.md](LOGIN_UI.md) for the login layout, responsive behavior and authentication integration. The public [Data Privacy Notice](https://leadmaster.jelvan.pro/privacy.html) and [Terms and Conditions](https://leadmaster.jelvan.pro/terms.html) remain separate legal documents.
 
 
-## Android companion
+## Android application
 
-The `ANDROID APK/` project provides the LeadMASTER Android companion. It uses the same authenticated web workspace and server-side account rules rather than maintaining a separate email or account backend. Native navigation mirrors the mandatory dashboard mobile sections: Home, Emails, Audience, Metrics and Profile. Other modules remain available through the dashboard navigation drawer. App connections and other shared workspace routes remain available through the WebView.
+LeadMASTER includes an Android companion in [`ANDROID APK/`](ANDROID%20APK/). It is a native Android host for the same authenticated production workspace—not a separate mailbox or account backend.
 
-Build instructions, security boundaries, and the web/Android feature-parity protocol are documented in [ANDROID APK/README.md](ANDROID%20APK/README.md) and [AGENTS.md](AGENTS.md). Relevant web changes must be checked against Android entry points; update the companion only when a connected surface is affected.
+- **Application ID:** `pro.leadmaster.app`
+- **Current source version:** `1.6.0` (`versionCode 7`)
+- **Minimum Android:** 8.0 / API 26
+- **Canonical UI:** `src/Mandatory LeadMASTER Dashboard.html`
+- **Android implementation:** Kotlin, Jetpack Compose host and a hardened WebView
+- **Authentication:** shared server-side LeadMASTER session; the WebView persists the HttpOnly session cookie and closing the app does not sign out
+- **Native integrations:** notification channels, foreground inbox/activity polling, multi-file picker, same-origin downloads, external intents and Back navigation
+
+**Get the Android APK:** [Open the Android build workflow](https://github.com/DevJel/LeadMASTER/actions/workflows/android-apk.yml). Download the `leadmaster-android-debug-apk` artifact from the latest successful run. CI artifacts are retained for 90 days; a permanent public GitHub Release APK has not yet been published. Debug artifacts are for testing and are not production-key signed.
+
+The full Android engineering guide covers architecture, supported features and limitations, WebView security, persistent authentication, build requirements, CI artifact retrieval, release signing, device acceptance and troubleshooting: [Android APK documentation](ANDROID%20APK/README.md).
 
 
 ## Mandatory production dashboard
@@ -711,7 +721,7 @@ The production dashboard UI is governed by `src/Mandatory LeadMASTER Dashboard.h
 
 The mandatory React dashboard is the canonical production UI. Its current live integrations and intentionally unavailable modules are mapped in [src/dashboard-feature-map.md](src/dashboard-feature-map.md). Live features include the authenticated account overview, mailbox and send queue, suppression list, account-scoped API keys and webhooks. Saved templates, contact lists, multi-inbox management, scheduled campaigns, automations, engagement tracking and DNS verification remain unavailable until their backend services exist. This prevents sample data or simulated actions from being presented as real account activity.
 
-The dashboard and Android companion share the same authenticated account context. Android native navigation follows Home, Emails, Audience, Metrics and Profile; the dashboard drawer provides the remaining sections.
+The dashboard and Android companion share the same authenticated account context. Android renders the canonical dashboard's responsive navigation; it does not add a separate native navigation hierarchy.
 
 
 ## Mandatory dashboard feature coverage
