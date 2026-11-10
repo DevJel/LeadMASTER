@@ -386,10 +386,10 @@ async function adminActivityRoute(request,env,session){
  if(request.method==="POST"){
   if(!sameOrigin(request))return json({error:"Invalid request"},403);
   let body;try{body=await readJson(request)}catch{return json({error:"Invalid request"},400)}
-  const sections=new Set(["overview","emails","contacts","audiences","templates","campaigns","sending","activity","domains","settings","connections","webhooks","api"]);
+  const sections=new Set(["overview","emails","inboxes","contacts","audiences","templates","campaigns","sending","activity","domains","settings","connections","webhooks","api","automations","metrics","help"]);
   const section=String(body.section||"").toLowerCase();
   if(body.action!=="section_viewed"||!sections.has(section))return json({error:"Invalid activity"},400);
-  const label=({overview:"Overview",emails:"Emails",contacts:"Contacts",audiences:"Audiences",templates:"Templates",campaigns:"Campaigns",sending:"Sending",activity:"Activity",domains:"Sending addresses",settings:"Settings",connections:"Connections",webhooks:"Webhooks",api:"API access"})[section];
+  const label=({overview:"Overview",emails:"Emails",inboxes:"Inboxes",contacts:"Contacts",audiences:"Audience",templates:"Templates",campaigns:"Campaigns",sending:"Sending",activity:"Logs",domains:"Sending addresses",settings:"Settings",connections:"Connections",webhooks:"Webhooks",api:"API keys",automations:"Automations",metrics:"Metrics",help:"Help"})[section];
   await logWorkspaceAction(env,session.email,"section_viewed","Viewed "+label+".",null,{section});
   return json({ok:true});
  }
