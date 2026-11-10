@@ -543,13 +543,15 @@ async function adminSendRoute(request,env,session){
  let b;try{b=await readBoundedJson(request,1000000)}catch{return json({error:"Invalid request"},400)}
  const toList=Array.isArray(b.recipients)?b.recipients:(typeof b.to==="string"?b.to.split(/[\s,;]+/):[]);
  const recipients=[...new Set(toList.map(x=>String(x||"").trim().toLowerCase()).filter(Boolean))];
- if(!recipients.length||recipients.length>500||recipients.some(x=>x.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x)))return json({error:"Enter between 1 and 500 valid email addresses."},400);
+ if(!recipients.length||recipients.length>50||recipients.some(x=>x.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x)))return json({error:"Enter between 1 and 500 valid email addresses."},400);
  const from=String(b.fromEmail||"hello@work.jelvan.pro").trim().toLowerCase(),domain=from.split("@")[1]||"";
  const verifiedDomain=domain==="jelvan.pro"||domain.endsWith(".jelvan.pro")||domain==="operavaglobal.com"||domain.endsWith(".operavaglobal.com");
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(from)||!verifiedDomain)return json({error:"Choose a sender under a verified jelvan.pro or operavaglobal.com identity."},400);
- const cc=parseOptionalAddressList(b.cc),bcc=parseOptionalAddressList(b.bcc);
+ let cc=parseOptionalAddressList(b.cc),bcc=parseOptionalAddressList(b.bcc);
  const replyTo=String(b.replyTo||"").trim().toLowerCase();
  if(!cc||!bcc||(replyTo&&(replyTo.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyTo))))return json({error:"Check CC, BCC and Reply-To addresses. Use up to 100 valid addresses in CC and BCC."},400);
+ cc=cc.filter(x=>!recipients.includes(x));bcc=bcc.filter(x=>!recipients.includes(x)&&!cc.includes(x));
+ if(recipients.length+cc.length+bcc.length>50)return json({error:"SES allows up to 50 total To, CC and BCC recipients per message. Split this send into smaller messages."},400);
  const subject=String(b.subject||"").trim(),textBody=typeof b.text==="string"?b.text:"",htmlBody=b.html===undefined||b.html===null?null:b.html;
  const hasText=Boolean(textBody.trim()),hasHtml=typeof htmlBody==="string"&&Boolean(htmlBody.trim());
  if(!subject||/[\r\n\x00-\x1f\x7f]/.test(subject)||new TextEncoder().encode(subject).length>300||(!hasText&&!hasHtml)||new TextEncoder().encode(textBody).length>200000||(htmlBody!==null&&(typeof htmlBody!=="string"||!hasHtml||new TextEncoder().encode(htmlBody).length>200000)))return json({error:"Add a subject and either a text or HTML message. The message is too long or invalid."},400);
