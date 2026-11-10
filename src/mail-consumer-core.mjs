@@ -9,8 +9,8 @@ export function createMailConsumer({send, deliverWebhook, sleep = ms => new Prom
   const table=source==='developer'?'developer_email_requests':'admin_sent_mail';
   const sql=source==='developer'
    ? 'SELECT id,recipient,subject,status,from_email,sender_name,reply_to,api_key_id,account_id,text_body,html_body FROM developer_email_requests WHERE id=?'
-   : 'SELECT id,recipient,subject,text_body,html_body,status,from_email,from_name,reply_to,queue_status,batch_id FROM admin_sent_mail WHERE id=?';
-  const batchRows=isBatch?(await db.prepare('SELECT id,recipient,subject,text_body,html_body,status,from_email,from_name,reply_to,queue_status,batch_id,cc,bcc FROM admin_sent_mail WHERE batch_id=? AND status=\'sending\' ORDER BY created_at,id').bind(id).all()).results||[]:[];
+   : 'SELECT id,recipient,subject,text_body,html_body,status,from_email,from_name,reply_to,queue_status,batch_id,created_by FROM admin_sent_mail WHERE id=?';
+  const batchRows=isBatch?(await db.prepare('SELECT id,recipient,subject,text_body,html_body,status,from_email,from_name,reply_to,queue_status,batch_id,cc,bcc,created_by FROM admin_sent_mail WHERE batch_id=? AND status=\'sending\' ORDER BY created_at,id').bind(id).all()).results||[]:[];
   const row=isBatch?batchRows[0]:await db.prepare(sql).bind(id).first();
   if(!row || row.status!=='sending'){message.ack();return;}
   // Fail before claiming if the suppression table cannot be read; a retry can
@@ -49,7 +49,7 @@ export function createMailConsumer({send, deliverWebhook, sleep = ms => new Prom
   if(source==='developer' && outcome==='accepted')await bestEffort(()=>deliverWebhook(env,'email.accepted',{request_id:id,recipient:row.recipient,subject:row.subject},row.api_key_id,row.account_id));
   if(outcome==='accepted') {
    const summary=isBatch?'Email accepted by the sending service for '+activeRecipients.length+' To recipient(s)':'Email accepted by the sending service for '+row.recipient;
-   await bestEffort(()=>db.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at) VALUES (?,?,'email_sent',?,?,?)").bind(crypto.randomUUID(),row.reply_to||'system',summary,id,now).run());
+   await bestEffort(()=>db.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at) VALUES (?,?,'email_sent',?,?,?)").bind(crypto.randomUUID(),row.created_by||'system',summary,id,now).run());
    await bestEffort(()=>db.prepare("INSERT INTO mail_notifications (id,type,title,message,target_id,created_at) VALUES (?,'sent','Email sent',?,?,?)").bind(crypto.randomUUID(),isBatch?'Your message to '+activeRecipients.length+' To recipient(s) was accepted for sending.':'Your message to '+row.recipient+' was accepted for sending.',id,now).run());
   } else if(outcome==='unknown') {
    await bestEffort(()=>db.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at) VALUES (?,?,'email_unknown','The sending result could not be confirmed.',?,?)").bind(crypto.randomUUID(),row.reply_to||'system',id,now).run());
