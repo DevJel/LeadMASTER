@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-10 — Android responsive dashboard parity (v1.4.0)
+
+- Removed the extra native bottom navigation bar and desktop Navigation Rail so Android displays the canonical LeadMASTER dashboard's own responsive navigation and components without duplicate chrome.
+- Removed the native-app CSS flag injection that hid the dashboard's mobile navigation.
+- Made the authenticated dashboard the single visual source for mobile and larger Android screens, preserving its layout, theme, cards, forms, spacing and interactions.
+- Kept Android system-bar icon contrast synchronized with the dashboard's light/dark theme.
+- Configured WebView to honor the responsive viewport without desktop overview scaling or forced text zoom.
+- Preserved the restricted HTTPS origin, authenticated cookie session, multi-file picker, downloads, external links and native notifications.
+- No backend, API, database, authentication or email business logic was changed.
+- Android version bumped to 1.4.0 (versionCode 5); automated build and device-level acceptance are pending.
+
 ## 2026-11-09 — Restore continuous product motion and primary administrator sign-in
 
 - Restored looping animations for the landing-page Product Moments concepts, including the message reveal, workflow progress, step highlights and activity bars; reduced-motion preferences remain respected.
