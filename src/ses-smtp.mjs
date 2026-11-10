@@ -97,6 +97,8 @@ export async function sendSesEmail({ connect, env, to, cc, bcc, subject, text, h
   chunks.push(toList.slice(0,firstToCapacity));
   for(let i=firstToCapacity;i<toList.length;i+=50)chunks.push(toList.slice(i,i+50));
   const configurationSet = typeof env.SES_CONFIGURATION_SET === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(env.SES_CONFIGURATION_SET) ? env.SES_CONFIGURATION_SET : undefined;
+  const messages=chunks.map((chunk,i)=>buildMessage({from,fromName,replyTo,configurationSet,messageId:chunks.length>1&&messageId?messageId+'-'+(i+1):messageId,to:chunk,cc:i===0?ccList:[],subject,text,html}));
+
   const [host, username, password] = await Promise.all([secret(env.SES_SMTP_HOST), secret(env.SES_SMTP_USERNAME), secret(env.SES_SMTP_PASSWORD)]);
   if (!HOST.test(host)) throw new Error('SMTP configuration unavailable');
   let socket; let timer; let dataSent = false; let accepted = false;
@@ -121,7 +123,7 @@ export async function sendSesEmail({ connect, env, to, cc, bcc, subject, text, h
       for(let i=0;i<chunks.length;i++){
         const chunk=chunks[i],isFirst=i===0;
         const envelope=[...chunk,...(isFirst?ccList:[]),...(isFirst?bccList:[])];
-        const message=buildMessage({from,fromName,replyTo,configurationSet,messageId:chunks.length>1&&messageId?messageId+'-'+(i+1):messageId,to:chunk,cc:isFirst?ccList:[],subject,text,html});
+        const message=messages[i];
         await command(`MAIL FROM:<${from}>`,[250]);
         for(const recipient of envelope)await command(`RCPT TO:<${recipient}>`,[250,251]);
         await command('DATA',[354]);
