@@ -13,12 +13,17 @@ export function validateEmailJob(job) {
       typeof job.id !== 'string' || job.id.length > MAX_ID || !ID.test(job.id) ||
       typeof job.to !== 'string' || job.to.length > 254 || !EMAIL.test(job.to) || job.to.includes('..') ||
       typeof job.subject !== 'string' || !job.subject.trim() || /[\r\n\x00-\x1f\x7f]/.test(job.subject) ||
-      encoder.encode(job.subject).length > 300 ||
-      typeof job.text !== 'string' || !job.text.trim() || encoder.encode(job.text).length > 200000) {
+      encoder.encode(job.subject).length > 300) {
     throw new TypeError('Invalid queued message');
   }
+  const hasText = typeof job.text === 'string' && Boolean(job.text.trim());
+  const hasHtml = typeof job.html === 'string' && Boolean(job.html.trim());
+  if (!hasText && !hasHtml) throw new TypeError('Add a text or HTML message body');
+  if (job.text !== undefined && (typeof job.text !== 'string' || encoder.encode(job.text).length > 200000)) {
+    throw new TypeError('Invalid text body');
+  }
   if (job.html !== undefined && (typeof job.html !== 'string' || !job.html.trim() || encoder.encode(job.html).length > 200000)) {
-    throw new TypeError('Invalid queued message');
+    throw new TypeError('Invalid HTML body');
   }
   if (job.fromEmail !== undefined && (typeof job.fromEmail !== 'string' || job.fromEmail.length > 254 || !EMAIL.test(job.fromEmail) || job.fromEmail.includes('..'))) {
     throw new TypeError('Invalid sender address');
