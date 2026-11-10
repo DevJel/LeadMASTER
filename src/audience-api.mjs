@@ -2,6 +2,9 @@ import {readBoundedJson} from './bounded-json.mjs';
 import {extractRecipientEmails} from './recipient-import.mjs';
 const json=(v,status=200)=>Response.json(v,{status,headers:{'cache-control':'no-store','x-content-type-options':'nosniff'}});
 const GROUP_MAX=100, CONTACT_MAX=5000, MEMBER_MAX=500, IMPORT_MAX=500;
+async function activity(db,session,action,summary,targetId){
+ try{await db.prepare('INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at) VALUES (?,?,?,?,?,?)').bind(crypto.randomUUID(),session.email,action,summary,targetId,Date.now()).run()}catch{}
+}
 
 // This API does not infer marketing consent from a valid address or import.
 export async function audienceRoute(request,env,session,adminEmail){
@@ -33,6 +36,7 @@ export async function audienceRoute(request,env,session,adminEmail){
    if(Object.keys(body).some(x=>x!=='name')||typeof body.name!=='string'||!body.name.trim()||body.name.trim().length>80||/[\x00-\x1f\x7f]/.test(body.name))return json({error:'Provide a group name of at most 80 characters'},400);
    const newId=crypto.randomUUID(),now=Date.now();
    try{const r=await db.prepare('INSERT INTO audience_groups(id,account_id,name,created_at) SELECT ?,?,?,? WHERE (SELECT COUNT(*) FROM audience_groups WHERE account_id=?) < ?').bind(newId,account,body.name.trim(),now,account,GROUP_MAX).run();if(Number(r.meta?.changes||0)!==1)return json({error:'Group limit reached'},409)}catch(e){if(String(e?.message||'').includes('UNIQUE constraint failed'))return json({error:'A group with this name already exists'},409);throw e}
+   await activity(db,session,'audience_group_created','Created the audience group “'+body.name.trim()+'”.',newId);
    return json({id:newId,name:body.name.trim()},201);
   }
   if(Object.keys(body).some(x=>x!=='emails')||!Array.isArray(body.emails)||!body.emails.length||body.emails.length>IMPORT_MAX)return json({error:'Provide between 1 and 500 email addresses'},400);
@@ -57,6 +61,7 @@ export async function audienceRoute(request,env,session,adminEmail){
    .bind(account,id,now,packed,account,account,id,MEMBER_MAX,account,id);
   const result=await db.batch([a,b]);
   const added=Number(result[1]?.meta?.changes||0);
+  if(added)await activity(db,session,'audience_members_added','Added '+added+' contact'+(added===1?'':'s')+' to the group “'+group.name+'”.',id);
   const exists=await db.prepare('SELECT COUNT(*) AS n FROM audience_group_members m JOIN json_each(?) j ON j.value=m.email WHERE m.account_id=? AND m.group_id=?').bind(packed,account,id).first();
   const present=Number(exists?.n||0);
   return json({submitted:emails.length,unique:unique.length,duplicates:emails.length-unique.length,added,already_in_group:present-added,not_added:unique.length-present});
