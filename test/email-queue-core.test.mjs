@@ -133,3 +133,15 @@ test('HTML and sender metadata are passed through and included in idempotency id
   assert.equal(sent[0].fromEmail,first.fromEmail);
   assert.equal((await core.dispatch({...first,fromName:'Changed'})).status,'id_conflict');
 });
+
+test('queues HTML-only email without inventing a plain-text body',async()=>{
+ let posted;
+ const result=await enqueueEmail({send:async value=>{posted=value;}},{id:'html_only_1',to:'recipient@example.com',subject:'HTML only',html:'<h1>Hello</h1>'});
+ assert.deepEqual(result,{status:'queued'});
+ assert.deepEqual(posted,{id:'html_only_1',to:'recipient@example.com',subject:'HTML only',html:'<h1>Hello</h1>'});
+});
+test('dispatches HTML-only email without a text field',async()=>{
+ const sent=[],core=new EmailDispatchCore({storage:new Storage(),send:async value=>{sent.push(value);return {status:'accepted'};}});
+ assert.equal((await core.dispatch({id:'html_only_2',to:'recipient@example.com',subject:'HTML only',html:'<p>Hello</p>'})).status,'accepted');
+ assert.deepEqual(sent,[{to:'recipient@example.com',subject:'HTML only',html:'<p>Hello</p>'}]);
+});
