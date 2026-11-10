@@ -2494,3 +2494,17 @@ button{
 @keyframes campaign-step-4{0%,70%{opacity:.55;color:#aaa}71%,100%{opacity:1;color:#222}}
 @media(prefers-reduced-motion:reduce){.campaign-preview-badge i,.campaign-cycle-dot,.campaign-progress span,.campaign-flow-step,.campaign-progress span{transform:scaleX(1)}.campaign-flow-step{opacity:1!important;color:#333!important}}
 @media(max-width:600px){.campaign-demo-content{padding-right:14px;padding-left:14px}.campaign-demo-head{padding-right:14px;padding-left:14px}.campaign-preview-badge{font-size:8px;padding:6px 7px}.campaign-flow{gap:3px}.campaign-flow-step b{font-size:8px}}
+
+/* MOBILE HERO SPACING — keep the LeadMASTER wordmark close to the first view. */
+@media(max-width:820px){
+  .hero{padding-top:14px;padding-bottom:6px}
+  .hero-grid{gap:14px}
+  .hero-halftone{padding-bottom:8px!important}
+  .hero-halftone .hwf-root{height:220px!important}
+}
+@media(max-width:430px){
+  .hero{padding-top:10px;padding-bottom:4px}
+  .hero-grid{gap:10px}
+  .hero-halftone{padding-bottom:4px!important}
+  .hero-halftone .hwf-root{height:190px!important}
+}
