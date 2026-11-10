@@ -60,24 +60,27 @@ test('mobile primary navigation stays fixed while the dashboard content scrolls'
  assert.match(html, /data-lm-native-app="true"\] \.bottom-bar\{display:none!important\}/);
 });
 
-test('Android companion follows Compose Material 3 and UDF while preserving the shared production workspace', async () => {
- const [activity, state, gradle, readme] = await Promise.all([
+test('Android companion uses the canonical responsive dashboard and preserves persistent authentication', async () => {
+ const [activity, gradle, readme, worker] = await Promise.all([
   read('../ANDROID APK/app/src/main/java/pro/leadmaster/app/MainActivity.kt'),
-  read('../ANDROID APK/app/src/main/java/pro/leadmaster/app/WorkspaceViewModel.kt'),
   read('../ANDROID APK/app/build.gradle.kts'),
-  read('../ANDROID APK/README.md')
+  read('../ANDROID APK/README.md'),
+  read('../worker.js')
  ]);
- assert.match(activity, /setContent\s*\{/);
- assert.match(activity, /NavigationBar/);
- assert.match(activity, /NavigationRail/);
- assert.match(activity, /enableEdgeToEdge\(\)/);
- assert.match(activity, /document\.documentElement\.dataset\.lmNativeApp='true'/);
- assert.match(activity, /setAcceptThirdPartyCookies\(this, false\)/);
- assert.match(state, /StateFlow<WorkspaceUiState>/);
- assert.match(state, /fun selectSection/);
+ assert.match(activity, /setContent\\s*\\{/);
+ assert.match(activity, /WorkspaceWebView/);
+ assert.match(activity, /AndroidView/);
+ assert.doesNotMatch(activity, /NavigationBar|NavigationRail/);
+ assert.match(activity, /enableEdgeToEdge\\(\\)/);
+ assert.doesNotMatch(activity, /dataset\\.lmNativeApp/);
+ assert.match(activity, /setAcceptThirdPartyCookies\\(this, false\\)/);
+ assert.match(activity, /CookieManager\\.getInstance\\(\\)\\.flush\\(\\)/);
+ assert.match(activity, /override fun onPause/);
+ assert.match(activity, /override fun onStop/);
+ assert.match(gradle, /versionName = "1\\.5\\.0"/);
  assert.match(gradle, /minSdk = 26/);
- assert.match(gradle, /id\("org\.jetbrains\.kotlin\.plugin\.compose"\)/);
- assert.match(gradle, /androidx\.compose\.material3:material3/);
- assert.match(readme, /Android-References/);
+ assert.match(gradle, /androidx\\.compose\\.material3:material3/);
+ assert.match(worker, /SESSION_TTL_MS = 180 \\* 24 \\* 60 \\* 60 \\* 1000/);
+ assert.match(worker, /Max-Age=" \\+ SESSION_COOKIE_MAX_AGE/);
  assert.match(readme, /single source of truth/i);
 });
