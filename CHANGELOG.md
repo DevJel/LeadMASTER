@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-11-11 — Android engineering documentation and release guide (v1.6.0)
+
+- Replaced the Android README with a source-aligned engineering guide covering architecture, feature inventory, notification behavior, authentication persistence, WebView security, permissions, build/CI, artifact retrieval, release signing, parity requirements, device acceptance and troubleshooting.
+- Corrected the root README to describe Android as a thin host for the canonical responsive dashboard, removing stale claims about a duplicated native navigation structure.
+- Added explicit current app metadata from Gradle: application ID `pro.leadmaster.app`, version `1.6.0`, version code `7`, minimum API 26, compile/target API 35 and Java/Kotlin 17.
+- Documented that the Actions debug APK artifact is retained for 90 days and is not a permanent public GitHub Release or a production-key-signed distribution.
+- Clarified that native inbox/activity notifications use foreground polling and are not guaranteed push notifications while the app is closed.
+- Documentation-only change; no Android runtime, authentication, Worker, API, database or production deployment behavior changed.
+
+# Changelog
+
 ## 2026-11-10 — Persistent Android sign-in (v1.5.0)
 
 - Extended the server-side session and matching Secure, HttpOnly, SameSite=Strict cookie lifetime to 180 days, renewed on each successful session restore, so the user remains signed in across app closure and continued use.
