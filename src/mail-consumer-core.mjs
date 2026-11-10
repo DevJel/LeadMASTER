@@ -17,7 +17,8 @@ export function createMailConsumer({send, deliverWebhook, sleep = ms => new Prom
   // then try again safely. Re-check after claiming to narrow the race window.
   await db.prepare('SELECT 1 FROM email_unsubscribes WHERE lower(email)=lower(?) LIMIT 1').bind(row.recipient).first();
   // INSERT is atomic across consumers. The status predicate closes the read/claim gap.
-  const claim=await db.prepare(`INSERT OR IGNORE INTO mail_send_claims (source,request_id,state,claimed_at) SELECT ?,?,'started',? WHERE EXISTS (SELECT 1 FROM ${table} WHERE id=? AND status='sending')`).bind(source,id,clock(),id).run();
+  const claimSql=isBatch?`INSERT OR IGNORE INTO mail_send_claims (source,request_id,state,claimed_at) SELECT ?,?,'started',? WHERE EXISTS (SELECT 1 FROM admin_sent_mail WHERE batch_id=? AND status='sending')`:`INSERT OR IGNORE INTO mail_send_claims (source,request_id,state,claimed_at) SELECT ?,?,'started',? WHERE EXISTS (SELECT 1 FROM ${table} WHERE id=? AND status='sending')`;
+  const claim=await db.prepare(claimSql).bind(source,id,clock(),id).run();
   if(Number(claim.meta?.changes||0)!==1){message.ack();return;}
   // If this read fails after claiming, no SMTP call occurs. The started claim
   // stays fenced and needs reconciliation; never silently retry it as a send.
