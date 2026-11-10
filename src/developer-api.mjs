@@ -14,6 +14,7 @@ function validMessage(v){
  const text=v.text==null?"":v.text,html=v.html==null?"":v.html;
  if(typeof text!=="string"||enc.encode(text).length>200000||typeof html!=="string"||enc.encode(html).length>200000||(!text.trim()&&!html.trim()))return false;
  if(v.sender_name!==undefined&&(typeof v.sender_name!=="string"||!/^[A-Za-z][A-Za-z .'-]{1,79}$/.test(v.sender_name.trim())))return false;
+ if(v.reply_to!==undefined&&(typeof v.reply_to!=="string"||v.reply_to.length>254||!email.test(v.reply_to)||v.reply_to.includes("..")))return false;
  return true;
 }
 async function readBody(req,max=250000){const raw=await req.text();if(enc.encode(raw).length>max)throw Error("large");const v=JSON.parse(raw);if(!v||typeof v!=="object"||Array.isArray(v))throw Error("invalid");return v;}
