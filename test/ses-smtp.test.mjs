@@ -86,7 +86,7 @@ test('sends CC in the visible header, BCC only as envelope recipients, and omits
  assert.doesNotMatch(data,/^Bcc:/m);
  assert.doesNotMatch(data,/^Reply-To:/m);
  const rcpts=s.commands.filter(x=>x.startsWith('RCPT TO:'));
- assert.deepEqual(rcpts,['RCPT TO:<to-one@example.com>\\r\\n','RCPT TO:<to-two@example.com>\\r\\n','RCPT TO:<copy@example.com>\\r\\n','RCPT TO:<blind@example.com>\\r\\n']);
+ assert.deepEqual(rcpts,['RCPT TO:<to-one@example.com>\r\n','RCPT TO:<to-two@example.com>\r\n','RCPT TO:<copy@example.com>\r\n','RCPT TO:<blind@example.com>\r\n']);
 });
 test('adds Reply-To only when explicitly supplied',async()=>{
  const s=server();await sendSesEmail({...input,replyTo:'replies@example.com',connect:s.connect});
