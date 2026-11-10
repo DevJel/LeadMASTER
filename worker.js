@@ -539,7 +539,7 @@ async function adminSendRoute(request,env,session){
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(from)||!verifiedDomain)return json({error:"Choose a sender under a verified jelvan.pro or operavaglobal.com identity."},400);
  const subject=String(b.subject||"").trim(),textBody=typeof b.text==="string"?b.text:"",htmlBody=b.html===undefined||b.html===null?null:b.html;
  const hasText=Boolean(textBody.trim()),hasHtml=typeof htmlBody==="string"&&Boolean(htmlBody.trim());
- if(!subject||/[\\r\\n\\x00-\\x1f\\x7f]/.test(subject)||new TextEncoder().encode(subject).length>300||(!hasText&&!hasHtml)||new TextEncoder().encode(textBody).length>200000||(htmlBody!==null&&(typeof htmlBody!=="string"||!hasHtml||new TextEncoder().encode(htmlBody).length>200000)))return json({error:"Add a subject and either a text or HTML message. The message is too long or invalid."},400);
+ if(!subject||/[\r\n\x00-\x1f\x7f]/.test(subject)||new TextEncoder().encode(subject).length>300||(!hasText&&!hasHtml)||new TextEncoder().encode(textBody).length>200000||(htmlBody!==null&&(typeof htmlBody!=="string"||!hasHtml||new TextEncoder().encode(htmlBody).length>200000)))return json({error:"Add a subject and either a text or HTML message. The message is too long or invalid."},400);
  const requestedName=String(b.fromName||"").trim();const name=requestedName&&/^[A-Za-z][A-Za-z .'-]{1,63}$/.test(requestedName)?requestedName:(domain==="operavaglobal.com"?"Operava":domain==="work.jelvan.pro"?"Jelvan Ricolcol":"LeadMASTER");
  const batchId=crypto.randomUUID(),now=Date.now(),ids=[],statements=[];
  for(const recipient of recipients){
