@@ -28,7 +28,7 @@ test('activity logs use readable names, details and category filters',async()=>{
  assert.ok(logs.includes('["email","Emails"]'));
  assert.ok(logs.includes('["templates","Templates"]'));
  assert.ok(logs.includes('["navigation","Navigation"]'));
- assert.ok(logs.includes('eventType:x.action'));
- assert.ok(logs.includes('Template saved'));
+ assert.ok(html.includes('eventType:x.action'));
+ assert.ok(html.includes('Template saved'));
  assert.ok(!logs.includes('children:"Status"'));
 });
