@@ -22,10 +22,15 @@ class WorkspaceViewModel : ViewModel() {
 
     fun onPageFinished(url: String?) {
         val uri = runCatching { Uri.parse(url) }.getOrNull()
-        val isWorkspace = uri?.scheme == "https" &&
+        val isTrustedOrigin = uri?.scheme == "https" &&
             uri.host == APP_HOST &&
-            uri.path.orEmpty().contains("/dashboard")
-        _uiState.update { it.copy(showNavigation = isWorkspace) }
+            (uri.port == -1 || uri.port == 443) &&
+            uri.userInfo == null
+        if (!isTrustedOrigin) _uiState.update { it.copy(showNavigation = false) }
+    }
+
+    fun onWorkspaceReady(ready: Boolean) {
+        _uiState.update { it.copy(showNavigation = ready) }
     }
 
     fun selectSection(section: String) {
@@ -38,9 +43,9 @@ class WorkspaceViewModel : ViewModel() {
         val section = when (label.orEmpty().trim().lowercase()) {
             "home", "homepage", "overview", "dashboard" -> "home"
             "emails", "email" -> "emails"
-            "audience", "audiences" -> "audience"
+            "audience", "audiences", "contacts" -> "audience"
             "metrics", "analytics" -> "metrics"
-            "profile", "account" -> "profile"
+            "profile", "account", "settings" -> "profile"
             else -> null
         } ?: return
         selectSection(section)
