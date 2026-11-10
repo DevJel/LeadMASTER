@@ -67,8 +67,8 @@ test('sends an HTML-only message without requiring a plain-text alternative',asy
  const s=server(),html='<h1>HTML only</h1>';
  await sendSesEmail({...input,text:'',html,connect:s.connect});
  const message=s.commands.at(-1);
- assert.match(message,/Content-Type: text\\/html; charset=UTF-8/);
- assert.doesNotMatch(message,/multipart\\/alternative/);
+ assert.match(message,/Content-Type: text\/html; charset=UTF-8/);
+ assert.doesNotMatch(message,/multipart\/alternative/);
  assert.ok(message.includes(Buffer.from(html).toString('base64')));
 });
 test('rejects a message with neither text nor HTML before connecting',async()=>{
