@@ -20,6 +20,8 @@ export async function sendThroughEmailCoordinator(env,options) {
     ...(typeof options.fromEmail==='string' && options.fromEmail ? {fromEmail:options.fromEmail} : {}),
     ...(typeof options.fromName==='string' && options.fromName ? {fromName:options.fromName} : {}),
     ...(typeof options.replyTo==='string' && options.replyTo ? {replyTo:options.replyTo} : {}),
+    ...(Array.isArray(options.cc)&&options.cc.length?{cc:options.cc}:{}),
+    ...(Array.isArray(options.bcc)&&options.bcc.length?{bcc:options.bcc}:{}),
     messageId:options.messageId || id
   };
   try {
