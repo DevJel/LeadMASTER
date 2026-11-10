@@ -8,7 +8,7 @@ const token = () => "lm_live_"+b64(crypto.getRandomValues(new Uint8Array(32)));
 const hash = async value => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",enc.encode(value))),b=>b.toString(16).padStart(2,"0")).join("");
 const email = /^[A-Za-z0-9.!#$%&'*+/=?^`_{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?$/;
 function validMessage(v){
- if(!v||typeof v!=="object"||Array.isArray(v)||Object.keys(v).some(k=>!["to","subject","text","html","sender_name"].includes(k)))return false;
+ if(!v||typeof v!=="object"||Array.isArray(v)||Object.keys(v).some(k=>!["to","subject","text","html","sender_name","reply_to"].includes(k)))return false;
  if(typeof v.to!=="string"||v.to.length>254||!email.test(v.to)||v.to.includes(".."))return false;
  if(typeof v.subject!=="string"||!v.subject.trim()||/[\r\n\x00-\x1f\x7f]/.test(v.subject)||enc.encode(v.subject).length>300)return false;
  const text=v.text==null?"":v.text,html=v.html==null?"":v.html;
@@ -68,6 +68,7 @@ export async function developerEmailRoute(request,env,connect,accountId){
  const id=crypto.randomUUID(),now=Date.now();
  const account=await env.AUTH_DB.prepare("SELECT name,owner_email,owner_name FROM accounts WHERE id=?").bind(accountId).first();
  const registeredEmail=String(account?.owner_email||row.created_by||"").trim().toLowerCase();
+ const replyTo=String(body.reply_to||"").trim().toLowerCase();
  const accountName=String(account?.name||"").trim();
  const fallbackName=(registeredEmail.split("@")[0]||"user").replace(/[._-]+/g," ").replace(/\\b[a-z]/g,x=>x.toUpperCase());
  const requestedName=String(body.sender_name||"").trim();
@@ -76,7 +77,7 @@ export async function developerEmailRoute(request,env,connect,accountId){
  if(requestedName&&requestedName!==account?.owner_name)await env.AUTH_DB.prepare("UPDATE accounts SET owner_name=?,updated_at=? WHERE id=?").bind(requestedName,now,accountId).run();
  const senderLocal=(senderName.toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,48)||"user");
  const senderEmail=senderLocal+"@leadmaster.jelvan.pro";
- try{await env.AUTH_DB.prepare("INSERT INTO developer_email_requests (id,api_key_id,idempotency_key,recipient,subject,status,created_at,updated_at,error_code,account_id,from_email,sender_name,reply_to,text_body,html_body) VALUES (?,?,?,?,?,'sending',?,?,NULL,?,?,?,?,?,?)").bind(id,row.id,idem,body.to,body.subject,now,now,accountId,senderEmail,senderName,registeredEmail,textBody,htmlBody).run();}
+ try{await env.AUTH_DB.prepare("INSERT INTO developer_email_requests (id,api_key_id,idempotency_key,recipient,subject,status,created_at,updated_at,error_code,account_id,from_email,sender_name,reply_to,text_body,html_body) VALUES (?,?,?,?,?,'sending',?,?,NULL,?,?,?,?,?,?)").bind(id,row.id,idem,body.to,body.subject,now,now,accountId,senderEmail,senderName,replyTo,textBody,htmlBody).run();}
  catch{return json({error:"Request already submitted or could not be recorded; retry with the same idempotency key"},409);}
  await env.AUTH_DB.prepare("UPDATE developer_api_keys SET last_used_at=? WHERE id=?").bind(now,row.id).run();
  if(!env.MAIL_SEND_QUEUE){
