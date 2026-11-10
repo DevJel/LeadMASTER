@@ -38,7 +38,8 @@ export function validateEmailJob(job) {
 export async function enqueueEmail(queue, job) {
   validateEmailJob(job);
   if (!queue || typeof queue.send !== 'function') throw new TypeError('Queue unavailable');
-  const message = {id:job.id,to:job.to,subject:job.subject,text:job.text,
+  const message = {id:job.id,to:job.to,subject:job.subject,
+    ...(job.text === undefined ? {} : {text:job.text}),
     ...(job.html === undefined ? {} : {html:job.html})};
   if (encoder.encode(JSON.stringify(message)).length > 100000) throw new TypeError('Queued message too large');
   await queue.send(message);
@@ -46,7 +47,7 @@ export async function enqueueEmail(queue, job) {
 }
 
 async function digest(job) {
-  const parts = [job.to, job.subject, job.text, job.html ?? null,
+  const parts = [job.to, job.subject, job.text ?? null, job.html ?? null,
     job.fromEmail ?? null, job.fromName ?? null, job.replyTo ?? null, job.messageId ?? null];
   const input = encoder.encode(JSON.stringify(parts));
   const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256',input));
@@ -136,7 +137,8 @@ export class EmailDispatchCore {
     let outcome;
     try {
       const result=await this.send({
-        to:job.to, subject:job.subject, text:job.text,
+        to:job.to, subject:job.subject,
+        ...(job.text === undefined ? {} : {text:job.text}),
         ...(job.html === undefined ? {} : {html:job.html}),
         ...(job.fromEmail === undefined ? {} : {fromEmail:job.fromEmail}),
         ...(job.fromName === undefined ? {} : {fromName:job.fromName}),
