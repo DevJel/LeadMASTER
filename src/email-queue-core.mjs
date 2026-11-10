@@ -11,7 +11,7 @@ const defaultSleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 export function validateEmailJob(job) {
   if (!job || typeof job !== 'object' || Array.isArray(job) ||
       typeof job.id !== 'string' || job.id.length > MAX_ID || !ID.test(job.id) ||
-      typeof job.to !== 'string' || job.to.length > 254 || !EMAIL.test(job.to) || job.to.includes('..') ||
+      !(typeof job.to === 'string' ? (job.to.length <= 254 && EMAIL.test(job.to) && !job.to.includes('..')) : (Array.isArray(job.to) && job.to.length >= 1 && job.to.length <= 500 && job.to.every(x => typeof x === 'string' && x.length <= 254 && EMAIL.test(x) && !x.includes('..')))) ||
       typeof job.subject !== 'string' || !job.subject.trim() || /[\r\n\x00-\x1f\x7f]/.test(job.subject) ||
       encoder.encode(job.subject).length > 300) {
     throw new TypeError('Invalid queued message');
@@ -30,6 +30,12 @@ export function validateEmailJob(job) {
   }
   if (job.replyTo !== undefined && (typeof job.replyTo !== 'string' || job.replyTo.length > 254 || !EMAIL.test(job.replyTo) || job.replyTo.includes('..'))) {
     throw new TypeError('Invalid reply address');
+  }
+  for (const field of ['cc','bcc']) {
+    if (job[field] !== undefined && (!Array.isArray(job[field]) || job[field].length > 100 ||
+        job[field].some(x => typeof x !== 'string' || x.length > 254 || !EMAIL.test(x) || x.includes('..')))) {
+      throw new TypeError('Invalid ' + field.toUpperCase() + ' addresses');
+    }
   }
   if (job.fromName !== undefined && (typeof job.fromName !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9 .'-]{0,63}$/.test(job.fromName))) {
     throw new TypeError('Invalid sender name');
@@ -53,7 +59,7 @@ export async function enqueueEmail(queue, job) {
 
 async function digest(job) {
   const parts = [job.to, job.subject, job.text ?? null, job.html ?? null,
-    job.fromEmail ?? null, job.fromName ?? null, job.replyTo ?? null, job.messageId ?? null];
+    job.fromEmail ?? null, job.fromName ?? null, job.replyTo ?? null, job.cc ?? null, job.bcc ?? null, job.messageId ?? null];
   const input = encoder.encode(JSON.stringify(parts));
   const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256',input));
   return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
@@ -148,6 +154,8 @@ export class EmailDispatchCore {
         ...(job.fromEmail === undefined ? {} : {fromEmail:job.fromEmail}),
         ...(job.fromName === undefined ? {} : {fromName:job.fromName}),
         ...(job.replyTo === undefined ? {} : {replyTo:job.replyTo}),
+        ...(job.cc === undefined ? {} : {cc:job.cc}),
+        ...(job.bcc === undefined ? {} : {bcc:job.bcc}),
         ...(job.messageId === undefined ? {} : {messageId:job.messageId})
       });
       outcome=result?.status==='accepted'?'accepted':'unknown';
