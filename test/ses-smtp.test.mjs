@@ -62,3 +62,17 @@ test('adds a private message reference and delivery event tag for SES updates',a
  assert.match(data,new RegExp('X-SES-MESSAGE-TAGS: leadmaster_message_id='+id));
  assert.match(data,/X-SES-CONFIGURATION-SET: leadmaster-events/);
 });
+
+test('sends an HTML-only message without requiring a plain-text alternative',async()=>{
+ const s=server(),html='<h1>HTML only</h1>';
+ await sendSesEmail({...input,text:'',html,connect:s.connect});
+ const message=s.commands.at(-1);
+ assert.match(message,/Content-Type: text\\/html; charset=UTF-8/);
+ assert.doesNotMatch(message,/multipart\\/alternative/);
+ assert.ok(message.includes(Buffer.from(html).toString('base64')));
+});
+test('rejects a message with neither text nor HTML before connecting',async()=>{
+ let connected=false;
+ await assert.rejects(sendSesEmail({...input,text:'',html:'',connect:()=>{connected=true}}));
+ assert.equal(connected,false);
+});
