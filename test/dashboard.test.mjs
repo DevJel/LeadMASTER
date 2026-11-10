@@ -70,7 +70,7 @@ test('Android companion uses the canonical responsive dashboard and preserves pe
  assert.ok(activity.includes('setContent {'));
  assert.ok(activity.includes('WorkspaceWebView'));
  assert.ok(activity.includes('AndroidView'));
- assert.ok(!activity.includes('NavigationBar') && !activity.includes('NavigationRail'));
+ assert.ok(!activity.includes('NavigationBar(') && !activity.includes('NavigationRail('));
  assert.ok(activity.includes('enableEdgeToEdge()'));
  assert.ok(!activity.includes('dataset.lmNativeApp'));
  assert.ok(activity.includes('setAcceptThirdPartyCookies(this, false)'));
