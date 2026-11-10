@@ -92,3 +92,15 @@ test('suppression read failure after claim does not send and remains fenced',asy
  const a=message();await consumer(async()=>{sends++}).queue({messages:[a]},s.env);assert.equal(sends,0);assert.equal(s.claim(),'started');assert.equal(a.acks,0);assert.equal(a.retries.length,1);
  await consumer(async()=>{sends++}).queue({messages:[message()]},s.env);assert.equal(sends,0);
 });
+
+test('mail consumer forwards text-only and HTML-only bodies independently',async()=>{
+ for(const source of ['admin','developer']){
+  const table=source==='admin'?'admin_sent_mail':'developer_email_requests';
+  const html=setup(source);html.sql.prepare('UPDATE '+table+' SET text_body=?,html_body=? WHERE id=?').run('','<h1>Only HTML</h1>',id);
+  let htmlSent;await consumer(async options=>{htmlSent=options}).queue({messages:[message(source)]},html.env);
+  assert.equal(htmlSent.text,'');assert.equal(htmlSent.html,'<h1>Only HTML</h1>');
+  const plain=setup(source);plain.sql.prepare('UPDATE '+table+' SET text_body=?,html_body=? WHERE id=?').run('Only text',null,id);
+  let textSent;await consumer(async options=>{textSent=options}).queue({messages:[message(source)]},plain.env);
+  assert.equal(textSent.text,'Only text');assert.equal(Object.hasOwn(textSent,'html'),false);
+ }
+});
