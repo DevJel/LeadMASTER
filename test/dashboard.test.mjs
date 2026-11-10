@@ -67,20 +67,20 @@ test('Android companion uses the canonical responsive dashboard and preserves pe
   read('../ANDROID APK/README.md'),
   read('../worker.js')
  ]);
- assert.match(activity, /setContent\\s*\\{/);
- assert.match(activity, /WorkspaceWebView/);
- assert.match(activity, /AndroidView/);
- assert.doesNotMatch(activity, /NavigationBar|NavigationRail/);
- assert.match(activity, /enableEdgeToEdge\\(\\)/);
- assert.doesNotMatch(activity, /dataset\\.lmNativeApp/);
- assert.match(activity, /setAcceptThirdPartyCookies\\(this, false\\)/);
- assert.match(activity, /CookieManager\\.getInstance\\(\\)\\.flush\\(\\)/);
- assert.match(activity, /override fun onPause/);
- assert.match(activity, /override fun onStop/);
- assert.match(gradle, /versionName = "1\\.5\\.0"/);
- assert.match(gradle, /minSdk = 26/);
- assert.match(gradle, /androidx\\.compose\\.material3:material3/);
- assert.match(worker, /SESSION_TTL_MS = 180 \\* 24 \\* 60 \\* 60 \\* 1000/);
- assert.match(worker, /Max-Age=" \\+ SESSION_COOKIE_MAX_AGE/);
+ assert.ok(activity.includes('setContent {'));
+ assert.ok(activity.includes('WorkspaceWebView'));
+ assert.ok(activity.includes('AndroidView'));
+ assert.ok(!activity.includes('NavigationBar') && !activity.includes('NavigationRail'));
+ assert.ok(activity.includes('enableEdgeToEdge()'));
+ assert.ok(!activity.includes('dataset.lmNativeApp'));
+ assert.ok(activity.includes('setAcceptThirdPartyCookies(this, false)'));
+ assert.ok(activity.includes('CookieManager.getInstance().flush()'));
+ assert.ok(activity.includes('override fun onPause'));
+ assert.ok(activity.includes('override fun onStop'));
+ assert.ok(gradle.includes('versionName = "1.5.0"'));
+ assert.ok(gradle.includes('minSdk = 26'));
+ assert.ok(gradle.includes('androidx.compose.material3:material3'));
+ assert.ok(worker.includes('SESSION_TTL_MS = 180 * 24 * 60 * 60 * 1000'));
+ assert.ok(worker.includes('Max-Age=" + SESSION_COOKIE_MAX_AGE'));
  assert.match(readme, /single source of truth/i);
 });
