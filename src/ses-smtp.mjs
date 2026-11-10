@@ -83,13 +83,20 @@ async function secret(value) {
  */
 export async function sendSesEmail({ connect, env, to, cc, bcc, subject, text, html, fromName, fromEmail, replyTo, messageId, timeoutMs = 15000 }) {
   if (!env || typeof connect !== 'function' || !Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 30000) throw new Error('SMTP configuration unavailable');
-  const from = mailbox(fromEmail || env.SES_FROM_EMAIL); const envelopeRecipients=[...new Set([...mailboxList(to,'To',500),...(cc===undefined?[]:mailboxList(cc,'CC',100)),...(bcc===undefined?[]:mailboxList(bcc,'BCC',100))])]; const configurationSet = typeof env.SES_CONFIGURATION_SET === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(env.SES_CONFIGURATION_SET) ? env.SES_CONFIGURATION_SET : undefined; const message = buildMessage({ from, fromName, replyTo, configurationSet, messageId, to, cc, subject, text, html });
+  const from = mailbox(fromEmail || env.SES_FROM_EMAIL);
+  const toList=mailboxList(to,'To',1000),ccList=cc===undefined?[]:mailboxList(cc,'CC',1000),bccList=bcc===undefined?[]:mailboxList(bcc,'BCC',1000);
+  const allRecipients=[...new Set([...toList,...ccList,...bccList])];
+  if(!toList.length||allRecipients.length>1000)throw new TypeError('A send must contain 1 to 1,000 unique recipients');
+  if(ccList.length+bccList.length>=50)throw new TypeError('CC and BCC must total fewer than 50 recipients when To recipients are present');
+  const firstToCapacity=50-ccList.length-bccList.length;
+  const chunks=[];
+  chunks.push(toList.slice(0,firstToCapacity));
+  for(let i=firstToCapacity;i<toList.length;i+=50)chunks.push(toList.slice(i,i+50));
+  const configurationSet = typeof env.SES_CONFIGURATION_SET === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(env.SES_CONFIGURATION_SET) ? env.SES_CONFIGURATION_SET : undefined;
   const [host, username, password] = await Promise.all([secret(env.SES_SMTP_HOST), secret(env.SES_SMTP_USERNAME), secret(env.SES_SMTP_PASSWORD)]);
   if (!HOST.test(host)) throw new Error('SMTP configuration unavailable');
   let socket; let timer; let dataSent = false; let accepted = false;
   try {
-    // AWS SES SMTP submission uses STARTTLS on port 587. Begin with plain TCP,
-    // negotiate STARTTLS, then discard the original streams and use the upgraded socket.
     socket = connect({ hostname: host, port: 587 }, { secureTransport: 'starttls' });
     const run = async () => {
       await socket.opened;
@@ -97,39 +104,36 @@ export async function sendSesEmail({ connect, env, to, cc, bcc, subject, text, h
       let writer = socket.writable.getWriter();
       let replies = new ReplyReader(reader);
       async function expect(allowed) { const code = await replies.reply(); if (!allowed.includes(code)) throw new Error('SMTP request rejected'); }
-      async function command(value, allowed) { await writer.write(encoder.encode(value + '\r\n')); await expect(allowed); }
+      async function command(value, allowed) { await writer.write(encoder.encode(value + '\\r\\n')); await expect(allowed); }
       await expect([220]);
       await command('EHLO leadmaster.local', [250]);
       await command('STARTTLS', [220]);
-
-      // Cloudflare startTls() replaces the socket; old stream locks must be released
-      // and no old reader/writer may be used after the upgrade.
-      reader.releaseLock();
-      writer.releaseLock();
+      reader.releaseLock(); writer.releaseLock();
       socket = socket.startTls();
       await socket.opened;
-      reader = socket.readable.getReader();
-      writer = socket.writable.getWriter();
-      replies = new ReplyReader(reader);
-
+      reader = socket.readable.getReader(); writer = socket.writable.getWriter(); replies = new ReplyReader(reader);
       await command('EHLO leadmaster.local', [250]);
-      await command('AUTH PLAIN ' + utf8b64('\0' + username + '\0' + password), [235]);
-      await command(`MAIL FROM:<${from}>`, [250]);
-      for(const recipient of envelopeRecipients)await command(`RCPT TO:<${recipient}>`, [250,251]);
-      await command('DATA', [354]);
-      // A timeout or disconnect from this point is an ambiguous delivery.
-      dataSent = true;
-      await writer.write(encoder.encode(message + '.\r\n'));
-      await expect([250]); accepted = true;
-      return { status: 'accepted' };
+      await command('AUTH PLAIN ' + utf8b64('\\0' + username + '\\0' + password), [235]);
+      for(let i=0;i<chunks.length;i++){
+        const chunk=chunks[i],isFirst=i===0;
+        const envelope=[...chunk,...(isFirst?ccList:[]),...(isFirst?bccList:[])];
+        const message=buildMessage({from,fromName,replyTo,configurationSet,messageId:chunks.length>1&&messageId?messageId+'-'+(i+1):messageId,to:chunk,cc:isFirst?ccList:[],subject,text,html});
+        await command(`MAIL FROM:<${from}>`,[250]);
+        for(const recipient of envelope)await command(`RCPT TO:<${recipient}>`,[250,251]);
+        await command('DATA',[354]);
+        dataSent=true;
+        await writer.write(encoder.encode(message+'.\\r\\n'));
+        await expect([250]);accepted=true;
+      }
+      return {status:'accepted',messages:chunks.length,recipients:allRecipients.length};
     };
-    return await Promise.race([run(), new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('SMTP request timed out')), timeoutMs); })]);
-  } catch (error) {
-    const result = new Error(dataSent && !accepted ? 'SMTP delivery outcome unknown' : 'SMTP delivery failed');
-    result.deliveryOutcome = dataSent && !accepted ? 'unknown' : 'not_accepted';
+    return await Promise.race([run(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('SMTP request timed out')),timeoutMs);})]);
+  } catch(error) {
+    const result=new Error(dataSent&&!accepted?'SMTP delivery outcome unknown':'SMTP delivery failed');
+    result.deliveryOutcome=dataSent&&!accepted?'unknown':'not_accepted';
     throw result;
   } finally {
     clearTimeout(timer);
-    try { await socket?.close(); } catch { /* The connection may already be closed. */ }
+    try{await socket?.close();}catch{/* The socket may already be closed. */}
   }
 }
