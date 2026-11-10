@@ -21,6 +21,14 @@ The Android companion opens the same authenticated LeadMASTER workspace as the w
 
 The app intentionally remains a thin companion to the production workspace. Do not add Room, offline copies, duplicate API business logic or native versions of existing dashboard workflows unless a separately approved native-only capability requires them.
 
+## Native notification sounds
+
+Android creates separate notification channels for email sent, email deleted, newly received mail and general LeadMASTER updates. Each channel uses the device's default notification sound and vibration and can be adjusted independently in Android Settings → Apps → LeadMASTER → Notifications.
+
+While the app is open and authenticated, it checks the existing activity and inbox read endpoints every 30 seconds. It establishes an initial baseline so old activity and existing inbox messages do not generate a burst of notifications. New activity events are mapped to their corresponding notification category; newly appearing inbox messages generate a new-mail notification.
+
+Notification access requires the Android notification permission. Android notification channel settings, Do Not Disturb, silent mode and device volume remain under the user's control. Because this implementation deliberately does not change the production backend or add a push service, inbox/activity monitoring is active only while the app's authenticated workspace is open; it is not a guaranteed background or force-closed push notification service.
+
 ## Web and Android feature parity
 
 The mandatory dashboard source is `src/Mandatory LeadMASTER Dashboard.html`. Android loads the same production dashboard and uses the same authenticated WebView cookie session.
