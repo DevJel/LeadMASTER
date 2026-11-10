@@ -77,7 +77,7 @@ test('Android companion uses the canonical responsive dashboard and preserves pe
  assert.ok(activity.includes('CookieManager.getInstance().flush()'));
  assert.ok(activity.includes('override fun onPause'));
  assert.ok(activity.includes('override fun onStop'));
- assert.ok(gradle.includes('versionName = "1.5.0"'));
+ assert.ok(gradle.includes('versionName = "1.6.0"'));
  assert.ok(gradle.includes('minSdk = 26'));
  assert.ok(gradle.includes('androidx.compose.material3:material3'));
  assert.ok(worker.includes('SESSION_TTL_MS = 180 * 24 * 60 * 60 * 1000'));
