@@ -13,7 +13,7 @@ export async function audienceRoute(request,env,session,adminEmail){
  if(!env.AUTH_DB)return json({error:'Audience temporarily unavailable'},503);
  const u=new URL(request.url),match=/^\/api\/admin\/audience\/groups(?:\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(\/members)?)?$/i.exec(u.pathname);
  if(!match)return json({error:'Not found'},404);
- const [,id,members]=match,db=env.AUTH_DB,account=session.accountId;
+ const [,id,members]=match,db=env.AUTH_DB,account=session.accountId;let groupName='';
  if(!['GET','POST'].includes(request.method))return json({error:'Method not allowed'},405);
  if(request.method==='POST'&&request.headers.get('origin')!==u.origin)return json({error:'Invalid request origin'},403);
  try {
@@ -23,7 +23,7 @@ export async function audienceRoute(request,env,session,adminEmail){
   }
   if(id){
    const group=await db.prepare('SELECT id,name,created_at FROM audience_groups WHERE id=? AND account_id=?').bind(id,account).first();
-   if(!group)return json({error:'Group not found'},404);
+   if(!group)return json({error:'Group not found'},404);groupName=group.name;
    if(request.method==='GET'){
     const r=await db.prepare('SELECT email FROM audience_group_members WHERE account_id=? AND group_id=? ORDER BY email LIMIT 500').bind(account,id).all();
     return json({group,emails:(r.results||[]).map(x=>x.email)});
@@ -61,7 +61,7 @@ export async function audienceRoute(request,env,session,adminEmail){
    .bind(account,id,now,packed,account,account,id,MEMBER_MAX,account,id);
   const result=await db.batch([a,b]);
   const added=Number(result[1]?.meta?.changes||0);
-  if(added)await activity(db,session,'audience_members_added','Added '+added+' contact'+(added===1?'':'s')+' to the group “'+group.name+'”.',id);
+  if(added)await activity(db,session,'audience_members_added','Added '+added+' contact'+(added===1?'':'s')+' to the group “'+groupName+'”.',id);
   const exists=await db.prepare('SELECT COUNT(*) AS n FROM audience_group_members m JOIN json_each(?) j ON j.value=m.email WHERE m.account_id=? AND m.group_id=?').bind(packed,account,id).first();
   const present=Number(exists?.n||0);
   return json({submitted:emails.length,unique:unique.length,duplicates:emails.length-unique.length,added,already_in_group:present-added,not_added:unique.length-present});
