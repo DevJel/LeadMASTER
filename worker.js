@@ -528,6 +528,12 @@ async function adminMailboxRoute(request,env,session){
  }
  return json({error:"Not found"},404);
 }
+function parseOptionalAddressList(value){
+ const values=Array.isArray(value)?value:(typeof value==="string"?value.split(/[\\s,;]+/):[]);
+ const normalized=[...new Set(values.map(x=>String(x||"").trim().toLowerCase()).filter(Boolean))];
+ if(normalized.length>100||normalized.some(x=>x.length>254||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(x)))return null;
+ return normalized;
+}
 async function adminSendRoute(request,env,session){
  if(!session)return json({error:"Unauthorized"},401);
  if(session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
@@ -541,6 +547,9 @@ async function adminSendRoute(request,env,session){
  const from=String(b.fromEmail||"hello@work.jelvan.pro").trim().toLowerCase(),domain=from.split("@")[1]||"";
  const verifiedDomain=domain==="jelvan.pro"||domain.endsWith(".jelvan.pro")||domain==="operavaglobal.com"||domain.endsWith(".operavaglobal.com");
  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(from)||!verifiedDomain)return json({error:"Choose a sender under a verified jelvan.pro or operavaglobal.com identity."},400);
+ const cc=parseOptionalAddressList(b.cc),bcc=parseOptionalAddressList(b.bcc);
+ const replyTo=String(b.replyTo||"").trim().toLowerCase();
+ if(!cc||!bcc||(replyTo&&(replyTo.length>254||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(replyTo))))return json({error:"Check CC, BCC and Reply-To addresses. Use up to 100 valid addresses in CC and BCC."},400);
  const subject=String(b.subject||"").trim(),textBody=typeof b.text==="string"?b.text:"",htmlBody=b.html===undefined||b.html===null?null:b.html;
  const hasText=Boolean(textBody.trim()),hasHtml=typeof htmlBody==="string"&&Boolean(htmlBody.trim());
  if(!subject||/[\r\n\x00-\x1f\x7f]/.test(subject)||new TextEncoder().encode(subject).length>300||(!hasText&&!hasHtml)||new TextEncoder().encode(textBody).length>200000||(htmlBody!==null&&(typeof htmlBody!=="string"||!hasHtml||new TextEncoder().encode(htmlBody).length>200000)))return json({error:"Add a subject and either a text or HTML message. The message is too long or invalid."},400);
@@ -550,8 +559,8 @@ async function adminSendRoute(request,env,session){
   const suppressed=await env.AUTH_DB.prepare("SELECT email FROM email_unsubscribes WHERE lower(email)=lower(?)").bind(recipient).first();
   if(suppressed)continue;
   const id=crypto.randomUUID();ids.push(id);
-  if(htmlBody===null)statements.push(env.AUTH_DB.prepare("INSERT INTO admin_sent_mail (id,recipient,subject,status,created_at,updated_at,from_email,from_name,reply_to,text_body,error_code,queue_status,batch_id) VALUES (?,?,?,'sending',?,?,?,?,?,?,NULL,'queued',?)").bind(id,recipient,subject,now,now,from,name,session.email,textBody,batchId));
-  else statements.push(env.AUTH_DB.prepare("INSERT INTO admin_sent_mail (id,recipient,subject,status,created_at,updated_at,from_email,from_name,reply_to,text_body,error_code,queue_status,batch_id,html_body) VALUES (?,?,?,'sending',?,?,?,?,?,?,NULL,'queued',?,?)").bind(id,recipient,subject,now,now,from,name,session.email,textBody,batchId,htmlBody));
+  if(htmlBody===null)statements.push(env.AUTH_DB.prepare("INSERT INTO admin_sent_mail (id,recipient,subject,status,created_at,updated_at,from_email,from_name,reply_to,text_body,error_code,queue_status,batch_id,cc,bcc) VALUES (?,?,?,'sending',?,?,?,?,?,?,NULL,'queued',?,?,?)").bind(id,recipient,subject,now,now,from,name,replyTo,textBody,batchId,JSON.stringify(cc),JSON.stringify(bcc)));
+  else statements.push(env.AUTH_DB.prepare("INSERT INTO admin_sent_mail (id,recipient,subject,status,created_at,updated_at,from_email,from_name,reply_to,text_body,error_code,queue_status,batch_id,html_body,cc,bcc) VALUES (?,?,?,'sending',?,?,?,?,?,?,NULL,'queued',?,?,?,?)").bind(id,recipient,subject,now,now,from,name,replyTo,textBody,batchId,htmlBody,JSON.stringify(cc),JSON.stringify(bcc)));
  }
  if(!ids.length)return json({error:"All selected recipients are on your do-not-contact list."},409);
  try{
@@ -561,8 +570,7 @@ async function adminSendRoute(request,env,session){
   // No queue call has been attempted. Orphan records may need reconciliation.
   return json({batch_id:batchId,error:"Could not prepare messages; no queue submission was attempted. Check the batch before retrying."},503);
  }
- const operations=[];
- for(let i=0;i<ids.length;i+=100){const chunk=ids.slice(i,i+100);operations.push(()=>env.MAIL_SEND_QUEUE.sendBatch(chunk.map(id=>({body:{id,source:"admin"}}))));}
+ const operations=[()=>env.MAIL_SEND_QUEUE.send({id:batchId,source:"admin",batch:true})];
  const submission=await submitInOrder(operations);
  if(submission.status!=="queued")return json({batch_id:batchId,status:"submission_unconfirmed",error:"The sending result is uncertain: some messages may be queued or sent. Do not resend; contact an administrator to reconcile this batch."},503);
  await writeBestEffort([
