@@ -24,7 +24,6 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -88,7 +87,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val uiState by workspaceViewModel.uiState.collectAsStateWithLifecycle()
-            val dark = isSystemInDarkTheme()
+            val dark = uiState.isDarkTheme
             val colors = if (dark) {
                 darkColorScheme(
                     primary = Color.White,
@@ -297,7 +296,14 @@ class MainActivity : ComponentActivity() {
                               },false);
                             }
                           }
-                          if(window.LeadMasterNative)window.LeadMasterNative.workspaceReady(ready);
+                          var dark=root?.getAttribute('data-theme')==='dark';
+                          if(window.LeadMasterNative){window.LeadMasterNative.workspaceReady(ready);window.LeadMasterNative.themeChanged(dark);}
+                          if(ready&&!window.__lmNativeThemeObserver){
+                            window.__lmNativeThemeObserver=new MutationObserver(function(){
+                              if(window.LeadMasterNative)window.LeadMasterNative.themeChanged(root.getAttribute('data-theme')==='dark');
+                            });
+                            window.__lmNativeThemeObserver.observe(root,{attributes:true,attributeFilter:['data-theme']});
+                          }
                           return document.querySelector('.bottom-tab.active')?.textContent?.trim()
                             ||document.querySelector('.tab-link.active')?.textContent?.trim()
                             ||'Overview';
@@ -368,6 +374,11 @@ class MainActivity : ComponentActivity() {
         @JavascriptInterface
         fun workspaceReady(ready: Boolean) {
             runOnUiThread { workspaceViewModel.onWorkspaceReady(ready) }
+        }
+
+        @JavascriptInterface
+        fun themeChanged(dark: Boolean) {
+            runOnUiThread { workspaceViewModel.onThemeChanged(dark) }
         }
 
         @JavascriptInterface
