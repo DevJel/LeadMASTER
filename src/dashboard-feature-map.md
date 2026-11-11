@@ -12,7 +12,7 @@ The mandatory HTML is the authoritative React dashboard. Preserve its component 
 |---|---|---|
 | Account identity | `GET /api/auth/session`, `GET /api/account/profile` | Authenticated account and owner profile. |
 | Overview | `GET /api/admin/mail?folder=counts`, `GET /api/admin/activity` | Live mailbox/queue counts and workspace activity. |
-| Emails | `GET /api/admin/mail?folder=...`, `GET /api/admin/mail/:id`, `PATCH /api/admin/mail/:id`, `POST /api/admin/send` | Inbound/sent/queued states, message detail, mailbox actions and a in-dashboard composer with retained navigation, local recipient import and optional HTML (subject to rollout). |
+| Emails | `GET /api/admin/mail?folder=...`, `GET /api/admin/mail/:id`, `PATCH /api/admin/mail/:id`, `POST /api/admin/send` | Sending, Receiving, Deleted and Suppressions views. Message soft-delete moves eligible mail to Deleted; Deleted supports restore and confirmed permanent deletion through the existing authenticated endpoint. The action is per message and does not clear the database, queue, delivery events or audit history. Composer retains navigation, local recipient import and optional HTML (subject to rollout). |
 | Reply assistance | `POST /api/admin/mail/:id/suggest` | Existing mailbox reply suggestion flow. |
 | Audience / suppression | `GET/POST /api/admin/unsubscribes` | Real do-not-contact list and manual suppression. Not a contact manager. |
 | Inboxes | Dedicated inbound mailbox | One account mailbox; no inbox provisioning API. |
@@ -36,6 +36,13 @@ Keep these navigation entries visible, but do not invent rows, local-success toa
 - DNS/DKIM/SPF verification; sender allowlist is not a DNS verification service.
 - Team management and account deletion.
 - Persistent onboarding workflow state.
+
+## Mail deletion behavior
+- Move to Deleted is a reversible soft-delete; the message remains recoverable.
+- Restore is available only from Deleted.
+- Permanently delete requires a second explicit confirmation and removes only the selected soft-deleted message record (and its original stored object for inbound mail).
+- Never clear the database or delete send-batch, queue, delivery-event, suppression, API-key, webhook or activity/audit records through mailbox controls.
+- Do not add ordinary delete controls to suppression entries, API keys, webhooks or activity logs: suppression is a sending safety control; keys and webhooks are revoked; audit history is retained.
 
 ## Security and data rules
 1. Use authenticated LeadMASTER session and account-scoped server authorization; never client-filter global records.
@@ -69,7 +76,7 @@ Every dashboard document and supporting bundle must be protected by a server-val
 
 ## Inbound deletion safety
 
-The deployed Worker contains the deletion-claim code and migration 0008 was applied on 2026-11-09. The code prevents restoring an inbound message while permanent deletion is pending; failed cleanup requires retry. Live end-to-end behavior remains unverified. No dashboard design or Android navigation changes are included. Validate shared WebView behavior and the full delete/restore confirmation experience before release.
+The deployed Worker contains the deletion-claim code and migration 0008 was applied on 2026-11-09. The code prevents restoring an inbound message while permanent deletion is pending; failed cleanup requires retry. The dashboard branch now adds the Deleted view, confirmation before moving mail, restore, and confirmed permanent deletion. Live end-to-end behavior remains unverified. Validate shared WebView behavior and the full delete/restore confirmation experience before release.
 
 
 ## Initial control audit (feature branch)
