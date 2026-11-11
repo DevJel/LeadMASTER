@@ -124,16 +124,16 @@ export class EmailDispatchCore {
 
         const minute=Math.floor(now/60000)*60000;
         const buckets=(previous?.buckets||[]).filter(([start])=>start+60000>now-86400000).map(b=>[...b]);
-        if (buckets.reduce((sum,b)=>sum+b[1],0)>=this.maxPer24h) {
+        if (recipientUnits>this.maxPer24h || buckets.reduce((sum,b)=>sum+b[1],0)+recipientUnits>this.maxPer24h) {
           const earliest=Math.min(...buckets.map(([start])=>start));
           return {status:'deferred_quota',retryAfterSeconds:Math.min(86400,Math.max(1,
             Math.ceil((earliest+60000+86400000-now)/1000)))};
         }
         const current=buckets.find(b=>b[0]===minute);
-        if (current) current[1]++; else buckets.push([minute,1]);
+        if (current) current[1]+=recipientUnits; else buckets.push([minute,recipientUnits]);
 
         await tx.put('quota_window',{last:now,buckets});
-        await tx.put('last_reserved_at',now);
+        await tx.put('last_reserved_at',now+(recipientUnits-1)*this.interval);
         await tx.put(key,{hash,status:'sending',reserved_at:now});
         return {status:'reserved'};
       });
