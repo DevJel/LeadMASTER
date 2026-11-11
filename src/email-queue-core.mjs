@@ -109,18 +109,18 @@ export class EmailDispatchCore {
           return {status:'blocked_unknown'};
         }
 
-        const last=await tx.get('last_reserved_at');
-        if (last!==undefined && !Number.isFinite(last)) throw Error('Rate state unavailable');
-        if (last!==undefined && now<last+this.interval) {
-          return {status:'wait',delayMs:last+this.interval-now};
-        }
-
         const previous=await tx.get('quota_window');
         if (previous && (!Number.isSafeInteger(previous.last) || !Array.isArray(previous.buckets) ||
             previous.buckets.length>1442 ||
             previous.buckets.some(b=>!Array.isArray(b)||b.length!==2||!Number.isSafeInteger(b[0])||
               !Number.isSafeInteger(b[1])||b[1]<1))) throw Error('Quota state unavailable');
         if (previous && now<previous.last) return {status:'blocked_clock'};
+
+        const last=await tx.get('last_reserved_at');
+        if (last!==undefined && !Number.isFinite(last)) throw Error('Rate state unavailable');
+        if (last!==undefined && now<last+this.interval) {
+          return {status:'wait',delayMs:last+this.interval-now};
+        }
 
         const minute=Math.floor(now/60000)*60000;
         const buckets=(previous?.buckets||[]).filter(([start])=>start+60000>now-86400000).map(b=>[...b]);
