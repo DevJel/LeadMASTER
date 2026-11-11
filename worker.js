@@ -11,6 +11,7 @@ import { staticAssets } from "./src/static-assets.mjs";
 import { developerAdminRoute, developerEmailRoute, developerEmailStatus, developerAccountInfo } from "./src/developer-api.mjs";
 import { webhookRoute, adminWebhookRoute } from "./src/developer-webhooks.mjs";
 import { verifyTurnstile } from "./src/turnstile.mjs";
+import { parseSesEventCorrelation } from "./src/ses-event-correlation.mjs";
 export { EmailCoordinator } from "./src/email-coordinator.mjs";
 
 const HOSTNAME = "leadmaster.jelvan.pro";
@@ -338,7 +339,8 @@ async function sesSnsEvents(request,env){
  const statusMap={BOUNCE:"bounced",COMPLAINT:"complaint",DELIVERY:"delivered",DELIVERY_DELAY:"delayed",REJECT:"rejected",RENDERING_FAILURE:"failed",SEND:"sent",SUBSCRIPTION:"subscription"};
  const status=statusMap[type];if(!status)return json({ok:true,ignored:true});
  const eventId=String(envelope.MessageId||"");if(eventId){const once=await env.AUTH_DB.prepare("INSERT OR IGNORE INTO mail_event_dedup (event_id,received_at) VALUES (?,?)").bind(eventId,timestamp).run();if((once.meta?.changes||0)===0)return json({ok:true,duplicate:true});}
- const messageTag=mail.tags?.leadmaster_message_id;const correlation=String((Array.isArray(messageTag)?messageTag[0]:messageTag)||((mail.headers||[]).find(h=>String(h.name||"").toLowerCase()==="x-leadmaster-message-id")?.value)||"");
+ const messageTag=mail.tags?.leadmaster_message_id;const rawCorrelation=String((Array.isArray(messageTag)?messageTag[0]:messageTag)||((mail.headers||[]).find(h=>String(h.name||"").toLowerCase()==="x-leadmaster-message-id")?.value)||"");
+ const {messageId:correlation,batchChunk}=parseSesEventCorrelation(rawCorrelation);
  let recipients=[];
  if(type==="BOUNCE")recipients=(event.bounce?.bouncedRecipients||[]).map(x=>({email:x.emailAddress,detail:x.diagnosticCode||event.bounce?.bounceType||"Bounce"}));
  else if(type==="COMPLAINT")recipients=(event.complaint?.complainedRecipients||[]).map(x=>({email:x.emailAddress,detail:event.complaint?.complaintFeedbackType||"Complaint"}));
@@ -353,8 +355,13 @@ async function sesSnsEvents(request,env){
   const detail=JSON.stringify({type,detail:recipients[i].detail,bounceType:event.bounce?.bounceType||null});
   await env.AUTH_DB.prepare("INSERT OR IGNORE INTO email_delivery_events (id,email,subject,status,created_at,detail) VALUES (?,?,?,?,?,?)").bind(id,email,subject,status,timestamp,detail).run();
   if(correlation){
-   await env.AUTH_DB.prepare("UPDATE admin_sent_mail SET delivery_status=?,status=CASE WHEN ? IN ('bounced','rejected','failed') THEN 'failed' ELSE status END,queue_status=CASE WHEN ? IN ('bounced','rejected','failed') THEN 'failed' ELSE queue_status END,updated_at=? WHERE id=?").bind(status,status,status,timestamp,correlation).run();
-   await env.AUTH_DB.prepare("UPDATE developer_email_requests SET delivery_status=?,status=CASE WHEN ? IN ('bounced','rejected','failed') THEN 'failed' ELSE status END,updated_at=? WHERE id=?").bind(status,status,timestamp,correlation).run();
+   // Large campaigns are split into SMTP groups of up to 10 recipients. SES
+   // echoes the per-chunk tag (batch UUID + "-N"), so correlate each event to
+   // the matching recipient row inside that campaign instead of trying to
+   // match the suffixed tag to a message-row UUID.
+   const adminUpdate=env.AUTH_DB.prepare("UPDATE admin_sent_mail SET delivery_status=CASE WHEN delivery_status IN ('delivered','bounced','complaint','rejected','failed') AND ? IN ('sent','delayed') THEN delivery_status WHEN delivery_status='delayed' AND ?='sent' THEN delivery_status ELSE ? END,status=CASE WHEN ? IN ('bounced','rejected','failed') THEN 'failed' ELSE status END,queue_status=CASE WHEN ? IN ('bounced','rejected','failed') THEN 'failed' ELSE queue_status END,updated_at=? WHERE (id=? AND lower(recipient)=?) OR (?=1 AND batch_id=? AND lower(recipient)=?)").bind(status,status,status,status,status,timestamp,correlation,email,batchChunk===null?0:1,correlation,email);
+   await adminUpdate.run();
+   await env.AUTH_DB.prepare("UPDATE developer_email_requests SET delivery_status=CASE WHEN delivery_status IN ('delivered','bounced','complaint','rejected','failed') AND ? IN ('sent','delayed') THEN delivery_status WHEN delivery_status='delayed' AND ?='sent' THEN delivery_status ELSE ? END,status=CASE WHEN ? IN ('bounced','rejected','failed') THEN 'failed' ELSE status END,updated_at=? WHERE id=? AND lower(recipient)=?").bind(status,status,status,status,timestamp,correlation,email).run();
   }
   if(type==="COMPLAINT"||(type==="BOUNCE"&&event.bounce?.bounceType==="Permanent")){
    await env.AUTH_DB.prepare("INSERT OR IGNORE INTO email_unsubscribes (id,email,source,created_at,reason) VALUES (?,?,?,?,?)").bind("ses-suppress-"+email.replace(/[^a-z0-9]/g,"-"),email,type==="COMPLAINT"?"ses-complaint":"ses-hard-bounce",timestamp,recipients[i].detail).run();
