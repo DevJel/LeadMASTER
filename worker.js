@@ -258,8 +258,50 @@ async function verifyOtp(request, env, ctx) {
       env.AUTH_DB.prepare("DELETE FROM auth_challenges WHERE id=? AND code_hash=? AND attempts<5 AND expires_at>?")
         .bind(row.id, row.code_hash, now)
     ]);
-  } catch {
-    return json({ error: "We could not complete sign-in. Your code has not been intentionally invalidated; please retry." }, 503);
+  } catch (batchError) {
+    // Some production D1 runtime failures can reject batch() even when individual
+    // prepared statements remain available. Claim the OTP first so this fallback
+    // still prevents concurrent replay, then create the session and remove it.
+    console.error("OTP_SESSION_BATCH_FAILED", String(batchError?.message || batchError).slice(0, 300));
+    let claimed;
+    try {
+      claimed = await env.AUTH_DB.prepare(
+        "UPDATE auth_challenges SET attempts=5 WHERE id=? AND code_hash=? AND attempts<5 AND expires_at>?"
+      ).bind(row.id, row.code_hash, now).run();
+    } catch (claimError) {
+      console.error("OTP_SESSION_FALLBACK_CLAIM_FAILED", String(claimError?.message || claimError).slice(0, 300));
+      return json({ error: "We could not complete sign-in. Your code is still available; please retry." }, 503);
+    }
+    if ((claimed?.meta?.changes || 0) !== 1) {
+      return json({ error: "This code is no longer active. Request a new sign-in code and use the latest email." }, 401);
+    }
+    let fallbackSession;
+    try {
+      fallbackSession = await env.AUTH_DB.prepare(
+        "INSERT INTO auth_sessions (token_hash,email,created_at,expires_at,revoked_at) SELECT ?,?,?,?,NULL WHERE EXISTS (SELECT 1 FROM auth_challenges WHERE id=? AND code_hash=? AND attempts=5 AND expires_at>?)"
+      ).bind(tokenHash, adminEmail, now, expires, row.id, row.code_hash, now).run();
+    } catch (sessionError) {
+      try {
+        await env.AUTH_DB.prepare("UPDATE auth_challenges SET attempts=0 WHERE id=? AND code_hash=? AND attempts=5").bind(row.id, row.code_hash).run();
+      } catch (restoreError) {
+        console.error("OTP_SESSION_FALLBACK_RESTORE_FAILED", String(restoreError?.message || restoreError).slice(0, 300));
+      }
+      console.error("OTP_SESSION_FALLBACK_INSERT_FAILED", String(sessionError?.message || sessionError).slice(0, 300));
+      return json({ error: "We could not complete sign-in. Your code is still available; please retry." }, 503);
+    }
+    if ((fallbackSession?.meta?.changes || 0) !== 1) {
+      try {
+        await env.AUTH_DB.prepare("UPDATE auth_challenges SET attempts=0 WHERE id=? AND code_hash=? AND attempts=5").bind(row.id, row.code_hash).run();
+      } catch {}
+      return json({ error: "This code is no longer active. Request a new sign-in code and use the latest email." }, 401);
+    }
+    // attempts=5 already consumes the code if this cleanup encounters a transient error.
+    try {
+      await env.AUTH_DB.prepare("DELETE FROM auth_challenges WHERE id=? AND code_hash=? AND attempts=5").bind(row.id, row.code_hash).run();
+    } catch (cleanupError) {
+      console.error("OTP_SESSION_FALLBACK_CLEANUP_FAILED", String(cleanupError?.message || cleanupError).slice(0, 300));
+    }
+    authCommit = [{ meta: { changes: 1 } }, { meta: { changes: 1 } }];
   }
   if ((authCommit?.[0]?.meta?.changes || 0) !== 1 || (authCommit?.[1]?.meta?.changes || 0) !== 1) {
     return json({ error: "This code is no longer active. Request a new sign-in code and use the latest email." }, 401);
