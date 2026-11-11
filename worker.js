@@ -224,7 +224,7 @@ async function login(request, env) {
   }
   return json({ next: "verify_email" });
 }
-async function verifyOtp(request, env) {
+async function verifyOtp(request, env, ctx) {
   const adminEmail = await configuredAdminEmail(env);
   if (!adminEmail) return json({ error: "Authentication service is not configured" }, 503);
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405, { allow: "POST" });
@@ -264,44 +264,38 @@ async function verifyOtp(request, env) {
   if ((authCommit?.[0]?.meta?.changes || 0) !== 1 || (authCommit?.[1]?.meta?.changes || 0) !== 1) {
     return json({ error: "This code is no longer active. Request a new sign-in code and use the latest email." }, 401);
   }
-  // Session creation is the authentication commit point. Activity logging and notifications
-  // are secondary: failures must never prevent the browser from receiving its session cookie.
-  try {
-    await logWorkspaceAction(env,adminEmail,"signed_in","Signed in successfully.");
-  } catch {
-    // Keep authentication available if the activity log is temporarily unavailable.
-  }
-  try {
-    await addMailNotification(env,"security","New sign-in","Your LeadMASTER account was signed in.");
-  } catch {
-    // Keep authentication available if notifications are temporarily unavailable.
-  }
-  // Send the branded security alert after the authenticated session is established.
-  // Alert delivery is best-effort so an email outage cannot strand a valid login.
-  try {
-    const details = loginDetails(request);
-    const html = await renderEmailTemplate("/email-securityalert.html", {
-      USER_NAME: "Admin",
-      location: details.location,
-      time: details.time,
-      device: details.device,
-      browser: details.browser,
-      ip_address: details.ip_address
-    });
-    const alertId = crypto.randomUUID();
-    await sendThroughEmailCoordinator(env, {
-      id: alertId,
-      messageId: alertId,
-      to: adminEmail,
-      fromName: "LeadMASTER",
-      subject: "New login detected — LeadMASTER",
-      text: "A new login to your LeadMASTER account was detected. Location: " + details.location +
-        ". Time: " + details.time + ". Device: " + details.device + ". Browser: " + details.browser +
-        ". IP address: " + details.ip_address + ". If this was not you, secure your account immediately.",
-      html
-    });
-  } catch {
-    // Authentication remains successful; do not expose delivery internals.
+  // The session is committed. Logging, notifications and the security alert are
+  // secondary work: never hold the Set-Cookie response open while SMTP is running.
+  if (ctx && typeof ctx.waitUntil === "function") {
+    ctx.waitUntil((async () => {
+      try { await logWorkspaceAction(env,adminEmail,"signed_in","Signed in successfully."); } catch {}
+      try { await addMailNotification(env,"security","New sign-in","Your LeadMASTER account was signed in."); } catch {}
+      try {
+        const details = loginDetails(request);
+        const html = await renderEmailTemplate("/email-securityalert.html", {
+          USER_NAME: "Admin",
+          location: details.location,
+          time: details.time,
+          device: details.device,
+          browser: details.browser,
+          ip_address: details.ip_address
+        });
+        const alertId = crypto.randomUUID();
+        await sendThroughEmailCoordinator(env, {
+          id: alertId,
+          messageId: alertId,
+          to: adminEmail,
+          fromName: "LeadMASTER",
+          subject: "New login detected — LeadMASTER",
+          text: "A new login to your LeadMASTER account was detected. Location: " + details.location +
+            ". Time: " + details.time + ". Device: " + details.device + ". Browser: " + details.browser +
+            ". IP address: " + details.ip_address + ". If this was not you, secure your account immediately.",
+          html
+        });
+      } catch {
+        // Security-alert delivery is best-effort and never blocks authentication.
+      }
+    })());
   }
   return json({ authenticated: true }, 200, {
     "set-cookie": SESSION_COOKIE + "=" + token + "; Path=/; Max-Age=" + SESSION_COOKIE_MAX_AGE + "; HttpOnly; Secure; SameSite=Strict"
@@ -542,7 +536,7 @@ async function adminSendRoute(request,env,session){
  return json({batch_id:batchId,queued:ids.length,skipped:recipients.length-ids.length,status:"queued",message:"Your messages are queued. Queue acceptance does not mean delivery."},202);
 }
 
-async function handle(request, env) {
+async function handle(request, env, ctx) {
   const url = new URL(request.url);
   let decodedPath;
   try { decodedPath = decodeURIComponent(url.pathname); } catch { return new Response("Bad request", { status: 400, headers: { "cache-control": "no-store" } }); }
@@ -591,7 +585,7 @@ async function handle(request, env) {
   if (url.pathname.startsWith("/api/v1/")) return json({ error: "Account-specific endpoint required. Use the API base URL shown in your LeadMASTER account." }, 404);
     if (url.pathname === "/api/auth/config") return authConfig(request, env);
   if (url.pathname === "/api/auth/login") return login(request, env);
-  if (url.pathname === "/api/auth/verify") return verifyOtp(request, env);
+  if (url.pathname === "/api/auth/verify") return verifyOtp(request, env, ctx);
   if (url.pathname === "/api/auth/logout") return logout(request, env);
   if (url.pathname === "/api/auth/session" && request.method === "GET") {
     const session = await sessionFor(request, env);
@@ -647,14 +641,14 @@ async function handle(request, env) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     try {
       if (!env.AUTH_DB || !env.ADMIN_EMAIL || !env.ADMIN_PASSWORD || !env.SESSION_SECRET || !env.TURNSTILE_SITE_KEY || !env.TURNSTILE_SECRET || !env.SES_SMTP_HOST || !env.SES_SMTP_USERNAME || !env.SES_SMTP_PASSWORD || !env.SES_FROM_EMAIL) {
         // Public pages remain available while auth fails closed.
         const p = new URL(request.url).pathname.toLowerCase();
         if (p.startsWith("/api/auth/") || p.startsWith("/dashboard")) return json({ error: "Authentication service is not configured" }, 503);
       }
-      return await handle(request, env);
+      return await handle(request, env, ctx);
     } catch {
       return json({ error: "Service temporarily unavailable" }, 503);
     }
