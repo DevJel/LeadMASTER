@@ -11,7 +11,7 @@ const defaultSleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 export function validateEmailJob(job) {
   if (!job || typeof job !== 'object' || Array.isArray(job) ||
       typeof job.id !== 'string' || job.id.length > MAX_ID || !ID.test(job.id) ||
-      !(typeof job.to === 'string' ? (job.to.length <= 254 && EMAIL.test(job.to) && !job.to.includes('..')) : (Array.isArray(job.to) && job.to.length >= 1 && job.to.length <= 500 && job.to.every(x => typeof x === 'string' && x.length <= 254 && EMAIL.test(x) && !x.includes('..')))) ||
+      !(typeof job.to === 'string' ? (job.to.length <= 254 && EMAIL.test(job.to) && !job.to.includes('..')) : (Array.isArray(job.to) && job.to.length >= 1 && job.to.length <= 1000 && job.to.every(x => typeof x === 'string' && x.length <= 254 && EMAIL.test(x) && !x.includes('..')))) ||
       typeof job.subject !== 'string' || !job.subject.trim() || /[\r\n\x00-\x1f\x7f]/.test(job.subject) ||
       encoder.encode(job.subject).length > 300) {
     throw new TypeError('Invalid queued message');
