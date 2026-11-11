@@ -31,8 +31,10 @@ jobs:
             git commit -m "chore: sync generated static assets"
             git push
           fi
+      # PR builds validate that asset generation succeeds. The main-branch push job
+      # commits the generated bundle after merge; don't fail PRs on that expected diff.
       - name: Verify generated asset bundle
-        if: github.event_name != 'push' || github.ref != 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref != 'refs/heads/main'
         run: git diff --exit-code -- src/static-assets.mjs
       - name: Syntax-check account and route modules
         run: |

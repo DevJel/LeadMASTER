@@ -224,7 +224,7 @@ async function login(request, env) {
   }
   return json({ next: "verify_email" });
 }
-async function verifyOtp(request, env) {
+async function verifyOtp(request, env, ctx) {
   const adminEmail = await configuredAdminEmail(env);
   if (!adminEmail) return json({ error: "Authentication service is not configured" }, 503);
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405, { allow: "POST" });
@@ -244,52 +244,58 @@ async function verifyOtp(request, env) {
     await env.AUTH_DB.prepare("UPDATE auth_challenges SET attempts = attempts + 1 WHERE id = ? AND attempts < 5").bind(row.id).run();
     return json({ error: "That code does not match the latest email. Check all six digits, or return to sign in to request a new code." }, 401);
   }
-  const consumed = await env.AUTH_DB.prepare("DELETE FROM auth_challenges WHERE id = ? AND code_hash = ? AND attempts < 5").bind(row.id, row.code_hash).run();
-  if ((consumed.meta?.changes || 0) !== 1) return json({ error: "Invalid or expired code" }, 401);
+  // Create the session and consume the OTP in one D1 transaction. If session
+  // persistence fails, the challenge remains usable instead of stranding the user.
   const token = randomToken(32);
   const tokenHash = await sha256(token);
   const now = Date.now();
   const expires = now + SESSION_TTL_MS;
-  await env.AUTH_DB.prepare("INSERT INTO auth_sessions (token_hash,email,created_at,expires_at,revoked_at) VALUES (?,?,?,?,NULL)")
-    .bind(tokenHash, adminEmail, now, expires).run();
-  // Session creation is the authentication commit point. Activity logging and notifications
-  // are secondary: failures must never prevent the browser from receiving its session cookie.
+  let authCommit;
   try {
-    await logWorkspaceAction(env,adminEmail,"signed_in","Signed in successfully.");
+    authCommit = await env.AUTH_DB.batch([
+      env.AUTH_DB.prepare("INSERT INTO auth_sessions (token_hash,email,created_at,expires_at,revoked_at) SELECT ?,?,?,?,NULL WHERE EXISTS (SELECT 1 FROM auth_challenges WHERE id=? AND code_hash=? AND attempts<5 AND expires_at>?)")
+        .bind(tokenHash, adminEmail, now, expires, row.id, row.code_hash, now),
+      env.AUTH_DB.prepare("DELETE FROM auth_challenges WHERE id=? AND code_hash=? AND attempts<5 AND expires_at>?")
+        .bind(row.id, row.code_hash, now)
+    ]);
   } catch {
-    // Keep authentication available if the activity log is temporarily unavailable.
+    return json({ error: "We could not complete sign-in. Your code has not been intentionally invalidated; please retry." }, 503);
   }
-  try {
-    await addMailNotification(env,"security","New sign-in","Your LeadMASTER account was signed in.");
-  } catch {
-    // Keep authentication available if notifications are temporarily unavailable.
+  if ((authCommit?.[0]?.meta?.changes || 0) !== 1 || (authCommit?.[1]?.meta?.changes || 0) !== 1) {
+    return json({ error: "This code is no longer active. Request a new sign-in code and use the latest email." }, 401);
   }
-  // Send the branded security alert after the authenticated session is established.
-  // Alert delivery is best-effort so an email outage cannot strand a valid login.
-  try {
-    const details = loginDetails(request);
-    const html = await renderEmailTemplate("/email-securityalert.html", {
-      USER_NAME: "Admin",
-      location: details.location,
-      time: details.time,
-      device: details.device,
-      browser: details.browser,
-      ip_address: details.ip_address
-    });
-    const alertId = crypto.randomUUID();
-    await sendThroughEmailCoordinator(env, {
-      id: alertId,
-      messageId: alertId,
-      to: adminEmail,
-      fromName: "LeadMASTER",
-      subject: "New login detected — LeadMASTER",
-      text: "A new login to your LeadMASTER account was detected. Location: " + details.location +
-        ". Time: " + details.time + ". Device: " + details.device + ". Browser: " + details.browser +
-        ". IP address: " + details.ip_address + ". If this was not you, secure your account immediately.",
-      html
-    });
-  } catch {
-    // Authentication remains successful; do not expose delivery internals.
+  // The session is committed. Logging, notifications and the security alert are
+  // secondary work: never hold the Set-Cookie response open while SMTP is running.
+  if (ctx && typeof ctx.waitUntil === "function") {
+    ctx.waitUntil((async () => {
+      try { await logWorkspaceAction(env,adminEmail,"signed_in","Signed in successfully."); } catch {}
+      try { await addMailNotification(env,"security","New sign-in","Your LeadMASTER account was signed in."); } catch {}
+      try {
+        const details = loginDetails(request);
+        const html = await renderEmailTemplate("/email-securityalert.html", {
+          USER_NAME: "Admin",
+          location: details.location,
+          time: details.time,
+          device: details.device,
+          browser: details.browser,
+          ip_address: details.ip_address
+        });
+        const alertId = crypto.randomUUID();
+        await sendThroughEmailCoordinator(env, {
+          id: alertId,
+          messageId: alertId,
+          to: adminEmail,
+          fromName: "LeadMASTER",
+          subject: "New login detected — LeadMASTER",
+          text: "A new login to your LeadMASTER account was detected. Location: " + details.location +
+            ". Time: " + details.time + ". Device: " + details.device + ". Browser: " + details.browser +
+            ". IP address: " + details.ip_address + ". If this was not you, secure your account immediately.",
+          html
+        });
+      } catch {
+        // Security-alert delivery is best-effort and never blocks authentication.
+      }
+    })());
   }
   return json({ authenticated: true }, 200, {
     "set-cookie": SESSION_COOKIE + "=" + token + "; Path=/; Max-Age=" + SESSION_COOKIE_MAX_AGE + "; HttpOnly; Secure; SameSite=Strict"
@@ -419,8 +425,8 @@ async function adminMailboxRoute(request,env,session){
  if(parts.length===4&&request.method==="GET"&&/^[0-9a-f-]{36}$/i.test(id)){
   const row=await env.AUTH_DB.prepare("SELECT * FROM inbound_mail WHERE id=?").bind(id).first();
   if(row){const obj=await env.INBOUND_MAIL.get(row.r2_key);if(!obj)return json({error:"Original message unavailable"},404);const raw=await obj.text(),chunks=raw.split(/\r?\n\r?\n/),headers=chunks.shift()||"",body=chunks.join("\n"),part=body.split(/\r?\n--[^\r\n]+/).find(x=>/content-type:\s*text\/plain/i.test(x));let textBody=(part||body).replace(/^.*?\r?\n\r?\n/s,"");const transfer=(part||"").match(/content-transfer-encoding:\s*([^\r\n]+)/i)?.[1]?.trim().toLowerCase();try{if(transfer==="base64")textBody=atob(textBody.replace(/\s/g,""));else if(transfer==="quoted-printable")textBody=textBody.replace(/=\r?\n/g,"").replace(/=([0-9a-f]{2})/gi,(_,h)=>String.fromCharCode(parseInt(h,16)));}catch{textBody="Message body could not be decoded.";}await env.AUTH_DB.prepare("UPDATE inbound_mail SET read_at=COALESCE(read_at,?) WHERE id=?").bind(Date.now(),id).run();await logWorkspaceAction(env,session.email,"email_opened","Opened an email from "+row.from_address,id);return json({id,from_address:row.from_address,from_name:row.from_name,to_address:row.to_address,subject:row.subject,received_at:row.received_at,read_at:row.read_at||Date.now(),text_body:textBody.slice(0,100000),attachments:(body.match(/content-disposition:\s*attachment/gi)||[]).length,download_url:"/api/admin/mail/"+id+"/source"});}
-  const sent=await env.AUTH_DB.prepare("SELECT * FROM admin_sent_mail WHERE id=?").bind(id).first();if(sent)return json({id,sender:sent.from_email,recipient:sent.recipient,subject:sent.subject,created_at:sent.created_at,text_body:sent.text_body||"",status:sent.status,delivery_status:sent.delivery_status,error_message:sent.error_code==="suppressed_at_dispatch"?"Not sent: this recipient is on the do-not-contact list.":sent.error_code==="delivery_not_accepted"||sent.error_code==="queue_exhausted"?"The email service could not send this message after several attempts.":sent.error_code==="delivery_outcome_unknown"?"The final sending result could not be confirmed.":null});
-  const devSent=await env.AUTH_DB.prepare("SELECT * FROM developer_email_requests WHERE id=?").bind(id).first();if(devSent)return json({id,sender:devSent.from_email,recipient:devSent.recipient,subject:devSent.subject,created_at:devSent.created_at,text_body:devSent.text_body||"",status:devSent.status,delivery_status:devSent.delivery_status,error_message:devSent.error_code==="suppressed_at_dispatch"?"Not sent: this recipient is on the do-not-contact list.":devSent.error_code==="delivery_not_accepted"||devSent.error_code==="queue_exhausted"?"The email service could not send this message after several attempts.":devSent.error_code==="delivery_outcome_unknown"?"The final sending result could not be confirmed.":null});
+  const sent=await env.AUTH_DB.prepare("SELECT * FROM admin_sent_mail WHERE id=?").bind(id).first();if(sent)return json({id,sender:sent.from_email,recipient:sent.recipient,subject:sent.subject,created_at:sent.created_at,text_body:sent.text_body||"",status:sent.status,delivery_status:sent.delivery_status,queue_status:sent.queue_status,error_message:sent.error_code==="suppressed_at_dispatch"?"Not sent: this recipient is on the do-not-contact list.":sent.error_code==="delivery_not_accepted"||sent.error_code==="queue_exhausted"?"The email service could not send this message after several attempts.":sent.error_code==="delivery_outcome_unknown"?"The final sending result could not be confirmed.":null});
+  const devSent=await env.AUTH_DB.prepare("SELECT * FROM developer_email_requests WHERE id=?").bind(id).first();if(devSent)return json({id,sender:devSent.from_email,recipient:devSent.recipient,subject:devSent.subject,created_at:devSent.created_at,text_body:devSent.text_body||"",status:devSent.status,delivery_status:devSent.delivery_status,queue_status:devSent.status,error_message:devSent.error_code==="suppressed_at_dispatch"?"Not sent: this recipient is on the do-not-contact list.":devSent.error_code==="delivery_not_accepted"||devSent.error_code==="queue_exhausted"?"The email service could not send this message after several attempts.":devSent.error_code==="delivery_outcome_unknown"?"The final sending result could not be confirmed.":null});
   const bounced=await env.AUTH_DB.prepare("SELECT * FROM email_delivery_events WHERE id=?").bind(id).first();if(bounced)return json({id,sender:bounced.email,recipient:bounced.email,subject:bounced.subject,created_at:bounced.created_at,text_body:bounced.detail||"Delivery event recorded.",status:bounced.status});
   const unsub=await env.AUTH_DB.prepare("SELECT * FROM email_unsubscribes WHERE id=?").bind(id).first();if(unsub)return json({id,email:unsub.email,recipient:unsub.email,subject:"Unsubscribed address",created_at:unsub.created_at,text_body:unsub.reason||"Suppressed from sending.",status:"unsubscribed"});
   return json({error:"Message not found"},404);
@@ -431,8 +437,8 @@ async function adminMailboxRoute(request,env,session){
   let b;try{b=await readJson(request)}catch{return json({error:"Invalid request"},400)}
   const now=Date.now(),action=b.action||(typeof b.read==="boolean"?"read":b.archive?"archive":null);
   const inbound=await env.AUTH_DB.prepare("SELECT id,r2_key,from_address FROM inbound_mail WHERE id=?").bind(id).first();
-  const sent=await env.AUTH_DB.prepare("SELECT id,recipient,reply_to FROM admin_sent_mail WHERE id=?").bind(id).first();
-  const developer=await env.AUTH_DB.prepare("SELECT id,recipient,from_email FROM developer_email_requests WHERE id=?").bind(id).first();
+  const sent=await env.AUTH_DB.prepare("SELECT id,recipient,reply_to,status,queue_status,deleted_at FROM admin_sent_mail WHERE id=?").bind(id).first();
+  const developer=await env.AUTH_DB.prepare("SELECT id,recipient,from_email,status,deleted_at FROM developer_email_requests WHERE id=?").bind(id).first();
   if(!inbound&&!sent&&!developer)return json({error:"Message not found"},404);
   if(action==="read"&&inbound){await env.AUTH_DB.prepare("UPDATE inbound_mail SET read_at=? WHERE id=?").bind(b.read?now:null,id).run();await logWorkspaceAction(env,session.email,"email_read",b.read?"Marked a message as read.":"Marked a message as unread.",id);}
   else if(action==="archive"&&inbound){await env.AUTH_DB.prepare("UPDATE inbound_mail SET archived_at=? WHERE id=?").bind(now,id).run();await logWorkspaceAction(env,session.email,"email_archived","Archived a message.",id);}
@@ -453,6 +459,8 @@ async function adminMailboxRoute(request,env,session){
     const result=await permanentlyDeleteInbound(env.AUTH_DB,env.INBOUND_MAIL,id);
     if(!result.deleted)return json({error:result.reason==="retry"?"Deletion could not be completed. Retry this action.":"Move the message to Deleted before permanently deleting it."},result.reason==="retry"?503:409);
    }else{
+    const stillSending=sent?(sent.status==="sending"||["queued","processing","retrying"].includes(sent.queue_status)):developer?.status==="sending";
+    if(stillSending)return json({error:"Wait until sending has finished before permanently deleting this message."},409);
     const table=sent?"admin_sent_mail":"developer_email_requests";
     const result=await env.AUTH_DB.prepare(`DELETE FROM ${table} WHERE id=? AND deleted_at IS NOT NULL`).bind(id).run();
     if(!(result.meta?.changes||0))return json({error:"Move the message to Deleted before permanently deleting it."},409);
@@ -528,7 +536,7 @@ async function adminSendRoute(request,env,session){
  return json({batch_id:batchId,queued:ids.length,skipped:recipients.length-ids.length,status:"queued",message:"Your messages are queued. Queue acceptance does not mean delivery."},202);
 }
 
-async function handle(request, env) {
+async function handle(request, env, ctx) {
   const url = new URL(request.url);
   let decodedPath;
   try { decodedPath = decodeURIComponent(url.pathname); } catch { return new Response("Bad request", { status: 400, headers: { "cache-control": "no-store" } }); }
@@ -577,7 +585,7 @@ async function handle(request, env) {
   if (url.pathname.startsWith("/api/v1/")) return json({ error: "Account-specific endpoint required. Use the API base URL shown in your LeadMASTER account." }, 404);
     if (url.pathname === "/api/auth/config") return authConfig(request, env);
   if (url.pathname === "/api/auth/login") return login(request, env);
-  if (url.pathname === "/api/auth/verify") return verifyOtp(request, env);
+  if (url.pathname === "/api/auth/verify") return verifyOtp(request, env, ctx);
   if (url.pathname === "/api/auth/logout") return logout(request, env);
   if (url.pathname === "/api/auth/session" && request.method === "GET") {
     const session = await sessionFor(request, env);
@@ -633,14 +641,14 @@ async function handle(request, env) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     try {
       if (!env.AUTH_DB || !env.ADMIN_EMAIL || !env.ADMIN_PASSWORD || !env.SESSION_SECRET || !env.TURNSTILE_SITE_KEY || !env.TURNSTILE_SECRET || !env.SES_SMTP_HOST || !env.SES_SMTP_USERNAME || !env.SES_SMTP_PASSWORD || !env.SES_FROM_EMAIL) {
         // Public pages remain available while auth fails closed.
         const p = new URL(request.url).pathname.toLowerCase();
         if (p.startsWith("/api/auth/") || p.startsWith("/dashboard")) return json({ error: "Authentication service is not configured" }, 503);
       }
-      return await handle(request, env);
+      return await handle(request, env, ctx);
     } catch {
       return json({ error: "Service temporarily unavailable" }, 503);
     }

@@ -1,3 +1,12 @@
+## 2026-11-11 — Mailbox deletion controls (feature branch; not deployed)
+
+- Added a Deleted mailbox view alongside Sending, Receiving and Suppressions, using the existing authenticated mailbox list endpoint.
+- Added explicit confirmation before moving a message to Deleted; refreshes mailbox data from the server after success or uncertain outcomes.
+- Added Restore and separately confirmed Permanently delete actions in the Deleted view, using the existing Worker actions and retry-safe inbound cleanup.
+- Permanent deletion remains per-message; it does not clear D1 wholesale or delete send queues, delivery-event history, suppression entries, API keys, webhook records or activity logs.
+- Suppression entries remain protected from ordinary deletion because removing a suppression permits future sending. API keys and webhooks remain revoke-only; activity is retained.
+- Canonical dashboard and `public/dashboard.html` were synchronized byte-for-byte. Tests, asset rebuild, browser/Android acceptance and production deployment remain pending.
+
 # Changelog
 
 ## 2026-11-11 — Recipient-level sending and status safety (not deployed)
