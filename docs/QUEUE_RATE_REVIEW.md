@@ -23,3 +23,11 @@ This guarantee applies only to LeadMASTER paths that call the shared coordinator
 ## Acceptance still required
 
 Run concurrency and crash/restart tests against staging, verify the production and staging bindings point to their intended coordinator namespaces, inspect coordinator errors and daily volume, confirm the actual SES quota, and test delivery to an approved mailbox. The configured ten-per-second ceiling must be reconciled with the AWS SES account quota before any increase. This document does not claim control over unrelated systems using the same AWS account.
+
+## Recipient-level dispatch candidate — not deployed
+
+Dashboard batches now process one To recipient per SMTP submission, with individual message IDs, durable claims and delivery status. New multi-recipient requests with CC/BCC are rejected so copy behavior cannot silently change. For legacy queued batches, copies are submitted only with the first originally ordered recipient; if that recipient is suppressed, the copies are not sent. These changes alter the previous grouped-To behavior, which is important for privacy and must be reflected in release notes and acceptance testing.
+
+The coordinator reserves by recipient count, including CC/BCC, and rejects submissions with more than ten envelope recipients. It waits conservatively before a grouped burst and accounts for those slots after it. The cap applies only to paths through the same coordinator, not other applications using the same SES account and region. Throughput may be slower; this is a maximum, not a guarantee. SES region quotas and rolling 24-hour limits must still be checked.
+
+An existing batch-level claim from the old consumer is never replayed by the new consumer. Pause and quiesce old consumers before rollout; reconcile all old in-flight or claimed batches and uncertain records. Do not automatically resend. Dead-letter processing distinguishes unclaimed pending rows from claimed uncertain rows. Staging, real SES event configuration, recipient-server delivery and production rollout remain unverified.
