@@ -37,6 +37,8 @@ export function validateEmailJob(job) {
       throw new TypeError('Invalid ' + field.toUpperCase() + ' addresses');
     }
   }
+  const recipients=(Array.isArray(job.to)?job.to.length:1)+(job.cc?.length||0)+(job.bcc?.length||0);
+  if (recipients>10) throw new TypeError('A coordinated SMTP submission may contain at most 10 recipients');
   if (job.fromName !== undefined && (typeof job.fromName !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9 .'-]{0,63}$/.test(job.fromName))) {
     throw new TypeError('Invalid sender name');
   }
@@ -118,8 +120,8 @@ export class EmailDispatchCore {
 
         const last=await tx.get('last_reserved_at');
         if (last!==undefined && !Number.isFinite(last)) throw Error('Rate state unavailable');
-        if (last!==undefined && now<last+this.interval) {
-          return {status:'wait',delayMs:last+this.interval-now};
+        if (last!==undefined && now<last+this.interval*recipientUnits) {
+          return {status:'wait',delayMs:last+this.interval*recipientUnits-now};
         }
 
         const minute=Math.floor(now/60000)*60000;
