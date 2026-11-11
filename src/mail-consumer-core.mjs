@@ -26,15 +26,30 @@ export function createMailConsumer({send, deliverWebhook, sleep = ms => new Prom
   const activeRecipients=[];
   for(const email of pendingRecipients){const blocked=await db.prepare('SELECT 1 FROM email_unsubscribes WHERE lower(email)=lower(?) LIMIT 1').bind(email).first();if(!blocked)activeRecipients.push(email);}
   const suppressed=activeRecipients.length===0;
-  let outcome=suppressed?'failed':'accepted', errorCode=suppressed?'suppressed_at_dispatch':null;
+  let outcome=suppressed?'failed':'accepted', errorCode=suppressed?'suppressed_at_dispatch':null, acceptedParts=0;
   if(!suppressed)try {
    const parseList=value=>{try{const parsed=JSON.parse(value||'[]');return Array.isArray(parsed)?parsed.filter(x=>typeof x==='string'):[]}catch{return[]}};
    const cc=isBatch?parseList(row.cc):[],bcc=isBatch?parseList(row.bcc):[];
    const safeCopy=async list=>{const kept=[];for(const email of list){const blocked=await db.prepare('SELECT 1 FROM email_unsubscribes WHERE lower(email)=lower(?) LIMIT 1').bind(email).first();if(!blocked)kept.push(email);}return kept;};
-   await send({env,to:isBatch?activeRecipients:row.recipient,...(cc.length?{cc:await safeCopy(cc)}:{}),...(bcc.length?{bcc:await safeCopy(bcc)}:{}),subject:row.subject,text:row.text_body||'',...(row.html_body?{html:row.html_body}:{}),fromEmail:row.from_email,fromName:source==='developer'?row.sender_name:row.from_name,...(row.reply_to?{replyTo:row.reply_to}:{}),messageId:id});
+   if(isBatch){
+    const copiesCc=cc.length?await safeCopy(cc):[];
+    const copiesBcc=bcc.length?await safeCopy(bcc):[];
+    const firstCapacity=Math.max(1,10-copiesCc.length-copiesBcc.length);
+    const groups=[];
+    groups.push({to:activeRecipients.slice(0,firstCapacity),cc:copiesCc,bcc:copiesBcc});
+    for(let offset=firstCapacity;offset<activeRecipients.length;offset+=10)groups.push({to:activeRecipients.slice(offset,offset+10),cc:[],bcc:[]});
+    for(let part=0;part<groups.length;part++){
+     const group=groups[part];
+     if(!group.to.length)continue;
+     await send({env,to:group.to,...(group.cc.length?{cc:group.cc}:{}),...(group.bcc.length?{bcc:group.bcc}:{}),subject:row.subject,text:row.text_body||'',...(row.html_body?{html:row.html_body}:{}),fromEmail:row.from_email,fromName:source==='developer'?row.sender_name:row.from_name,...(row.reply_to?{replyTo:row.reply_to}:{}),id:id+'_part_'+part,messageId:crypto.randomUUID()});
+     acceptedParts++;
+    }
+   }else{
+    await send({env,to:row.recipient,subject:row.subject,text:row.text_body||'',...(row.html_body?{html:row.html_body}:{}),fromEmail:row.from_email,fromName:source==='developer'?row.sender_name:row.from_name,...(row.reply_to?{replyTo:row.reply_to}:{}),messageId:id});
+   }
   } catch(error) {
    // Only the transport can prove non-acceptance. Everything else is ambiguous.
-   outcome=error?.deliveryOutcome==='not_accepted'?'failed':'unknown';
+   outcome=acceptedParts>0?'unknown':(error?.deliveryOutcome==='not_accepted'?'failed':'unknown');
    errorCode=outcome==='failed'?'delivery_not_accepted':'delivery_outcome_unknown';
   }
   const now=clock();
