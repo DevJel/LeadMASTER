@@ -244,14 +244,26 @@ async function verifyOtp(request, env) {
     await env.AUTH_DB.prepare("UPDATE auth_challenges SET attempts = attempts + 1 WHERE id = ? AND attempts < 5").bind(row.id).run();
     return json({ error: "That code does not match the latest email. Check all six digits, or return to sign in to request a new code." }, 401);
   }
-  const consumed = await env.AUTH_DB.prepare("DELETE FROM auth_challenges WHERE id = ? AND code_hash = ? AND attempts < 5").bind(row.id, row.code_hash).run();
-  if ((consumed.meta?.changes || 0) !== 1) return json({ error: "Invalid or expired code" }, 401);
+  // Create the session and consume the OTP in one D1 transaction. If session
+  // persistence fails, the challenge remains usable instead of stranding the user.
   const token = randomToken(32);
   const tokenHash = await sha256(token);
   const now = Date.now();
   const expires = now + SESSION_TTL_MS;
-  await env.AUTH_DB.prepare("INSERT INTO auth_sessions (token_hash,email,created_at,expires_at,revoked_at) VALUES (?,?,?,?,NULL)")
-    .bind(tokenHash, adminEmail, now, expires).run();
+  let authCommit;
+  try {
+    authCommit = await env.AUTH_DB.batch([
+      env.AUTH_DB.prepare("INSERT INTO auth_sessions (token_hash,email,created_at,expires_at,revoked_at) SELECT ?,?,?,?,NULL WHERE EXISTS (SELECT 1 FROM auth_challenges WHERE id=? AND code_hash=? AND attempts<5 AND expires_at>?)")
+        .bind(tokenHash, adminEmail, now, expires, row.id, row.code_hash, now),
+      env.AUTH_DB.prepare("DELETE FROM auth_challenges WHERE id=? AND code_hash=? AND attempts<5 AND expires_at>?")
+        .bind(row.id, row.code_hash, now)
+    ]);
+  } catch {
+    return json({ error: "We could not complete sign-in. Your code has not been intentionally invalidated; please retry." }, 503);
+  }
+  if ((authCommit?.[0]?.meta?.changes || 0) !== 1 || (authCommit?.[1]?.meta?.changes || 0) !== 1) {
+    return json({ error: "This code is no longer active. Request a new sign-in code and use the latest email." }, 401);
+  }
   // Session creation is the authentication commit point. Activity logging and notifications
   // are secondary: failures must never prevent the browser from receiving its session cookie.
   try {
