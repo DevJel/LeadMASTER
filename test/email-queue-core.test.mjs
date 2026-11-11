@@ -153,3 +153,14 @@ test('validates and forwards grouped To, CC and BCC recipients',async()=>{
  assert.deepEqual(sent[0].to,value.to);assert.deepEqual(sent[0].cc,value.cc);assert.deepEqual(sent[0].bcc,value.bcc);
  await assert.rejects(core.dispatch({...value,id:'grouped_2',bcc:['bad address']}));
 });
+
+test('reserves rate and daily quota by recipient count for grouped messages',async()=>{
+  const storage=new Storage();let now=1000;const starts=[];
+  const core=new EmailDispatchCore({storage,clock:()=>now,sleep:async ms=>{now+=ms;},maxPer24h:20,send:async value=>{starts.push({now,count:Array.isArray(value.to)?value.to.length:1});return {status:'accepted'};}});
+  const grouped={id:'grouped_rate_1',to:Array.from({length:10},(_,i)=>`p${i}@example.com`),subject:'Group',text:'Body'};
+  assert.equal((await core.dispatch(grouped)).status,'accepted');
+  assert.equal((await core.dispatch(job(99))).status,'accepted');
+  assert.ok(starts[1].now-starts[0].now>=1000);
+  const limited=new EmailDispatchCore({storage:new Storage(),maxPer24h:2,send:async()=>({status:'accepted'})});
+  assert.equal((await limited.dispatch({...grouped,id:'grouped_rate_2'})).status,'deferred_quota');
+});
