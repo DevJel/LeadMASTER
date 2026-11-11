@@ -431,8 +431,8 @@ async function adminMailboxRoute(request,env,session){
   let b;try{b=await readJson(request)}catch{return json({error:"Invalid request"},400)}
   const now=Date.now(),action=b.action||(typeof b.read==="boolean"?"read":b.archive?"archive":null);
   const inbound=await env.AUTH_DB.prepare("SELECT id,r2_key,from_address FROM inbound_mail WHERE id=?").bind(id).first();
-  const sent=await env.AUTH_DB.prepare("SELECT id,recipient,reply_to FROM admin_sent_mail WHERE id=?").bind(id).first();
-  const developer=await env.AUTH_DB.prepare("SELECT id,recipient,from_email FROM developer_email_requests WHERE id=?").bind(id).first();
+  const sent=await env.AUTH_DB.prepare("SELECT id,recipient,reply_to,status,queue_status,deleted_at FROM admin_sent_mail WHERE id=?").bind(id).first();
+  const developer=await env.AUTH_DB.prepare("SELECT id,recipient,from_email,status,deleted_at FROM developer_email_requests WHERE id=?").bind(id).first();
   if(!inbound&&!sent&&!developer)return json({error:"Message not found"},404);
   if(action==="read"&&inbound){await env.AUTH_DB.prepare("UPDATE inbound_mail SET read_at=? WHERE id=?").bind(b.read?now:null,id).run();await logWorkspaceAction(env,session.email,"email_read",b.read?"Marked a message as read.":"Marked a message as unread.",id);}
   else if(action==="archive"&&inbound){await env.AUTH_DB.prepare("UPDATE inbound_mail SET archived_at=? WHERE id=?").bind(now,id).run();await logWorkspaceAction(env,session.email,"email_archived","Archived a message.",id);}
@@ -453,6 +453,8 @@ async function adminMailboxRoute(request,env,session){
     const result=await permanentlyDeleteInbound(env.AUTH_DB,env.INBOUND_MAIL,id);
     if(!result.deleted)return json({error:result.reason==="retry"?"Deletion could not be completed. Retry this action.":"Move the message to Deleted before permanently deleting it."},result.reason==="retry"?503:409);
    }else{
+    const stillSending=sent?(sent.status==="sending"||["queued","processing","retrying"].includes(sent.queue_status)):developer?.status==="sending";
+    if(stillSending)return json({error:"Wait until sending has finished before permanently deleting this message."},409);
     const table=sent?"admin_sent_mail":"developer_email_requests";
     const result=await env.AUTH_DB.prepare(`DELETE FROM ${table} WHERE id=? AND deleted_at IS NOT NULL`).bind(id).run();
     if(!(result.meta?.changes||0))return json({error:"Move the message to Deleted before permanently deleting it."},409);
