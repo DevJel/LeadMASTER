@@ -552,26 +552,35 @@ async function adminSendRoute(request,env,session){
  if(!cc||!bcc||(replyTo&&(replyTo.length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyTo))))return json({error:"Check CC, BCC and Reply-To addresses. Use up to 100 valid addresses in CC and BCC."},400);
  cc=cc.filter(x=>!recipients.includes(x));bcc=bcc.filter(x=>!recipients.includes(x)&&!cc.includes(x));
  if(recipients.length+cc.length+bcc.length>1000)return json({error:"A send can include up to 1,000 unique To, CC and BCC recipients."},400);
- if(recipients.length&&cc.length+bcc.length>=50)return json({error:"Use fewer than 50 CC and BCC recipients so at least one To recipient fits in the first delivery batch."},400);
+ if(recipients.length&&cc.length+bcc.length>9)return json({error:"Use up to 9 combined CC and BCC recipients. LeadMASTER sends To recipients in safe delivery groups of up to 10."},400);
  const subject=String(b.subject||"").trim(),textBody=typeof b.text==="string"?b.text:"",htmlBody=b.html===undefined||b.html===null?null:b.html;
  const hasText=Boolean(textBody.trim()),hasHtml=typeof htmlBody==="string"&&Boolean(htmlBody.trim());
  if(!subject||/[\r\n\x00-\x1f\x7f]/.test(subject)||new TextEncoder().encode(subject).length>300||(!hasText&&!hasHtml)||new TextEncoder().encode(textBody).length>200000||(htmlBody!==null&&(typeof htmlBody!=="string"||!hasHtml||new TextEncoder().encode(htmlBody).length>200000)))return json({error:"Add a subject and either a text or HTML message. The message is too long or invalid."},400);
  const requestedName=String(b.fromName||"").trim();const name=requestedName&&/^[A-Za-z][A-Za-z .'-]{1,63}$/.test(requestedName)?requestedName:(domain==="operavaglobal.com"?"Operava":domain==="work.jelvan.pro"?"Jelvan Ricolcol":"LeadMASTER");
- const batchId=crypto.randomUUID(),now=Date.now(),ids=[],statements=[];
- for(const recipient of recipients){
-  const suppressed=await env.AUTH_DB.prepare("SELECT email FROM email_unsubscribes WHERE lower(email)=lower(?)").bind(recipient).first();
-  if(suppressed)continue;
-  const id=crypto.randomUUID();ids.push(id);
-  if(htmlBody===null)statements.push(env.AUTH_DB.prepare("INSERT INTO admin_sent_mail (id,recipient,subject,status,created_at,updated_at,from_email,from_name,reply_to,text_body,error_code,queue_status,batch_id,cc,bcc,created_by) VALUES (?,?,?,'sending',?,?,?,?,?,?,NULL,'queued',?,?,?,?)").bind(id,recipient,subject,now,now,from,name,replyTo,textBody,batchId,JSON.stringify(cc),JSON.stringify(bcc),session.email));
-  else statements.push(env.AUTH_DB.prepare("INSERT INTO admin_sent_mail (id,recipient,subject,status,created_at,updated_at,from_email,from_name,reply_to,text_body,error_code,queue_status,batch_id,html_body,cc,bcc,created_by) VALUES (?,?,?,'sending',?,?,?,?,?,?,NULL,'queued',?,?,?,?,?)").bind(id,recipient,subject,now,now,from,name,replyTo,textBody,batchId,htmlBody,JSON.stringify(cc),JSON.stringify(bcc),session.email));
- }
- if(!ids.length)return json({error:"All selected recipients are on your do-not-contact list."},409);
+ const batchId=crypto.randomUUID(),now=Date.now(),ids=[];
  try{
-  await env.AUTH_DB.batch(statements);
+  // D1 batch() is limited to 100 statements. Insert in bounded groups.
+  for(let offset=0;offset<recipients.length;offset+=50){
+   const group=recipients.slice(offset,offset+50);
+   const marks=group.map(()=>"?").join(",");
+   const suppressedRows=await env.AUTH_DB.prepare("SELECT lower(email) AS email FROM email_unsubscribes WHERE lower(email) IN ("+marks+")").bind(...group).all();
+   const suppressed=new Set((suppressedRows.results||[]).map(row=>String(row.email||"").toLowerCase()));
+   const statements=[];
+   for(const recipient of group){
+    if(suppressed.has(recipient))continue;
+    const id=crypto.randomUUID();ids.push(id);
+    if(htmlBody===null)statements.push(env.AUTH_DB.prepare("INSERT INTO admin_sent_mail (id,recipient,subject,status,created_at,updated_at,from_email,from_name,reply_to,text_body,error_code,queue_status,batch_id,cc,bcc,created_by) VALUES (?,?,?,'sending',?,?,?,?,?,?,NULL,'queued',?,?,?,?)").bind(id,recipient,subject,now,now,from,name,replyTo,textBody,batchId,JSON.stringify(cc),JSON.stringify(bcc),session.email));
+    else statements.push(env.AUTH_DB.prepare("INSERT INTO admin_sent_mail (id,recipient,subject,status,created_at,updated_at,from_email,from_name,reply_to,text_body,error_code,queue_status,batch_id,html_body,cc,bcc,created_by) VALUES (?,?,?,'sending',?,?,?,?,?,?,NULL,'queued',?,?,?,?,?)").bind(id,recipient,subject,now,now,from,name,replyTo,textBody,batchId,htmlBody,JSON.stringify(cc),JSON.stringify(bcc),session.email));
+   }
+   if(statements.length)await env.AUTH_DB.batch(statements);
+  }
+  if(!ids.length)return json({error:"All selected recipients are on your do-not-contact list."},409);
   await env.AUTH_DB.prepare("INSERT INTO mail_send_batches (id,created_by,total_count,created_at,status) VALUES (?,?,?,?,'queued')").bind(batchId,session.email,ids.length,now).run();
- }catch{
-  // No queue call has been attempted. Orphan records may need reconciliation.
-  return json({batch_id:batchId,error:"Could not prepare messages; no queue submission was attempted. Check the batch before retrying."},503);
+ }catch(error){
+  try{await env.AUTH_DB.prepare("DELETE FROM admin_sent_mail WHERE batch_id=? AND status='sending'").bind(batchId).run();}catch{}
+  try{await env.AUTH_DB.prepare("DELETE FROM mail_send_batches WHERE id=?").bind(batchId).run();}catch{}
+  console.error("LeadMASTER admin send preparation failed",error?.message||String(error));
+  return json({batch_id:batchId,error:"Could not prepare messages; no queue submission was attempted. The batch was cleaned up where possible. Check the batch before trying again."},503);
  }
  const operations=[()=>env.MAIL_SEND_QUEUE.send({id:batchId,source:"admin",batch:true})];
  const submission=await submitInOrder(operations);
