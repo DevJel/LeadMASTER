@@ -92,10 +92,11 @@ export async function sendSesEmail({ connect, env, to, cc, bcc, subject, text, h
   const allRecipients=[...toList,...ccList,...bccList];
   if(!toList.length||allRecipients.length>1000)throw new TypeError('A send must contain 1 to 1,000 unique recipients');
   if(ccList.length+bccList.length>=50)throw new TypeError('CC and BCC must total fewer than 50 recipients when To recipients are present');
-  const firstToCapacity=50-ccList.length-bccList.length;
+  const firstToCapacity=10-ccList.length-bccList.length;
+  if(firstToCapacity<1)throw new TypeError('CC and BCC must total fewer than 10 recipients when To recipients are present');
   const chunks=[];
   chunks.push(toList.slice(0,firstToCapacity));
-  for(let i=firstToCapacity;i<toList.length;i+=50)chunks.push(toList.slice(i,i+50));
+  for(let i=firstToCapacity;i<toList.length;i+=10)chunks.push(toList.slice(i,i+10));
   const configurationSet = typeof env.SES_CONFIGURATION_SET === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(env.SES_CONFIGURATION_SET) ? env.SES_CONFIGURATION_SET : undefined;
   const messages=chunks.map((chunk,i)=>buildMessage({from,fromName,replyTo,configurationSet,messageId:chunks.length>1&&messageId?messageId+'-'+(i+1):messageId,to:chunk,cc:i===0&&ccList.length?ccList:undefined,subject,text,html}));
 
@@ -130,6 +131,7 @@ export async function sendSesEmail({ connect, env, to, cc, bcc, subject, text, h
         dataSent=true;
         await writer.write(encoder.encode(message+'.\r\n'));
         await expect([250]);accepted=true;
+        if(i<chunks.length-1)await new Promise(resolve=>setTimeout(resolve,1000));
       }
       return {status:'accepted'};
     };
