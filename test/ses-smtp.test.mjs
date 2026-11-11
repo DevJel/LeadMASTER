@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { sendSesEmail } from '../src/ses-smtp.mjs';
 const env = { SES_SMTP_HOST:'email-smtp.us-east-1.amazonaws.com', SES_SMTP_USERNAME:'example-user', SES_SMTP_PASSWORD:'example-password', SES_FROM_EMAIL:'sender@example.com' };
-function server({ rejectRcpt = false, failAfterData = false } = {}) {
-  const commands = []; let closed = false; let optionsSeen;
+function server({ rejectRcpt = false, failAfterData = false, rejectSecondMail = false } = {}) {
+  const commands = []; let closed = false; let optionsSeen; let mailCount=0;
   function makeSocket(secure) {
     let controller;
     const readable = new ReadableStream({ start(c) { controller=c; if (!secure) c.enqueue(new TextEncoder().encode('220 SES ready\r\n')); } });
@@ -13,7 +13,7 @@ function server({ rejectRcpt = false, failAfterData = false } = {}) {
       else if (s.startsWith('STARTTLS')) controller.enqueue(new TextEncoder().encode('220 Ready to start TLS\r\n'));
       else if (s.startsWith('EHLO') && secure) controller.enqueue(new TextEncoder().encode('250-SES\r\n250 AUTH PLAIN\r\n'));
       else if (s.startsWith('AUTH')) controller.enqueue(new TextEncoder().encode('235 authenticated\r\n'));
-      else if (s.startsWith('MAIL')) controller.enqueue(new TextEncoder().encode('250 sender ok\r\n'));
+      else if (s.startsWith('MAIL')) { mailCount++; controller.enqueue(new TextEncoder().encode(rejectSecondMail&&mailCount===2?'550 denied\r\n':'250 sender ok\r\n')); }
       else if (s.startsWith('RCPT')) controller.enqueue(new TextEncoder().encode(rejectRcpt ? '550 denied\r\n' : '250 recipient ok\r\n'));
       else if (s.startsWith('DATA')) controller.enqueue(new TextEncoder().encode('354 continue\r\n'));
       else if (failAfterData) controller.close();
@@ -110,4 +110,16 @@ test('includes CC and BCC only in the first chunk when a send is split',async()=
  assert.doesNotMatch(messages[1],/^Cc:/m);assert.doesNotMatch(messages[2],/^Cc:/m);
  assert.equal(s.commands.filter(x=>x.startsWith('RCPT TO:<copy@example.com>')).length,1);
  assert.equal(s.commands.filter(x=>x.startsWith('RCPT TO:<blind@example.com>')).length,1);
+});
+
+test('chunked sends include correlation tags on every SMTP message',async()=>{
+ const s=server(),id='a1234567-b123-c123-d123-e123456789ab';
+ await sendSesEmail({...input,to:Array.from({length:11},(_,i)=>`p${i}@example.com`),messageId:id,env:{...env,SES_CONFIGURATION_SET:'leadmaster-events'},connect:s.connect,sleep:async()=>{}});
+ const parts=s.commands.filter(x=>x.includes('MIME-Version:'));assert.equal(parts.length,2);
+ for(let i=0;i<parts.length;i++){assert.ok(parts[i].includes(`X-SES-MESSAGE-TAGS: leadmaster_message_id=${id}-${i+1}`));assert.ok(parts[i].includes(`X-LeadMASTER-Message-ID: ${id}-${i+1}`));}
+});
+test('failure after an accepted chunk is uncertain and never classified not accepted',async()=>{
+ const s=server({rejectSecondMail:true});
+ await assert.rejects(sendSesEmail({...input,to:Array.from({length:11},(_,i)=>`p${i}@example.com`),connect:s.connect,sleep:async()=>{}}),e=>e.deliveryOutcome==='unknown');
+ assert.equal(s.commands.filter(x=>x.startsWith('DATA')).length,1);
 });

@@ -20,7 +20,7 @@ LeadMASTER is an email workspace and developer integration service.
 | Developer API keys | Deployed | Account-owned; shown once; scoped by permission |
 | Account-specific email API | Implemented in this branch | Requires a key from the same account and its exact account ID |
 | Account-specific webhooks | Implemented in this branch | Owned by the account and creating API key; one synchronous delivery attempt |
-| Email sending | Deployed through AWS SES SMTP and a dedicated sending queue | Dashboard bulk sends support up to 500 recipients per request; the queue releases no more than 10 messages per second |
+| Email sending | Deployed through AWS SES SMTP and a dedicated sending queue | Dashboard bulk sends are processed per recipient; a shared coordinator caps LeadMASTER submissions at 10 recipients per second. This branch is not deployed until release checks pass |
 | Dedicated inbox | Deployed for `inbound@inbound.leadmaster.jelvan.pro` | Only this new address is captured. Existing `jelvan.pro` and `operavaglobal.com` forwarding rules are unchanged |
 | SES delivery updates | Deployed through a separate LeadMASTER configuration set and SNS event destination | Tracks sent, delivered, bounced, complaints, delays, rejects and sending failures; delivery is not the same as inbox placement |
 | Dashboard | Deployed for the configured superadmin | Inbox, Sent, Archived, Bounced, Unsuccessful, Deleted, Unsubscribed, Activity, sender settings and notifications |
@@ -51,7 +51,7 @@ This is intentionally separate from all existing forwarding. Messages sent to ot
 
 ### Outgoing mail and sending pace
 
-Dashboard messages and account API messages enter the `leadmaster-mail-send` queue. One queue consumer processes a batch of up to 10 messages at a time, with a single active consumer and at least 100 ms between consecutive submissions. This caps the queue at no more than 10 messages per second. A separate failed-message queue records items that exhaust retries.
+Dashboard messages and account API messages enter the `leadmaster-mail-send` queue. Bulk requests are dispatched one message per To recipient with a durable claim and correlation ID per message. The shared coordinator conservatively reserves recipient-rate slots (including CC/BCC) before SMTP, at up to 10 recipients per second. Other applications sharing the provider account are outside this limit. A separate failed-message consumer distinguishes unsent records from uncertain claimed outcomes. This behavior is a branch change, not verified production behavior.
 
 The dashboard accepts up to 500 unique recipient addresses in one bulk request. The account API remains one recipient per request and keeps its per-key request limit. Login verification codes and security alerts use the same LeadMASTER sender identity and AWS SES SMTP service directly so sign-in is not held behind bulk sending.
 

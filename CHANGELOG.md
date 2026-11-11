@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-11-11 — Recipient-level sending and status safety (not deployed)
+
+- Split dashboard batch processing into individual SMTP submissions with recipient-specific durable claims and correlation IDs; suppression and outcomes are per recipient. New multi-To requests with CC/BCC are rejected; legacy batches include copies only on the first original To message and omit them if that recipient is suppressed.
+- Preserve uncertain partial SMTP outcomes and emit correlation tags for legacy chunked messages. Dead-letter processing distinguishes unclaimed failures from claimed unknown outcomes.
+- Enforce a conservative recipient-count limit of 10 per second for submissions using the shared coordinator, including CC/BCC; unrelated applications remain outside its control.
+- No UI redesign, database migration, credentials, deployed settings, or Android source changes. Android uses the shared web flow; real-device testing and authorized live delivery acceptance are pending. Existing legacy batch claims must be reconciled before rollout, never replayed automatically.
+
+
 ## 2026-11-11 — Android engineering documentation and release guide (v1.6.0)
 
 - Replaced the Android README with a source-aligned engineering guide covering architecture, feature inventory, notification behavior, authentication persistence, WebView security, permissions, build/CI, artifact retrieval, release signing, parity requirements, device acceptance and troubleshooting.

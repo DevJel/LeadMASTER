@@ -105,17 +105,64 @@ test('mail consumer forwards text-only and HTML-only bodies independently',async
  }
 });
 
-test('composed batch is sent once with all To, CC and BCC recipients and no implicit Reply-To',async()=>{
+test('batch sends one private message per To recipient and copies only the first',async()=>{
  const s=setup();const batchId='22345678-1234-4123-8123-123456789abc';
  s.sql.prepare('UPDATE admin_sent_mail SET batch_id=?,reply_to=?,cc=?,bcc=?,created_at=? WHERE id=?').run(batchId,'','["copy@example.test"]','["blind@example.test"]',1,id);
  const second='32345678-1234-4123-8123-123456789abc';
  s.sql.prepare('INSERT INTO admin_sent_mail (id,recipient,subject,text_body,status,from_email,from_name,reply_to,queue_status,batch_id,created_at,cc,bcc) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)').run(second,'other@example.test','Hello','body','sending','sender@example.test','Sender','', 'queued',batchId,2,'["copy@example.test"]','["blind@example.test"]');
- let sent;const msg={body:{id:batchId,source:'admin',batch:true},acks:0,retries:[],ack(){this.acks++},retry(v){this.retries.push(v)}};
- await consumer(async options=>{sent=options}).queue({messages:[msg]},s.env);
- assert.deepEqual(sent.to,['recipient@example.test','other@example.test']);
- assert.deepEqual(sent.cc,['copy@example.test']);assert.deepEqual(sent.bcc,['blind@example.test']);
- assert.equal(Object.hasOwn(sent,'replyTo'),false);
+ const sends=[];const msg={body:{id:batchId,source:'admin',batch:true},acks:0,retries:[],ack(){this.acks++},retry(v){this.retries.push(v)}};
+ await consumer(async options=>{sends.push(options)}).queue({messages:[msg]},s.env);
+ assert.equal(sends.length,2);assert.equal(sends[0].to,'recipient@example.test');assert.equal(sends[1].to,'other@example.test');
+ assert.deepEqual(sends[0].cc,['copy@example.test']);assert.deepEqual(sends[0].bcc,['blind@example.test']);
+ assert.equal(Object.hasOwn(sends[1],'cc'),false);assert.equal(Object.hasOwn(sends[1],'bcc'),false);
+ assert.equal(sends[0].messageId,id);assert.equal(sends[1].messageId,second);
  assert.equal(s.sql.prepare('SELECT status FROM admin_sent_mail WHERE id=?').get(id).status,'accepted');
+ assert.equal(s.sql.prepare('SELECT status FROM admin_sent_mail WHERE id=?').get(second).status,'accepted');assert.equal(msg.acks,1);
+});
+
+test('batch respects per-recipient suppression and never marks a skipped recipient accepted',async()=>{
+ const s=setup(),batchId='22345678-1234-4123-8123-123456789abc',second='32345678-1234-4123-8123-123456789abc';
+ s.sql.prepare('UPDATE admin_sent_mail SET batch_id=?,created_at=? WHERE id=?').run(batchId,1,id);
+ s.sql.prepare('INSERT INTO admin_sent_mail (id,recipient,subject,text_body,status,from_email,from_name,reply_to,queue_status,batch_id,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)').run(second,'other@example.test','Hello','body','sending','sender@example.test','Sender','','queued',batchId,2);
+ s.sql.prepare('INSERT INTO email_unsubscribes(email) VALUES (?)').run('recipient@example.test');const sent=[];const msg=message();msg.body={id:batchId,source:'admin',batch:true};
+ await consumer(async value=>sent.push(value)).queue({messages:[msg]},s.env);
+ assert.deepEqual(sent.map(x=>x.to),['other@example.test']);
+ assert.deepEqual({...s.sql.prepare('SELECT status,error_code FROM admin_sent_mail WHERE id=?').get(id)},{status:'failed',error_code:'suppressed_at_dispatch'});
  assert.equal(s.sql.prepare('SELECT status FROM admin_sent_mail WHERE id=?').get(second).status,'accepted');
- assert.equal(msg.acks,1);
+});
+
+test('batch redelivery never replays an already claimed legacy batch',async()=>{
+ const s=setup(),batchId='22345678-1234-4123-8123-123456789abc';s.sql.prepare('UPDATE admin_sent_mail SET batch_id=? WHERE id=?').run(batchId,id);
+ s.sql.prepare("INSERT INTO mail_send_claims (source,request_id,state,claimed_at) VALUES ('admin',?,'started',?)").run(batchId,123);
+ let sends=0;const msg=message();msg.body={id:batchId,source:'admin',batch:true};await consumer(async()=>sends++).queue({messages:[msg]},s.env);
+ assert.equal(sends,0);assert.equal(msg.acks,1);assert.equal(s.status(),'sending');
+});
+
+test('batch redelivery resumes unsent recipients without duplicating accepted mail or copies',async()=>{
+ const s=setup(),batchId='22345678-1234-4123-8123-123456789abc',second='32345678-1234-4123-8123-123456789abc';
+ s.sql.prepare('UPDATE admin_sent_mail SET batch_id=?,created_at=?,cc=? WHERE id=?').run(batchId,1,'["copy@example.test"]',id);
+ s.sql.prepare('INSERT INTO admin_sent_mail (id,recipient,subject,text_body,status,from_email,from_name,queue_status,batch_id,created_at,cc) VALUES (?,?,?,?,?,?,?,?,?,?,?)').run(second,'other@example.test','Hello','body','sending','sender@example.test','Sender','queued',batchId,2,'["copy@example.test"]');
+ let seen=[];const c=createMailConsumer({send:async value=>{seen.push(value);if(value.to==='recipient@example.test')s.db.failBatch=true},deliverWebhook:async()=>{},sleep:async()=>{},clock:()=>123});
+ const msg=message();msg.body={id:batchId,source:'admin',batch:true};await c.queue({messages:[msg]},s.env);assert.equal(msg.retries.length,1);
+ const next=message();next.body=msg.body;await c.queue({messages:[next]},s.env);assert.equal(next.acks,1);
+ assert.deepEqual(seen.map(x=>x.to),['recipient@example.test','other@example.test']);assert.equal(Object.hasOwn(seen[1],'cc'),false);
+ assert.equal(s.sql.prepare('SELECT status FROM admin_sent_mail WHERE id=?').get(id).status,'sending');
+ assert.equal(s.sql.prepare('SELECT status FROM admin_sent_mail WHERE id=?').get(second).status,'accepted');
+});
+
+test('a 500-recipient batch advances per recipient through a shared capped coordinator',async()=>{
+ const {EmailDispatchCore}=await import('../src/email-queue-core.mjs');
+ class Storage{constructor(){this.m=new Map()} async get(k){return this.m.get(k)} async put(k,v){this.m.set(k,v)} async transaction(fn){return fn(this)}}
+ const s=setup(),batchId='22345678-1234-4123-8123-123456789abc';
+ s.sql.prepare('UPDATE admin_sent_mail SET batch_id=?,created_at=? WHERE id=?').run(batchId,0,id);
+ for(let i=1;i<500;i++){
+  const rowId=`10000000-0000-4000-8000-${String(i).padStart(12,'0')}`;
+  s.sql.prepare('INSERT INTO admin_sent_mail (id,recipient,subject,text_body,status,from_email,from_name,queue_status,batch_id,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)').run(rowId,`person${i}@example.test`,'Subject','body','sending','sender@example.test','Sender','queued',batchId,i);
+ }
+ let now=1000;const starts=[];const core=new EmailDispatchCore({storage:new Storage(),clock:()=>now,sleep:async ms=>{now+=ms},send:async value=>{starts.push({at:now,to:value.to,messageId:value.messageId});return {status:'accepted'}}});
+ const c=createMailConsumer({send:async options=>{const {env,...job}=options;const result=await core.dispatch({...job,id:job.messageId});assert.equal(result.status,'accepted')},deliverWebhook:async()=>{},clock:()=>now,sleep:async ms=>{now+=ms}});
+ const msg=message();msg.body={id:batchId,source:'admin',batch:true};await c.queue({messages:[msg]},s.env);
+ assert.equal(msg.acks,1);assert.equal(starts.length,500);assert.equal(new Set(starts.map(x=>x.messageId)).size,500);
+ assert.equal(s.sql.prepare("SELECT count(*) AS n FROM admin_sent_mail WHERE batch_id=? AND status='accepted'").get(batchId).n,500);
+ for(const item of starts)assert.ok(starts.filter(x=>x.at>=item.at&&x.at<item.at+1000).length<=10);
 });

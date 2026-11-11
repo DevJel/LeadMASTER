@@ -164,3 +164,15 @@ test('reserves rate and daily quota by recipient count for grouped messages',asy
   const limited=new EmailDispatchCore({storage:new Storage(),maxPer24h:2,send:async()=>({status:'accepted'})});
   assert.equal((await limited.dispatch({...grouped,id:'grouped_rate_2'})).status,'deferred_quota');
 });
+
+test('a full ten-recipient burst waits behind an earlier single-recipient send',async()=>{
+ const storage=new Storage();let now=1000;const starts=[];
+ const core=new EmailDispatchCore({storage,clock:()=>now,sleep:async ms=>{now+=ms},send:async value=>{starts.push({now,count:(Array.isArray(value.to)?value.to.length:1)+(value.cc?.length||0)+(value.bcc?.length||0)});return {status:'accepted'}}});
+ await core.dispatch(job(1));await core.dispatch({id:'burst',to:Array.from({length:10},(_,i)=>`p${i}@example.com`),subject:'Hi',text:'Body'});await core.dispatch(job(2));
+ for(const a of starts){const count=starts.filter(b=>b.now>=a.now&&b.now<a.now+1000).reduce((n,b)=>n+b.count,0);assert.ok(count<=10,`burst exceeded rate: ${count}`)}
+ assert.ok(starts[1].now-starts[0].now>=1000);
+});
+test('coordinator rejects larger grouped sends that exceed one safe SMTP envelope',async()=>{
+ const core=new EmailDispatchCore({storage:new Storage(),send:async()=>({status:'accepted'})});
+ await assert.rejects(core.dispatch({id:'too_many',to:Array.from({length:11},(_,i)=>`p${i}@example.com`),subject:'Hi',text:'Body'}),/at most 10/);
+});

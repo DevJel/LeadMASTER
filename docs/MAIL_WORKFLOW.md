@@ -217,3 +217,7 @@ All SMTP credentials remain in Cloudflare Secrets Store. The dedicated inbound r
 ## Pending branch: recoverable inbound deletion (not deployed)
 
 Migration 0008 adds a durable claim to already-soft-deleted inbound records. Restore is rejected once cleanup has been claimed. If R2 or D1 cleanup fails, a retry is required; an error does not prove the original object remains. Monitor pending deletion claims and verify them in staging before rollout. This does not yet implement the required typed confirmation UI.
+
+## Recipient-level queue candidate (not yet deployed)
+
+A dashboard batch queue item is processed as separate To-recipient messages. Each has a unique row ID, claim, SMTP event tag and outcome; an accepted result means SES accepted the message, not that delivery occurred. New multi-To requests with CC/BCC are rejected. For legacy queued batches, CC/BCC are applied once to the first original To row; if it is suppressed, no copies are sent. CC/BCC do not have individual status rows. Claimed legacy batches and uncertain outcomes require operator reconciliation rather than replay. Review `QUEUE_RATE_REVIEW.md` and complete staging, consumer-overlap, event subscription, rollback and approved test-mailbox checks before deployment.
