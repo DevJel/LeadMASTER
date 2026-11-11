@@ -6,53 +6,55 @@
   "compatibility_flags": [],
   "vars": {
     "SES_FROM_EMAIL": "noreply@leadmaster.jelvan.pro",
-    "TURNSTILE_SITE_KEY": "0x4AAAAAAF5KTL83dA8wIZQH",
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAF6m40DGlxOgE2qB",
     "SES_CONFIGURATION_SET": "leadmaster-events",
     "SES_SNS_TOPIC_ARN": "arn:aws:sns:ap-southeast-2:592505728137:leadmaster-ses-events",
-    "SES_MAX_MESSAGES_PER_SECOND": "10"
+    "SES_MAX_MESSAGES_PER_SECOND": "10",
+    "SES_MAX_MESSAGES_PER_DAY": "50000",
+    "APP_HOSTNAME": "leadmaster.jelvan.pro"
   },
   "d1_databases": [
     {
       "binding": "AUTH_DB",
       "database_name": "leadmaster-auth",
-      "database_id": "e2ea3d34-1fca-46a9-b70e-1ca07d78f48e",
+      "database_id": "246db481-9bff-4088-8dcc-b810138aea68",
       "migrations_dir": "migrations"
     }
   ],
   "secrets_store_secrets": [
     {
       "binding": "SES_SMTP_HOST",
-      "store_id": "1a77c40addba476788aea7c043ca33db",
-      "secret_name": "SES_SMTP_HOST"
+      "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
+      "secret_name": "AWS_SES_SMTP_HOSTNAME"
     },
     {
       "binding": "SES_SMTP_USERNAME",
-      "store_id": "1a77c40addba476788aea7c043ca33db",
-      "secret_name": "SES_SMTP_USERNAME"
+      "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
+      "secret_name": "AWS_SES_SMTP_USERNAME"
     },
     {
       "binding": "SES_SMTP_PASSWORD",
-      "store_id": "1a77c40addba476788aea7c043ca33db",
-      "secret_name": "SES_SMTP_PASSWORD"
+      "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
+      "secret_name": "AWS_SES_SMTP_PASSWORD"
     },
     {
       "binding": "ADMIN_EMAIL",
-      "store_id": "1a77c40addba476788aea7c043ca33db",
-      "secret_name": "ADMIN_EMAIL"
+      "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
+      "secret_name": "ADMIN_EMAIL_1"
     },
     {
       "binding": "ADMIN_PASSWORD",
-      "store_id": "1a77c40addba476788aea7c043ca33db",
-      "secret_name": "ADMIN_PASSWORD"
+      "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
+      "secret_name": "ADMIN_PASSWORD_1"
     },
     {
       "binding": "SESSION_SECRET",
-      "store_id": "1a77c40addba476788aea7c043ca33db",
-      "secret_name": "ADMIN_JWT_TOKEN"
+      "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
+      "secret_name": "ADMIN_JWT_1"
     },
     {
       "binding": "TURNSTILE_SECRET",
-      "store_id": "1a77c40addba476788aea7c043ca33db",
+      "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
       "secret_name": "TURNSTILE_SECRET_KEY"
     }
   ],
