@@ -23,6 +23,25 @@ test('mandatory dashboard connects live account-backed workspace features', asyn
  assert.match(html, /signing_secret/);
 });
 
+test('mailbox exposes safe Deleted, restore and permanent-delete controls', async () => {
+ const [html, mirror, worker] = await Promise.all([
+  read('../src/Mandatory LeadMASTER Dashboard.html'),
+  read('../public/dashboard.html'),
+  read('../worker.js')
+ ]);
+ assert.equal(mirror, html);
+ assert.match(html, /children:"Deleted"/);
+ assert.match(html, /h==="Deleted"\?"deleted"/);
+ assert.match(html, /action:"restore"/);
+ assert.match(html, /action:"permanentDelete"/);
+ assert.match(html, /Permanently delete this message\?/);
+ assert.match(html, /Wait until sending has finished before permanently deleting this record/);
+ assert.match(worker, /queue_status:sent\.queue_status/);
+ assert.match(worker, /queue_status:devSent\.status/);
+ assert.match(worker, /action==="permanentDelete"/);
+ assert.match(worker, /deleted_at IS NOT NULL/);
+});
+
 test('unsupported dashboard modules do not fabricate production records', async () => {
  const html = await read('../src/Mandatory LeadMASTER Dashboard.html');
  assert.match(html, /Save and insert account-owned templates/);
