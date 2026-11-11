@@ -88,6 +88,7 @@ export class EmailDispatchCore {
 
   async run(job) {
     validateEmailJob(job);
+    const recipientUnits=(Array.isArray(job.to)?job.to.length:1)+(job.cc?.length||0)+(job.bcc?.length||0);
     const hash=await digest(job), key=`job:${job.id}`;
     let reservation;
 
@@ -110,7 +111,6 @@ export class EmailDispatchCore {
 
         const last=await tx.get('last_reserved_at');
         if (last!==undefined && !Number.isFinite(last)) throw Error('Rate state unavailable');
-        if (last!==undefined && now<last) return {status:'blocked_clock'};
         if (last!==undefined && now<last+this.interval) {
           return {status:'wait',delayMs:last+this.interval-now};
         }
