@@ -40,6 +40,8 @@ test('mailbox exposes safe Deleted, restore and permanent-delete controls', asyn
  assert.match(worker, /queue_status:devSent\.status/);
  assert.match(worker, /action==="permanentDelete"/);
  assert.match(worker, /deleted_at IS NOT NULL/);
+ assert.match(worker, /const stillSending=/);
+ assert.match(worker, /Wait until sending has finished before permanently deleting this message/);
 });
 
 test('unsupported dashboard modules do not fabricate production records', async () => {
