@@ -34,6 +34,16 @@ test('valid OTP atomically creates the session and returns its cookie before bac
  assert.equal((await call(env,'/dashboard.html',{token})).status,200);
  await Promise.allSettled(background);
 });
+test('OTP verification falls back to a one-time D1 claim when batch commits are unavailable',async()=>{
+ const {env,sql}=setup();await seedOtp(sql);
+ env.AUTH_DB.batch=async()=>{throw new Error('synthetic D1 batch unavailable')};
+ const background=[];const ctx={waitUntil(p){background.push(p)}};
+ const r=await call(env,'/api/auth/verify',{method:'POST',body:{code:'123456'},ctx});
+ assert.equal(r.status,200);assert.equal((await r.json()).authenticated,true);
+ assert.equal(sql.prepare('SELECT COUNT(*) n FROM auth_sessions').get().n,1);
+ assert.equal(sql.prepare('SELECT COUNT(*) n FROM auth_challenges').get().n,0);
+ await Promise.allSettled(background);
+});
 test('failed session persistence rolls back OTP consumption so the valid code is not stranded',async()=>{
  const {env,sql}=setup();await seedOtp(sql);
  sql.exec("CREATE TRIGGER fail_auth_session BEFORE INSERT ON auth_sessions BEGIN SELECT RAISE(ABORT,'synthetic session write failure'); END");
