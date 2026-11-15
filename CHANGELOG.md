@@ -3,6 +3,7 @@
 - Preserved the supplied TSX and CSS as unserved design references and documented source-level API mapping and integration blockers.
 - Added a non-served, unmounted API adapter and mailbox/template response mappings with mocked contract tests; the production dashboard is not wired to them.
 - Added an account-scoped draft persistence API and migration in the branch, with revision checks and authorization tests; not wired to the UI or deployed.
+- Corrected an existing undefined argument in the account email route; isolated HTTP tests cover both unauthorized and queued requests.
 - No active UI, authentication, generated asset, or Android runtime change. Android uses the existing shared dashboard; device acceptance is not applicable to this staging-only change.
 - This does not implement the redesign. Account-backed wiring, safe unavailable states, accessible responsive testing, Android parity review, authenticated acceptance and deployment remain pending.
 
