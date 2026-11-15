@@ -49,3 +49,9 @@ Android review: the current companion loads the shared dashboard in a WebView, m
 Migration 0015 and an unmounted service implement account-owned draft create/list/read/update/delete; the Worker does not yet route `/api/admin/drafts`. Updates require a revision to prevent silent lost edits; creation does not send mail. Same-origin mutation checks and account predicates apply. Migration, deployment and authenticated end-to-end verification are pending, and the TSX still uses its prototype persistence rather than this route. Do not advertise draft functionality as live until migration, UI wiring, tests, and deployment are complete. Automation, scheduling and the remaining unsupported features still require implementation.
 
 The current Worker also passes an undefined `connect` identifier to the developer email route. A local synthetic regression reproduced a 503 where an unauthenticated request should return 401. A local correction and queue-route test passed, but the Worker update was blocked by review, so the fix is not in the branch or production.
+
+## External SMTP request
+
+See `docs/EXTERNAL_SMTP_DESIGN.md`. Settings must collect Name, Email, Server, Username and Password, provide safe connection testing and place successfully connected senders in the From dropdown. Existing sender choices must remain. The branch contains unmounted validation and encryption helpers only; no live SMTP connection or sending is implemented.
+
+Settings also requires SMTP monitoring for **LeadMASTER-originated activity only**; use actual account- and sender-scoped LeadMASTER events, never external-provider-wide statistics. See the monitoring section of `docs/EXTERNAL_SMTP_DESIGN.md`. This is not implemented or deployed.

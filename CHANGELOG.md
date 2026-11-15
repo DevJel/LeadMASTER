@@ -4,6 +4,7 @@
 - Added a non-served, unmounted API adapter and mailbox/template response mappings with mocked contract tests; the production dashboard is not wired to them.
 - Added a draft persistence module and migration in the branch with revision checks and authorization tests; it is not routed, wired to the UI, or deployed.
 - A pre-existing undefined argument in the account email route was reproduced locally; no fix has been committed or deployed.
+- Added unmounted validation and encryption helpers for the requested external SMTP setup; connection, UI, queue integration, LeadMASTER-only monitoring and deployment remain unimplemented.
 - No active UI, authentication, generated asset, or Android runtime change. Android uses the existing shared dashboard; device acceptance is not applicable to this staging-only change.
 - This does not implement the redesign. Account-backed wiring, safe unavailable states, accessible responsive testing, Android parity review, authenticated acceptance and deployment remain pending.
 
