@@ -104,15 +104,21 @@ try {
     await page.screenshot({path:output+"/dashboard-"+slug+".png",fullPage:true});
   }
   await page.locator(".tab-link").filter({hasText:"Emails"}).first().click();
-  await page.getByRole("button",{name:"HTML preview"}).first().click();
-  await page.waitForFunction(()=>document.getElementById("html-preview") && !document.getElementById("html-preview").hidden,null,{timeout:5000});
-  await page.screenshot({path:output+"/dashboard-email-html-preview.png",fullPage:true});
-  await page.locator("#preview-close").click();
+  const emailPreview = page.getByRole("button",{name:"HTML preview"}).first();
+  if (await emailPreview.count()) {
+    await emailPreview.click();
+    await page.waitForFunction(()=>document.getElementById("html-preview") && !document.getElementById("html-preview").hidden,null,{timeout:5000});
+    await page.screenshot({path:output+"/dashboard-email-html-preview.png",fullPage:true});
+    await page.locator("#preview-close").click();
+  }
   await page.locator(".tab-link").filter({hasText:"Templates"}).first().click();
-  await page.getByRole("button",{name:"HTML preview"}).first().click();
-  await page.waitForFunction(()=>document.getElementById("html-preview") && !document.getElementById("html-preview").hidden,null,{timeout:5000});
-  await page.screenshot({path:output+"/dashboard-template-html-preview.png",fullPage:true});
-  await page.locator("#preview-close").click();
+  const templatePreview = page.getByRole("button",{name:"HTML preview"}).first();
+  if (await templatePreview.count()) {
+    await templatePreview.click();
+    await page.waitForFunction(()=>document.getElementById("html-preview") && !document.getElementById("html-preview").hidden,null,{timeout:5000});
+    await page.screenshot({path:output+"/dashboard-template-html-preview.png",fullPage:true});
+    await page.locator("#preview-close").click();
+  }
   await page.locator(".tab-link").filter({hasText:"Emails"}).first().click();
   await page.getByRole("button",{name:"Compose",exact:true}).first().click();
   await page.waitForSelector("#lm-compose-page:not([hidden])");
