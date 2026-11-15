@@ -2,7 +2,8 @@
 
 - Preserved the supplied TSX and CSS as unserved design references and documented source-level API mapping and integration blockers.
 - Added a non-served, unmounted API adapter and mailbox/template response mappings with mocked contract tests; the production dashboard is not wired to them.
-- No active UI, API, backend, authentication, database, generated asset, or Android runtime change. Android uses the existing shared dashboard; device acceptance is not applicable to this staging-only change.
+- Added an account-scoped draft persistence API and migration in the branch, with revision checks and authorization tests; not wired to the UI or deployed.
+- No active UI, authentication, generated asset, or Android runtime change. Android uses the existing shared dashboard; device acceptance is not applicable to this staging-only change.
 - This does not implement the redesign. Account-backed wiring, safe unavailable states, accessible responsive testing, Android parity review, authenticated acceptance and deployment remain pending.
 
 ## 2026-11-11 — Mailbox deletion controls (feature branch; not deployed)
