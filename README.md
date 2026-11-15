@@ -2,10 +2,10 @@
 
 LeadMASTER is an email workspace and developer integration service.
 
-- **Production:** https://leadmaster.jelvan.pro
-- **Public documentation:** https://leadmaster.jelvan.pro/#documentation
-- **AI-agent instructions:** https://leadmaster.jelvan.pro/llms.txt
-- **Crawler policy:** https://leadmaster.jelvan.pro/robots.txt
+- **Production:** https://leadmaster.jelvan.space
+- **Public documentation:** https://leadmaster.jelvan.space/#documentation
+- **AI-agent instructions:** https://leadmaster.jelvan.space/llms.txt
+- **Crawler policy:** https://leadmaster.jelvan.space/robots.txt
 - **Detailed API reference:** [docs/API.md](docs/API.md)
 - **Engineering handover:** [HANDOVER.md](HANDOVER.md)
 - **Production mail workflow:** [docs/MAIL_WORKFLOW.md](docs/MAIL_WORKFLOW.md)
@@ -21,7 +21,7 @@ LeadMASTER is an email workspace and developer integration service.
 | Account-specific email API | Implemented in this branch | Requires a key from the same account and its exact account ID |
 | Account-specific webhooks | Implemented in this branch | Owned by the account and creating API key; one synchronous delivery attempt |
 | Email sending | Deployed through AWS SES SMTP and a dedicated sending queue | Dashboard bulk sends are processed per recipient; a shared coordinator caps LeadMASTER submissions at 10 recipients per second. This branch is not deployed until release checks pass |
-| Dedicated inbox | Deployed for `inbound@inbound.leadmaster.jelvan.pro` | Only this new address is captured. Existing `jelvan.pro` and `operavaglobal.com` forwarding rules are unchanged |
+| Dedicated inbox | Deployed for `app@leadmaster.jelvan.space` | Only this new address is captured. Existing `jelvan.pro` and `operavaglobal.com` forwarding rules are unchanged |
 | SES delivery updates | Deployed through a separate LeadMASTER configuration set and SNS event destination | Tracks sent, delivered, bounced, complaints, delays, rejects and sending failures; delivery is not the same as inbox placement |
 | Dashboard | Deployed for the configured superadmin | Inbox, Sent, Archived, Bounced, Unsuccessful, Deleted, Unsubscribed, Activity, sender settings and notifications |
 | AI reply suggestions | Deployed with Workers AI | Suggestions use related sent and received messages where available; a person reviews and sends the reply |
@@ -45,7 +45,7 @@ The superadmin dashboard uses a light, grayscale design and familiar labels. It 
 
 ### Incoming mail
 
-The dedicated inbox address is `inbound@inbound.leadmaster.jelvan.pro`. Its MX records and one exact-match Cloudflare Email Routing rule point to the `leadmaster-inbound-mail` email Worker. The Worker stores the original email in the dedicated R2 bucket and its searchable details in D1. The inbox notification and activity record are created when storage succeeds.
+The dedicated inbox address is `app@leadmaster.jelvan.space`. Its MX records and one exact-match Cloudflare Email Routing rule point to the `leadmaster-inbound-mail` email Worker. The Worker stores the original email in the dedicated R2 bucket and its searchable details in D1. The inbox notification and activity record are created when storage succeeds.
 
 This is intentionally separate from all existing forwarding. Messages sent to other addresses at `jelvan.pro` or `operavaglobal.com` continue through their existing routes and are not copied into this new inbox.
 
@@ -690,9 +690,9 @@ Update related references when implementation changes. Never make README, landin
 
 ## Login interface and privacy information
 
-The production login page uses the shared full LeadMASTER logo from `public/assets/brand/leadmaster-full.svg`, with the existing animated halftone wordmark retained on the brand panel. The left footer links to the [Data Privacy Notice](https://leadmaster.jelvan.pro/privacy.html); the right footer displays a **Secured Login** indicator beneath the sign-in card. These interface labels do not replace the server-enforced password, Turnstile, email OTP or session controls.
+The production login page uses the shared full LeadMASTER logo from `public/assets/brand/leadmaster-full.svg`, with the existing animated halftone wordmark retained on the brand panel. The left footer links to the [Data Privacy Notice](https://leadmaster.jelvan.space/privacy.html); the right footer displays a **Secured Login** indicator beneath the sign-in card. These interface labels do not replace the server-enforced password, Turnstile, email OTP or session controls.
 
-See [LOGIN_UI.md](LOGIN_UI.md) for the login layout, responsive behavior and authentication integration. The public [Data Privacy Notice](https://leadmaster.jelvan.pro/privacy.html) and [Terms and Conditions](https://leadmaster.jelvan.pro/terms.html) remain separate legal documents.
+See [LOGIN_UI.md](LOGIN_UI.md) for the login layout, responsive behavior and authentication integration. The public [Data Privacy Notice](https://leadmaster.jelvan.space/privacy.html) and [Terms and Conditions](https://leadmaster.jelvan.space/terms.html) remain separate legal documents.
 
 
 ## Android application
