@@ -11,7 +11,7 @@
     "SES_SNS_TOPIC_ARN": "arn:aws:sns:ap-southeast-2:592505728137:leadmaster-ses-events",
     "SES_MAX_MESSAGES_PER_SECOND": "10",
     "SES_MAX_MESSAGES_PER_DAY": "50000",
-    "APP_HOSTNAME": "leadmaster.jelvan.space"
+    "APP_HOSTNAME": "leadmaster.jelvan.pro"
   },
   "d1_databases": [
     {
