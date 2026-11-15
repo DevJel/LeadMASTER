@@ -126,6 +126,18 @@ Statuses:
 The response also includes `delivery_status` when AWS SES reports a later event, such as `sent`, `delivered`, `bounced`, `complaint`, `delayed`, `rejected` or `failed`. `accepted` is not proof of inbox delivery, placement or reading. Reuse the same idempotency key for retries and reconcile `unknown` outcomes before resending.
 
 
+## Draft persistence (feature branch; not deployed)
+
+These are proposed authenticated human-dashboard routes, not the public developer API. The module is not connected to the Worker router and cannot yet be called. They require the configured administrator session, account ownership, and a same-origin header on mutations. Migration `0015_account_drafts.sql` is required. They do not send mail.
+
+- `GET /api/admin/drafts`: list up to 500 account-owned draft summaries.
+- `POST /api/admin/drafts`: create a non-empty draft. Body fields: `to`, `cc`, `bcc`, `subject`, `text`, and optional `html` (strings). Returns ID and revision 1.
+- `GET /api/admin/drafts/{id}`: retrieve the owned draft and its revision.
+- `PUT /api/admin/drafts/{id}`: replace the draft with the same fields and the current integer `revision`. Stale revisions return 409; reload before reconciling edits.
+- `DELETE /api/admin/drafts/{id}`: delete the owned draft; the interface must ask for confirmation.
+
+Do not automatically retry an uncertain creation or mutation; refresh and reconcile first. No UI has been connected or production migration applied.
+
 ## 5A. Incoming mail and dashboard sending
 
 The superadmin dashboard includes a dedicated inbox at **inbound@inbound.leadmaster.jelvan.pro**. Only mail sent to this exact address is captured by the new LeadMASTER receiving Worker. Existing forwarding rules for jelvan.pro and operavaglobal.com remain unchanged. Original messages are retained in a private R2 bucket; searchable message details are stored in D1. The dashboard can download the original .eml file. Individual attachment extraction is not yet available.

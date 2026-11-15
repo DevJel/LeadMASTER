@@ -1,6 +1,6 @@
 # Supplied dashboard design — integration staging
 
-Status: **reference and source audit only**. This directory is not a production UI, is not built or served, and must not be mounted as-is. The supplied TSX is preserved losslessly as `App.tsx.deflate.b64` to accommodate source transfer limits; recover it with `node design-reference/2026-11-16-dashboard/unpack.mjs`. The supplied CSS is preserved unchanged. The recovered TSX is an unserved working file. The active dashboard, existing endpoints, Android app, and backend are unchanged. Baseline: `5593c73b4f458dd11b499ddac42dc4d23a8bac55`. This map is based on repository source, not authenticated or production acceptance testing.
+Status: **staging reference, source audit, and unmounted API adapter only**. This directory is not a production UI, is not built or served, and must not be mounted as-is. The supplied TSX is preserved losslessly as `App.tsx.deflate.b64` to accommodate source transfer limits; recover it with `node design-reference/2026-11-16-dashboard/unpack.mjs`. The supplied CSS is preserved unchanged. The recovered TSX is an unserved working file. The active dashboard, existing endpoints, Android app, and backend are unchanged. Baseline: `5593c73b4f458dd11b499ddac42dc4d23a8bac55`. This map is based on repository source, not authenticated or production acceptance testing.
 
 The requested destination is the supplied TSX's layout and components, the existing LeadMASTER logo (`public/assets/brand/leadmaster-full.svg`), and access to the remaining existing dashboard features through Settings. Implement that integration before replacing the canonical dashboard. Preserve working functionality and backend behavior; do not invent server capabilities. The current React dashboard is embedded in `src/Mandatory LeadMASTER Dashboard.html` and is mirrored by the asset build; this TSX expects a React/TypeScript and Tailwind build pipeline that the current package does not define. Any new browser asset must retain the server-side dashboard authentication protection, path validation and corresponding route tests.
 
@@ -35,3 +35,23 @@ Templates and audience groups are present in the current source even though part
 3. Keep the canonical dashboard and generated public mirror synchronized with `npm run build:assets`; add regression tests for actual endpoint requests, failures, destructive actions, authentication and tenant isolation. Run `npm test` and inspect desktop/mobile screenshots.
 4. Validate the shared Android WebView: navigation mapping, Back, auth/session, file chooser, downloads, external links, keyboard and accessibility. Update and build Android if required, and separately perform device acceptance.
 5. Test with an authorized account in a safe environment, review the diff and rollback plan, then deploy only after all gates pass. No production or Android acceptance test has been performed in this staging change.
+
+## Staged API adapter (not production-wired)
+
+`dashboard-api.mjs` covers existing session, profile, mailbox, message actions, reply suggestion, sending, batch progress, templates, groups, suppressions, activity, notifications, API keys and webhooks with same-origin requests. It preserves server responses, does not retry writes and marks uncertain outcomes. Its tests use mock responses; they do not prove backend integration, authentication, security, delivery, or UI behavior. It is not connected to the TSX and is not in the asset bundle. The map above remains incomplete for all visual controls and all current dashboard workflows.
+
+Android review: the current companion loads the shared dashboard in a WebView, maintains cookies, handles file selection, same-origin downloads and external links, and uses WebView history for Back. The local environment does not have Gradle or a configured Android SDK. The GitHub workflow builds a debug APK and conditionally a signed release; neither was run for this staging update. A new WebView dashboard still needs desktop/mobile and Android device acceptance.
+
+`dashboard-model.mjs` adds staging-only mappings of mailbox list rows, message details and template summaries/details. The mappings do not fabricate category, message snippet, attachment metadata, or delivery status. Model tests exercise representative response shapes, not an authenticated end-to-end flow. The TSX still needs to consume the model and adapter; none of these modules are present in the deployed UI.
+
+## Draft persistence work (branch only)
+
+Migration 0015 and an unmounted service implement account-owned draft create/list/read/update/delete; the Worker does not yet route `/api/admin/drafts`. Updates require a revision to prevent silent lost edits; creation does not send mail. Same-origin mutation checks and account predicates apply. Migration, deployment and authenticated end-to-end verification are pending, and the TSX still uses its prototype persistence rather than this route. Do not advertise draft functionality as live until migration, UI wiring, tests, and deployment are complete. Automation, scheduling and the remaining unsupported features still require implementation.
+
+The current Worker also passes an undefined `connect` identifier to the developer email route. A local synthetic regression reproduced a 503 where an unauthenticated request should return 401. A local correction and queue-route test passed, but the Worker update was blocked by review, so the fix is not in the branch or production.
+
+## External SMTP request
+
+See `docs/EXTERNAL_SMTP_DESIGN.md`. Settings must collect Name, Email, Server, Username and Password, provide safe connection testing and place successfully connected senders in the From dropdown. Existing sender choices must remain. The branch contains unmounted validation and encryption helpers only; no live SMTP connection or sending is implemented.
+
+Settings also requires SMTP monitoring for **LeadMASTER-originated activity only**; use actual account- and sender-scoped LeadMASTER events, never external-provider-wide statistics. See the monitoring section of `docs/EXTERNAL_SMTP_DESIGN.md`. This is not implemented or deployed.
