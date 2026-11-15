@@ -80,7 +80,7 @@ async function verifyLoginTurnstile(token, env, action) {
   return verifyTurnstile({
     token,
     secret: env.TURNSTILE_SECRET,
-    expectedHostname: env.APP_HOSTNAME || HOSTNAME,
+    expectedHostname: [env.APP_HOSTNAME || HOSTNAME, "leadmaster.jelvan.space"],
     expectedAction: action
   });
 }
@@ -695,8 +695,7 @@ export default {
     } catch {
       return json({ error: "Service temporarily unavailable" }, 503);
     }
-  }
-  ,
+  },
   async email(message, env) {
     try {
       await receiveInboundEmail(message, env);
