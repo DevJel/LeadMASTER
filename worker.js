@@ -621,7 +621,7 @@ async function handle(request, env, ctx) {
   if (accountApi) {
     const accountId = accountApi[1], resource = accountApi[2], resourceId = accountApi[3], suffix = accountApi[4];
     if (!resource) return developerAccountInfo(request,env,accountId);
-    if (resource === "emails" && !resourceId) return developerEmailRoute(request,env,connect,accountId);
+    if (resource === "emails" && !resourceId) return developerEmailRoute(request,env,null,accountId);
     if (resource === "emails" && resourceId) return developerEmailStatus(request,env,accountId);
     if (resource === "webhooks") return webhookRoute(request,env,accountId);
   }
