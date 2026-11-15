@@ -128,7 +128,7 @@ The response also includes `delivery_status` when AWS SES reports a later event,
 
 ## Draft persistence (feature branch; not deployed)
 
-These are authenticated human-dashboard routes, not the public developer API. They require the configured administrator session, account ownership, and a same-origin header on mutations. Migration `0015_account_drafts.sql` is required. They do not send mail.
+These are proposed authenticated human-dashboard routes, not the public developer API. The module is not connected to the Worker router and cannot yet be called. They require the configured administrator session, account ownership, and a same-origin header on mutations. Migration `0015_account_drafts.sql` is required. They do not send mail.
 
 - `GET /api/admin/drafts`: list up to 500 account-owned draft summaries.
 - `POST /api/admin/drafts`: create a non-empty draft. Body fields: `to`, `cc`, `bcc`, `subject`, `text`, and optional `html` (strings). Returns ID and revision 1.
