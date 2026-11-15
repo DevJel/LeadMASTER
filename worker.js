@@ -80,7 +80,7 @@ async function verifyLoginTurnstile(token, env, action) {
   return verifyTurnstile({
     token,
     secret: env.TURNSTILE_SECRET,
-    expectedHostname: [env.APP_HOSTNAME || HOSTNAME, "leadmaster.jelvan.space"],
+    expectedHostname: [...new Set([HOSTNAME, env.APP_HOSTNAME || HOSTNAME, "leadmaster.jelvan.space"])],
     expectedAction: action
   });
 }
