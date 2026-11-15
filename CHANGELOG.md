@@ -1,3 +1,9 @@
+## 2026-11-16 — Supplied dashboard integration staging (not deployed)
+
+- Preserved the supplied TSX and CSS as unserved design references and documented source-level API mapping and integration blockers.
+- No active UI, API, backend, authentication, database, generated asset, or Android runtime change. Android uses the existing shared dashboard; device acceptance is not applicable to this staging-only change.
+- This does not implement the redesign. Account-backed wiring, safe unavailable states, accessible responsive testing, Android parity review, authenticated acceptance and deployment remain pending.
+
 ## 2026-11-11 — Mailbox deletion controls (feature branch; not deployed)
 
 - Added a Deleted mailbox view alongside Sending, Receiving and Suppressions, using the existing authenticated mailbox list endpoint.
