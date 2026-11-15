@@ -12,6 +12,7 @@ import { developerAdminRoute, developerEmailRoute, developerEmailStatus, develop
 import { webhookRoute, adminWebhookRoute } from "./src/developer-webhooks.mjs";
 import { verifyTurnstile } from "./src/turnstile.mjs";
 import { sesSnsEvents } from "./src/ses-sns-events.mjs";
+import { receiveInboundEmail } from "./src/inbound-email-handler.mjs";
 export { EmailCoordinator } from "./src/email-coordinator.mjs";
 
 const HOSTNAME = "leadmaster.jelvan.pro";
@@ -693,6 +694,15 @@ export default {
       return await handle(request, env, ctx);
     } catch {
       return json({ error: "Service temporarily unavailable" }, 503);
+    }
+  }
+  ,
+  async email(message, env) {
+    try {
+      await receiveInboundEmail(message, env);
+    } catch (error) {
+      console.error("LEADMASTER_INBOUND_EMAIL_FAILED", String(error?.message || error).slice(0, 300));
+      message.setReject("LeadMASTER could not safely store this message. Please try again later.");
     }
   }
 };
