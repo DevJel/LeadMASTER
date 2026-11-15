@@ -7,7 +7,7 @@ LeadMASTER for Android is the official Android companion to the LeadMASTER web w
 - **Production workspace:** https://leadmaster.jelvan.space
 - **Source repository:** https://github.com/DevJel/LeadMASTER
 - **Android build workflow:** https://github.com/DevJel/LeadMASTER/actions/workflows/android-apk.yml
-- **Current app version in source:** `1.6.0` (`versionCode 7`)
+- **Current app version in source:** `1.7.0` (`versionCode 8`)
 - **Android application ID:** `pro.leadmaster.app`
 
 > **APK availability:** CI publishes an installable debug APK as a GitHub Actions artifact. Open the Android build workflow, select the latest successful run, and download the `leadmaster-android-debug-apk` artifact. Artifacts are retained for 90 days. A public GitHub Release APK is not currently published. Debug builds are for testing and are not signed with the owner's production release key.
