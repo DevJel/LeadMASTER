@@ -10,7 +10,7 @@ LeadMASTER is an email workspace and developer integration service.
 - **Engineering handover:** [HANDOVER.md](HANDOVER.md)
 - **Production mail workflow:** [docs/MAIL_WORKFLOW.md](docs/MAIL_WORKFLOW.md)
 
-> **Feature branch only:** Draft persistence API and migration 0015 are in development; they are not connected to the dashboard or deployed. See `docs/API.md` and `src/dashboard-feature-map.md`.
+> **Feature branch only:** A draft persistence module and migration 0015 are in development; they are not routed, connected to the dashboard, or deployed. See `docs/API.md` and `src/dashboard-feature-map.md`.
 
 ## Product status
 
