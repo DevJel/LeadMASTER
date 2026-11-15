@@ -4,7 +4,7 @@
 
 LeadMASTER for Android is the official Android companion to the LeadMASTER web workspace. It provides a native Android application shell around the same authenticated, responsive production dashboard used on the web.
 
-- **Production workspace:** https://leadmaster.jelvan.pro
+- **Production workspace:** https://leadmaster.jelvan.space
 - **Source repository:** https://github.com/DevJel/LeadMASTER
 - **Android build workflow:** https://github.com/DevJel/LeadMASTER/actions/workflows/android-apk.yml
 - **Current app version in source:** `1.6.0` (`versionCode 7`)
@@ -57,7 +57,7 @@ Android notification permission, channel sound, vibration, Do Not Disturb and de
 Android application (pro.leadmaster.app)
 └── MainActivity (Jetpack Compose host)
     └── Android WebView
-        ├── Trusted production origin: https://leadmaster.jelvan.pro
+        ├── Trusted production origin: https://leadmaster.jelvan.space
         ├── Canonical responsive LeadMASTER dashboard
         ├── Same-origin authenticated API requests
         └── Restricted JavaScript bridge
@@ -132,7 +132,7 @@ No camera, microphone, contacts, location, SMS, phone-state or broad storage per
 
 ### Trusted-origin rule
 
-The app's in-app origin is configured in `WorkspaceViewModel`. Keep the exact production host and HTTPS-only policy synchronized with the approved deployment domain. Never use suffix matching (for example, accepting every hostname ending in `leadmaster.jelvan.pro`), arbitrary redirects or user-provided URLs as a trusted origin.
+The app's in-app origin is configured in `WorkspaceViewModel`. Keep the exact production host and HTTPS-only policy synchronized with the approved deployment domain. Never use suffix matching (for example, accepting every hostname ending in `leadmaster.jelvan.space`), arbitrary redirects or user-provided URLs as a trusted origin.
 
 ## 6. Build and run locally
 
