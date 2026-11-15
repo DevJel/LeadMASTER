@@ -58,8 +58,8 @@ class WorkspaceViewModel : ViewModel() {
     }
 
     companion object {
-        const val APP_HOST = "leadmaster.jelvan.pro"
+        const val APP_HOST = "leadmaster.jelvan.space"
         val DESTINATIONS = setOf("home", "emails", "templates", "audience", "metrics", "profile")
-        const val HOME_URL = "https://leadmaster.jelvan.pro/login.html"
+        const val HOME_URL = "https://leadmaster.jelvan.space/login.html"
     }
 }
