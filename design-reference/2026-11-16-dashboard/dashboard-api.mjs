@@ -37,6 +37,7 @@ export function createDashboardApi(fetchImpl = globalThis.fetch) {
   }
   const mailId = id => `/api/admin/mail/${segment(id)}`;
   const templateId = id => `/api/admin/templates/${segment(id)}`;
+  const draftId = id => `/api/admin/drafts/${segment(id)}`;
   const groupId = id => `/api/admin/audience/groups/${segment(id)}`;
   const keyId = id => `/api/developer/keys/${segment(id)}`;
   const hookId = id => `/api/admin/webhooks/${segment(id)}`;
@@ -61,6 +62,11 @@ export function createDashboardApi(fetchImpl = globalThis.fetch) {
     suggestReply: id => request(`${mailId(id)}/suggest`, {method:'POST'}),
     send: message => request('/api/admin/send', {method:'POST',body:message}),
     sendBatches: () => request('/api/admin/send-batches'),
+    drafts: () => request('/api/admin/drafts'),
+    draft: id => request(draftId(id)),
+    createDraft: draft => request('/api/admin/drafts', {method:'POST',body:draft}),
+    updateDraft: (id,draft) => request(draftId(id), {method:'PUT',body:draft}),
+    deleteDraft: id => request(draftId(id), {method:'DELETE'}),
     templates: () => request('/api/admin/templates'),
     template: id => request(templateId(id)),
     createTemplate: template => request('/api/admin/templates', {method:'POST',body:template}),

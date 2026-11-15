@@ -90,3 +90,7 @@ Multi-file CSV/text extraction runs in the browser and adds deduplicated address
 ## In-dashboard composer branch
 
 Compose opens inside the existing scrollable dashboard content area; desktop sidebar, header and mobile bottom navigation remain available. It uses dashboard theme tokens and neutral controls. File import, saved-template API and sanitized HTML preview remain subject to their existing limits and release gates. Queue pacing is an internal implementation detail; the interface must show honest sending outcomes without displaying the numeric rate.
+
+## Draft persistence branch (not deployed or wired)
+
+Migration 0015 and `/api/admin/drafts` provide account-owned create/list/read/update/delete with optimistic revision checks. This is not a scheduled-send engine and does not submit mail. A dashboard integration, authenticated acceptance, migration rollout, Android WebView review, and release checks remain required.

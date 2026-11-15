@@ -45,3 +45,8 @@ test('groups, keys and webhooks use account session API routes without bearer ke
  assert.deepEqual(calls.map(c=>c.path),[`/api/admin/audience/groups/${id}/members`,`/api/developer/keys/${id}`,`/api/admin/webhooks/${id}/deliveries`]);
  assert.ok(calls.every(c=>!c.options.headers?.authorization));
 });
+test('draft adapter uses scoped session routes and preserves the revision',async()=>{
+ const {api,calls}=harness();await api.createDraft({subject:'s'});await api.updateDraft(id,{subject:'updated',revision:2});await api.deleteDraft(id);
+ assert.deepEqual(calls.map(c=>c.path),['/api/admin/drafts',`/api/admin/drafts/${id}`,`/api/admin/drafts/${id}`]);
+ assert.deepEqual(calls.map(c=>c.options.method),['POST','PUT','DELETE']);assert.equal(JSON.parse(calls[1].options.body).revision,2);
+});
