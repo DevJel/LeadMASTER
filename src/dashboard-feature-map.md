@@ -93,4 +93,4 @@ Compose opens inside the existing scrollable dashboard content area; desktop sid
 
 ## Draft persistence branch (not deployed or wired)
 
-Migration 0015 and `/api/admin/drafts` provide account-owned create/list/read/update/delete with optimistic revision checks. This is not a scheduled-send engine and does not submit mail. A dashboard integration, authenticated acceptance, migration rollout, Android WebView review, and release checks remain required.
+Migration 0015 and an unmounted draft service implement account-owned create/list/read/update/delete with optimistic revision checks; `/api/admin/drafts` is not yet routed. This is not a scheduled-send engine and does not submit mail. A dashboard integration, authenticated acceptance, migration rollout, Android WebView review, and release checks remain required.
