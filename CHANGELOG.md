@@ -1,7 +1,7 @@
 ## 2026-11-16 — Supplied dashboard integration staging (not deployed)
 
 - Preserved the supplied TSX and CSS as unserved design references and documented source-level API mapping and integration blockers.
-- Added a non-served, unmounted API adapter with mocked contract tests; the production dashboard is not wired to it.
+- Added a non-served, unmounted API adapter and mailbox/template response mappings with mocked contract tests; the production dashboard is not wired to them.
 - No active UI, API, backend, authentication, database, generated asset, or Android runtime change. Android uses the existing shared dashboard; device acceptance is not applicable to this staging-only change.
 - This does not implement the redesign. Account-backed wiring, safe unavailable states, accessible responsive testing, Android parity review, authenticated acceptance and deployment remain pending.
 
