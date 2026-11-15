@@ -82,11 +82,12 @@ test('mobile primary navigation stays fixed while the dashboard content scrolls'
 });
 
 test('Android companion uses the canonical responsive dashboard and preserves persistent authentication', async () => {
- const [activity, gradle, readme, worker] = await Promise.all([
+ const [activity, gradle, readme, worker, workspace] = await Promise.all([
   read('../ANDROID APK/app/src/main/java/pro/leadmaster/app/MainActivity.kt'),
   read('../ANDROID APK/app/build.gradle.kts'),
   read('../ANDROID APK/README.md'),
-  read('../worker.js')
+  read('../worker.js'),
+  read('../ANDROID APK/app/src/main/java/pro/leadmaster/app/WorkspaceViewModel.kt')
  ]);
  assert.ok(activity.includes('setContent {'));
  assert.ok(activity.includes('WorkspaceWebView'));
@@ -98,7 +99,9 @@ test('Android companion uses the canonical responsive dashboard and preserves pe
  assert.ok(activity.includes('CookieManager.getInstance().flush()'));
  assert.ok(activity.includes('override fun onPause'));
  assert.ok(activity.includes('override fun onStop'));
- assert.ok(gradle.includes('versionName = "1.6.0"'));
+ assert.ok(gradle.includes('versionName = "1.7.0"'));
+ assert.ok(workspace.includes('APP_HOST = "leadmaster.jelvan.space"'));
+ assert.ok(workspace.includes('HOME_URL = "https://leadmaster.jelvan.space/login.html"'));
  assert.ok(gradle.includes('minSdk = 26'));
  assert.ok(gradle.includes('androidx.compose.material3:material3'));
  assert.ok(worker.includes('SESSION_TTL_MS = 180 * 24 * 60 * 60 * 1000'));
