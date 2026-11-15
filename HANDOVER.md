@@ -9,7 +9,7 @@
 
 > This document is the maintainer handover. Follow it before making changes. It is not permission to use operator credentials, internal provider consoles or another user's account.
 
-> **Draft API branch:** Migration 0015 and account-scoped draft routes are implemented locally, not deployed or wired to the dashboard. Apply migrations only through an approved, verified release plan; test concurrency, account isolation and UI behavior before enabling.
+> **Draft API branch:** Migration 0015 and account-scoped draft routes are implemented locally, not deployed or wired to the dashboard. Apply migrations only through an approved, verified release plan; test concurrency, account isolation and UI behavior before enabling. The branch also fixes an existing undefined route argument in developer email dispatch; synthetic Worker tests cover unauthorized and queued requests, not real delivery.
 
 ## 1. Product purpose and truthful status
 
