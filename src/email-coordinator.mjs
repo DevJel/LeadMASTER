@@ -1,5 +1,6 @@
 import { connect } from 'cloudflare:sockets';
 import { sendSesEmail } from './ses-smtp.mjs';
+import { withSenderSignature } from './email-signatures.mjs';
 import { EmailDispatchCore } from './email-queue-core.mjs';
 
 export class EmailCoordinator {
@@ -8,7 +9,7 @@ export class EmailCoordinator {
     this.core=new EmailDispatchCore({
       storage:ctx.storage,
       ratePerSecond:configured,
-      send:message=>sendSesEmail({connect,env,...message})
+      send:message=>sendSesEmail({connect,env,...withSenderSignature(message)})
     });
   }
 
