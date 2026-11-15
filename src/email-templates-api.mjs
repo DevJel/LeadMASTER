@@ -42,7 +42,7 @@ export async function emailTemplatesRoute(request,env,session,adminEmail){
    await activity(db,session,'template_deleted','Deleted the email template “'+row.name+'”.',id);
    return json({ok:true});
   }
-  if(!/^application\/json(?:\\s*;|$)/i.test(request.headers.get('content-type')||''))return json({error:'Content-Type must be application/json'},415);
+  if(!/^application\/json(?:\s*;|$)/i.test(request.headers.get('content-type')||''))return json({error:'Content-Type must be application/json'},415);
   let value;try{value=await readBoundedJson(request,600000)}catch{return json({error:'Invalid or oversized request'},400)}
   const template=validTemplate(value);
   if(!template)return json({error:'Add a template name, subject, and either a text or HTML message.'},400);
