@@ -24,7 +24,7 @@ This document describes the production email workflow deployed for LeadMASTER. U
 
 The dedicated receiving address is:
 
-**inbound@inbound.leadmaster.jelvan.pro**
+**app@leadmaster.jelvan.space**
 
 ~~~mermaid
 flowchart TD
@@ -39,7 +39,7 @@ flowchart TD
   G --> I[Activity history]
 ~~~
 
-The Email Routing rule matches only the dedicated address. It does not replace, disable or redirect any existing forwarding rules for jelvan.pro, leadmaster.jelvan.pro or operavaglobal.com.
+The Email Routing rule matches only `app@leadmaster.jelvan.space` and sends it to the dedicated `leadmaster-inbound-mail` Worker. The Worker stores the original message in R2, indexes it in D1 for the administrator-only dashboard inbox, creates an activity/notification event, and forwards a copy to the verified `admin@work.jelvan.pro` mailbox. It does not replace, disable or redirect any existing forwarding rules for jelvan.pro or operavaglobal.com.
 
 The original email file is retained in R2. The dashboard displays readable text and provides a download of the original .eml file. Attached files remain inside that original email; separate attachment extraction and individual attachment downloads are not currently implemented.
 
@@ -209,7 +209,7 @@ Deleted messages can be restored. Permanent deletion removes the stored original
 | R2 bucket | leadmaster-inbound-mail |
 | SES region | ap-southeast-2 |
 | SES configuration set | leadmaster-events |
-| Dedicated inbox | inbound@inbound.leadmaster.jelvan.pro |
+| Dedicated inbox | app@leadmaster.jelvan.space → admin dashboard and admin@work.jelvan.pro |
 
 All SMTP credentials remain in Cloudflare Secrets Store. The dedicated inbound rule is separate from existing personal and Operava email-routing rules.
 
