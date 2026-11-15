@@ -1,17 +1,17 @@
 # Production authentication and release notes
 
-> **Public documentation hub:** [LeadMASTER landing page → Documentation](https://leadmaster.jelvan.pro/#documentation). This file is the repository's detailed engineering reference; the public product guide is maintained in the landing page, not on a separate public documentation site.
+> **Public documentation hub:** [LeadMASTER landing page → Documentation](https://leadmaster.jelvan.space/#documentation). This file is the repository's detailed engineering reference; the public product guide is maintained in the landing page, not on a separate public documentation site.
 
 
 ## Deployment and source of truth
 
-- Production hostname: `https://leadmaster.jelvan.pro`
+- Production hostname: `https://leadmaster.jelvan.space` (legacy `leadmaster.jelvan.pro` remains accepted during transition)
 - Cloudflare Worker: `leadmaster`
 - Worker entry point: `worker.js`
 - Public UI source: `public/`
 - Production static asset bundle: `src/static-assets.mjs` (generated from canonical public files)
 - D1 database: `leadmaster-auth`, binding `AUTH_DB`
-- Turnstile hostname: `leadmaster.jelvan.pro`
+- Turnstile hostnames: `leadmaster.jelvan.space` and legacy `leadmaster.jelvan.pro` (same existing widget and site key)
 - Login Turnstile action: `login`
 - SES transport: SMTP with STARTTLS, port 587
 
