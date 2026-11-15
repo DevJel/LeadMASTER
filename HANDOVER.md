@@ -9,6 +9,8 @@
 
 > This document is the maintainer handover. Follow it before making changes. It is not permission to use operator credentials, internal provider consoles or another user's account.
 
+> **Draft API branch:** Migration 0015 and account-scoped draft routes are implemented locally, not deployed or wired to the dashboard. Apply migrations only through an approved, verified release plan; test concurrency, account isolation and UI behavior before enabling.
+
 ## 1. Product purpose and truthful status
 
 LeadMASTER is an email workspace and developer integration service. The landing page and integrated documentation are the public product entry point. Human sign-in, API-key management, account-scoped REST routes and webhook code exist. The dashboard displays the authenticated account identity and API base URL, and links to the developer console; campaigns, audiences, persistent templates, domain management and analytics are not complete modules. The email API and webhook paths require controlled authenticated end-to-end acceptance testing before delivery guarantees can be claimed.
