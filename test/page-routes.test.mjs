@@ -44,3 +44,8 @@ test("trailing slashes and casing normalize without changing the internal asset"
   assert.equal(route.assetPath, "/dashboard.html");
   assert.equal(route.requiresSession, true);
 });
+
+test("unknown dashboard subpaths remain session-protected", () => {
+  assert.equal(resolvePageRoute("/dashboard/nested").requiresSession, true);
+  assert.equal(resolvePageRoute("/dashboard.future").requiresSession, true);
+});
