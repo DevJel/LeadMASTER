@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { developerEmailRoute } from '../src/developer-api.mjs';
 const key='lm_live_'+'A'.repeat(43), acct='account-test', idem='request_test_123456';
 const keyHash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(key))),x=>x.toString(16).padStart(2,'0')).join('');
-function setup({queueThrows=false,activityThrows=false,queuePresent=true}={}){
+function setup({queueThrows=false,activityThrows=false,queuePresent=true,lastUsedThrows=false}={}){
  let record, persisted, queueCalls=0, activityCalls=0; const writes=[];
  const db={prepare(sql){let args=[]; return {bind(...v){args=v;return this},async first(){
   if(sql.includes('FROM developer_api_keys')) return {id:'key1',key_hash:keyHash,scopes:'["email:send"]',revoked_at:null,account_id:acct,created_by:'owner@example.test'};
@@ -13,8 +13,9 @@ function setup({queueThrows=false,activityThrows=false,queuePresent=true}={}){
   if(sql.includes('FROM accounts'))return {name:'Example',owner_email:'owner@example.test',owner_name:'Owner'};
   throw Error('unexpected query: '+sql);
  },async run(){writes.push(sql);
-  if(sql.startsWith('INSERT INTO developer_email_requests')){record={id:args[0],status:'sending',created_at:args[5]};persisted={text_body:args[11],html_body:args[12]};}
+  if(sql.startsWith('INSERT INTO developer_email_requests')){record={id:args[0],status:'sending',created_at:args[5],request_fingerprint:args[13]};persisted={text_body:args[11],html_body:args[12]};}
   if(sql.startsWith('UPDATE developer_email_requests SET status='))record.status='failed';
+  if(sql.startsWith('UPDATE developer_api_keys SET last_used_at')&&lastUsedThrows)throw Error('last-used update unavailable');
   if(sql.startsWith('INSERT INTO workspace_activity')){activityCalls++; if(activityThrows)throw Error('activity unavailable');}
   return {meta:{changes:1}};
  }}}};
@@ -41,4 +42,9 @@ test('developer email API persists text-only and HTML-only bodies independently'
  assert.equal(textResponse.status,202);assert.equal(text.persisted.text_body,'Plain body');assert.equal(text.persisted.html_body,null);
  const html=setup(),htmlResponse=await developerEmailRoute(request({to:'recipient@example.test',subject:'HTML only',html:'<h1>HTML body</h1>'}),html.env,null,acct);
  assert.equal(htmlResponse.status,202);assert.equal(html.persisted.text_body,'');assert.equal(html.persisted.html_body,'<h1>HTML body</h1>');
+});
+
+test('last-used write failure does not strand an already-recorded request',async()=>{
+ const s=setup({lastUsedThrows:true});const r=await developerEmailRoute(request(),s.env,null,acct);
+ assert.equal(r.status,202);assert.equal(s.queueCalls,1);
 });

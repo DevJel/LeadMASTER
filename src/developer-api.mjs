@@ -60,11 +60,18 @@ export async function developerEmailRoute(request,env,connect,accountId){
  const idem=request.headers.get("idempotency-key")||"";if(!/^[A-Za-z0-9_-]{16,128}$/.test(idem))return json({error:"A 16–128 character Idempotency-Key header is required"},400);
  let body;try{body=await readBody(request)}catch{return json({error:"Invalid JSON or request too large"},400)}
  if(!validMessage(body))return json({error:"Invalid email payload"},400);
+ // Version the canonical request, not the account-derived sender identity: that
+ // identity may change later and must not affect retry equivalence.
+ const fingerprint="v1:"+await hash(JSON.stringify([body.to,body.subject,body.text??"",body.html??"",body.sender_name?.trim()??"",body.reply_to?.trim().toLowerCase()??""]));
  const nowWindow=Date.now(), windowStart=nowWindow-60000;
  const limited=await env.AUTH_DB.prepare("INSERT INTO auth_rate_limits (bucket_key,window_start,count) VALUES (?, ?, 1) ON CONFLICT(bucket_key) DO UPDATE SET count=CASE WHEN auth_rate_limits.window_start<=? THEN 1 ELSE auth_rate_limits.count+1 END, window_start=CASE WHEN auth_rate_limits.window_start<=? THEN excluded.window_start ELSE auth_rate_limits.window_start END RETURNING count").bind("developer-api:"+row.id,nowWindow,windowStart,windowStart).first();
  if(Number(limited?.count||0)>30)return json({error:"Rate limit exceeded"},429,{"retry-after":"60"});
- const prior=await env.AUTH_DB.prepare("SELECT id,status,created_at FROM developer_email_requests WHERE api_key_id=? AND idempotency_key=?").bind(row.id,idem).first();
- if(prior)return json({id:prior.id,status:prior.status,created_at:prior.created_at,replayed:true},prior.status==="accepted"?200:202);
+ const prior=await env.AUTH_DB.prepare("SELECT id,status,created_at,request_fingerprint FROM developer_email_requests WHERE api_key_id=? AND account_id=? AND idempotency_key=?").bind(row.id,accountId,idem).first();
+ if(prior){
+  if(!prior.request_fingerprint)return json({id:prior.id,status:prior.status,error:"This earlier request cannot be verified against the submitted payload. Check its status and reconcile it before sending again."},409);
+  if(prior.request_fingerprint!==fingerprint)return json({id:prior.id,status:prior.status,error:"Idempotency-Key was already used for a different request. Check the original request before sending again."},409);
+  return json({id:prior.id,status:prior.status,created_at:prior.created_at,replayed:true},prior.status==="sending"?202:200);
+ }
  const suppressed=await env.AUTH_DB.prepare("SELECT email FROM email_unsubscribes WHERE lower(email)=lower(?)").bind(body.to).first();
  if(suppressed)return json({error:"Recipient is on the LeadMASTER suppression list"},409);
  const id=crypto.randomUUID(),now=Date.now();
@@ -76,12 +83,12 @@ export async function developerEmailRoute(request,env,connect,accountId){
  const requestedName=String(body.sender_name||"").trim();
  const textBody=typeof body.text==="string"?body.text:"",htmlBody=typeof body.html==="string"&&body.html.trim()?body.html:null;
  const senderName=requestedName||String(account?.owner_name||"").trim()|| (accountName&&accountName!=="My LeadMASTER workspace"?accountName:fallbackName);
- if(requestedName&&requestedName!==account?.owner_name)await env.AUTH_DB.prepare("UPDATE accounts SET owner_name=?,updated_at=? WHERE id=?").bind(requestedName,now,accountId).run();
  const senderLocal=(senderName.toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,48)||"user");
  const senderEmail=senderLocal+"@leadmaster.jelvan.pro";
- try{await env.AUTH_DB.prepare("INSERT INTO developer_email_requests (id,api_key_id,idempotency_key,recipient,subject,status,created_at,updated_at,error_code,account_id,from_email,sender_name,reply_to,text_body,html_body) VALUES (?,?,?,?,?,'sending',?,?,NULL,?,?,?,?,?,?)").bind(id,row.id,idem,body.to,body.subject,now,now,accountId,senderEmail,senderName,replyTo,textBody,htmlBody).run();}
+ try{await env.AUTH_DB.prepare("INSERT INTO developer_email_requests (id,api_key_id,idempotency_key,recipient,subject,status,created_at,updated_at,error_code,account_id,from_email,sender_name,reply_to,text_body,html_body,request_fingerprint) VALUES (?,?,?,?,?,'sending',?,?,NULL,?,?,?,?,?,?,?)").bind(id,row.id,idem,body.to,body.subject,now,now,accountId,senderEmail,senderName,replyTo,textBody,htmlBody,fingerprint).run();}
  catch{return json({error:"Request already submitted or could not be recorded; retry with the same idempotency key"},409);}
- await env.AUTH_DB.prepare("UPDATE developer_api_keys SET last_used_at=? WHERE id=?").bind(now,row.id).run();
+ if(requestedName&&requestedName!==account?.owner_name)await writeBestEffort([()=>env.AUTH_DB.prepare("UPDATE accounts SET owner_name=?,updated_at=? WHERE id=?").bind(requestedName,now,accountId).run()]);
+ await writeBestEffort([()=>env.AUTH_DB.prepare("UPDATE developer_api_keys SET last_used_at=? WHERE id=? AND account_id=?").bind(now,row.id,accountId).run()]);
  if(!env.MAIL_SEND_QUEUE){
   await env.AUTH_DB.prepare("UPDATE developer_email_requests SET status='failed',updated_at=?,error_code='queue_unavailable' WHERE id=? AND status='sending'").bind(Date.now(),id).run();
   return json({id,status:"failed",error:"Sending queue is unavailable; no queue submission was attempted."},503);
