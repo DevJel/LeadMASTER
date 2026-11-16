@@ -56,7 +56,7 @@ function formatReportDate(dateString) {
   return new Intl.DateTimeFormat("en", {
     weekday: "long", month: "short", day: "numeric", year: "numeric",
     timeZone: "UTC"
-  }).format(new Date(Date.UTC(year, month - 1, day, 12)));
+  }).format(new Date(Date.UTC(year, month - 1, day, 12))).replace(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\\d)/, "$1. $2");
 }
 function timeoutSignal(ms) {
   const controller = new AbortController();
@@ -360,7 +360,11 @@ function summarize(checks) {
   const counts = { "Healthy": 0, "Fixed": 0, "Moderate": 0, "Needs Attention": 0, "Needs Manual Action": 0, "Unable to Fix": 0 };
   for (const check of checks) counts[check.status] = (counts[check.status] || 0) + 1;
   const failed = checks.filter(check => statusRank(check.status) >= statusRank("Needs Attention"));
-  return { counts, total: checks.length, overall: failed.length ? (failed.some(x => x.status === "Unable to Fix") ? "Unable to Fix" : "Needs Attention") : counts.Moderate ? "Moderate" : counts.Fixed ? "Fixed" : "Healthy", failed };
+  const overall = checks.some(x => x.status === "Unable to Fix") ? "Unable to Fix"
+    : checks.some(x => x.status === "Needs Manual Action") ? "Needs Manual Action"
+    : checks.some(x => x.status === "Needs Attention") ? "Needs Attention"
+    : counts.Moderate ? "Moderate" : counts.Fixed ? "Fixed" : "Healthy";
+  return { counts, total: checks.length, overall, failed };
 }
 function renderTable(title, checks) {
   const rows = checks.length ? checks.map(item => {
@@ -438,6 +442,11 @@ export async function runDailyReporter(env, scheduledTime = Date.now(), options 
       checkGitHub(env, checks),
       checkCloudflareControlPlane(env, checks)
     ]);
+    const smtpCheck = checks.find(item => item.name === "SES SMTP transport");
+    const loginAlertStatus = smtpCheck?.status === "Healthy" || smtpCheck?.status === "Fixed" ? "Healthy" : "Needs Attention";
+    checks.push(makeCheck("App Functions", "Admin login security alert", loginAlertStatus,
+      "The existing successful-login flow sends the LeadMASTER security alert template to the configured primary administrator through the shared SES coordinator. The health check verifies the sender path, not inbox placement.",
+      loginAlertStatus === "Healthy" ? "" : "Restore the shared SES coordinator and existing email-securityalert template."));
     const admin = await adminRecipient(env);
     if (!admin) {
       checks.push(makeCheck("Reporter", "Admin-only report recipient", "Unable to Fix", "The configured ADMIN_EMAIL secret is missing or invalid; the report will not be sent to any fallback recipient.", "Restore the existing ADMIN_EMAIL secret-store binding. The reporter never accepts a recipient from an HTTP request."));
