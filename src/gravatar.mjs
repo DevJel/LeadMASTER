@@ -8,7 +8,7 @@ export function normalizeGravatarEmail(email) {
 
 export async function createGravatarHash(email) {
   const normalized = normalizeGravatarEmail(email);
-  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalized)) return null;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return null;
   if (!globalThis.crypto?.subtle) return null;
   const digest = await globalThis.crypto.subtle.digest(
     "SHA-256",
