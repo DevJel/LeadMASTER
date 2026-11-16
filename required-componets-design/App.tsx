@@ -659,7 +659,6 @@ export default function App(){
   function componentLabel(k:View):string{ return k==='inbox'?'Inbox':k==='compose'?'Compose':k==='assistant'?'Assistant':k==='automation'?'Automation':k==='templates'?'Templates':k==='sent'?'Sent':k==='outbox'?'Outbox':k==='deleted'?'Deleted':'Scheduled'; }
 
   // ——— Right panel: contacts / reminders / notes ———
-  const filteredContacts = useMemo(()=> contacts.filter(c=> !contactSearch.trim() || (c.name+' '+c.email+' '+c.company).toLowerCase().includes(contactSearch.toLowerCase())), [contacts, contactSearch]);
   const sortedNotes = useMemo(()=> [...notes].sort((a,b)=> Number(b.pinned)-Number(a.pinned)), [notes]);
   const remindersForDay = useMemo(()=> reminders.filter(r=>r.date===selectedDay), [reminders, selectedDay]);
   const calendarCells = useMemo(()=>{ const y=calendarDate.getFullYear(); const m=calendarDate.getMonth(); const first=new Date(y,m,1); const startDay=first.getDay(); const days=new Date(y,m+1,0).getDate(); const cells:(number|null)[]=[]; for(let i=0;i<startDay;i++) cells.push(null); for(let d=1;d<=days;d++) cells.push(d); return cells; },[calendarDate]);
