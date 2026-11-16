@@ -57,3 +57,13 @@ flowchart TD
 ## Not implemented
 
 A calendar reminder is a saved reminder, not a scheduler that automatically sends email. Calculator and HTML Playground do not write backend records by themselves. Currency conversion is not allowed to fabricate rates when the quote source is unavailable.
+
+
+## Gravatar avatars
+
+- Email-based avatars use Gravatar's documented SHA-256 identifier: trim whitespace, lowercase the address, then hash with SHA-256. MD5 is not used.
+- The browser requests only the hash-based image URL; the original email address is never placed in the URL. Requests use HTTPS, a bounded image size, `d=404`, lazy loading and `referrerPolicy=no-referrer`.
+- A custom LeadMASTER image (if one is introduced later) should take precedence; currently the fallback is the existing account/contact icon or locally generated initials. A missing or blocked Gravatar never blocks the workspace.
+- No API key, profile API, database column, migration, scheduled task or extra D1 read is required for avatar images. Profile enrichment is intentionally not enabled.
+- The shared React dashboard covers web and the Android WebView companion; native Android business logic is unchanged.
+- Tests: `test/gravatar.test.mjs`.
