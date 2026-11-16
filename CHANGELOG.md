@@ -1,4 +1,4 @@
-## 2026-11-16 — Unified viewport loading and sending overlays (source change; deployment pending)
+## 2026-11-16 — Unified viewport loading and sending overlays (production deployed)
 
 - Consolidated initial workspace loading, per-tab loading, refresh, and busy-action feedback into one fixed, viewport-centered overlay with a blurred backdrop and dismiss control.
 - Removed the in-panel loading skeleton and inline refresh spinner/status banner so loading UI no longer appears inside dashboard panels. Dismissing the overlay hides only the visual layer; the underlying request continues.

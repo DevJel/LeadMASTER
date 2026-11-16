@@ -148,7 +148,7 @@ try {
       await page.getByLabel("Subject").fill("A sample subject");
       await page.getByLabel("Body").fill("This is a synthetic template preview.");
       await page.getByRole("button",{name:"Save template"}).click();
-      await page.getByRole("button",{name:"Preview",exact:true}).first().click();
+      await page.getByRole("button",{name:/Preview/}).first().click();
       await snap("dashboard-template-preview");
     }
     if (device === "mobile") await page.getByRole("button",{name:"Open navigation"}).click();
