@@ -4,6 +4,7 @@ on:
     branches:
       - main
       - feature/**
+      - integration/**
   pull_request:
     branches:
       - main
@@ -19,11 +20,11 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm test
       - run: npm run build:assets
+      - run: npm test
       - run: npm run check:dashboard
       - name: Commit generated asset bundle
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]'
+        if: github.event_name == 'push' && github.actor != 'github-actions[bot]'
         run: |
           if ! git diff --quiet -- src/static-assets.mjs; then
             git config user.name "github-actions[bot]"
@@ -32,8 +33,8 @@ jobs:
             git commit -m "chore: sync generated static assets"
             git push
           fi
-      # PR builds validate that asset generation succeeds. The main-branch push job
-      # commits the generated bundle after merge; don't fail PRs on that expected diff.
+      # PR builds validate asset generation. Push builds commit the generated bundle
+      # to the same branch so the worker's static asset map is always in sync.
       - name: Verify generated asset bundle
         if: github.event_name == 'push' && github.ref != 'refs/heads/main'
         run: git diff --exit-code -- src/static-assets.mjs
