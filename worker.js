@@ -15,6 +15,7 @@ import { sesSnsEvents } from "./src/ses-sns-events.mjs";
 import { receiveInboundEmail } from "./src/inbound-email-handler.mjs";
 import { leadmasterRecordsRoute } from "./src/leadmaster-records-api.mjs";
 import { runDailyReporter, reporterStatus } from "./src/daily-reporter.mjs";
+import { processAutoHealEvent, verifyActionsOidc } from "./src/auto-heal.mjs";
 export { EmailCoordinator } from "./src/email-coordinator.mjs";
 
 const HOSTNAME = "leadmaster.jelvan.pro";
@@ -603,7 +604,34 @@ async function handle(request, env, ctx) {
 
   if (url.pathname === "/api/aws/ses-events") return sesSnsEvents(request,env);
   if (url.pathname === "/api/workspace/actions") return leadmasterRecordsRoute(request, env, await sessionFor(request, env));
-  const adminSession=await sessionFor(request,env);
+  if (url.pathname === "/api/auto-heal/trigger") {
+    if (request.method !== "POST") return json({ error: "Method not allowed" }, 405, { allow: "POST" });
+    const authorization = request.headers.get("authorization") || "";
+    const oidc = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+    if (!(await verifyActionsOidc(oidc))) return json({ error: "GitHub Actions identity verification failed" }, 403);
+    const raw = await request.text();
+    if (raw.length > 18000) return json({ error: "Incident payload too large" }, 413);
+    let event;
+    try { event = JSON.parse(raw); } catch { return json({ error: "Invalid incident payload" }, 400); }
+    if (event.event_type === "sample") {
+      const sample = await runDailyReporter(env, Date.now(), { sample: true, sampleId: String(event.event_id || crypto.randomUUID()) });
+      return json({ sample: true, report: sample }, sample.status === "sent" ? 200 : 503);
+    }
+    const result = await processAutoHealEvent(env, event);
+    const report = await runDailyReporter(env, Date.now(), {
+      incidentId: result.errorHash || crypto.randomUUID(),
+      incident: {
+        status: result.status,
+        reason: result.reason || (result.prUrl ? "A strictly scoped draft fix pull request was opened." : "The event was investigated."),
+        prUrl: result.prUrl,
+        issueUrl: result.issueUrl,
+        eventType: event.event_type
+      }
+    });
+    return json({ incident: result, report: { status: report.status, reportDate: report.reportDate, emailStatus: report.emailStatus, summary: report.summary } }, report.status === "sent" ? 200 : 503);
+  }
+
+    const adminSession=await sessionFor(request,env);
   const aiSuggest=url.pathname.match(/^\/api\/admin\/mail\/([0-9a-f-]{36})\/suggest$/i);
   if (aiSuggest) return adminAiSuggestRoute(request,env,adminSession,aiSuggest[1]);
   if (url.pathname === "/api/admin/mail" || url.pathname.startsWith("/api/admin/mail/") || url.pathname === "/api/admin/unsubscribes") return adminMailboxRoute(request,env,adminSession);
