@@ -2200,6 +2200,64 @@ async function checkR2AndBindings(env, checks) {
     env.AI ? "" : "If AI reply suggestions are expected to be active, restore the existing AI binding."
   ));
 }
+async function checkIncidentEvents(env, checks) {
+  const kv = env.AUTO_HEAL_KV;
+  if (!kv || typeof kv.list !== "function" || typeof kv.get !== "function") {
+    checks.push(makeCheck(
+      "Incident",
+      "Incident event collection",
+      "Needs Attention",
+      "The auto-heal incident queue is not available to the daily reporter.",
+      "Restore the existing leadmaster-auto-heal KV namespace binding."
+    ));
+    return;
+  }
+  try {
+    const listing = await kv.list({ prefix: "error:", limit: 100 });
+    const keys = Array.isArray(listing?.keys) ? listing.keys : [];
+    let recorded = 0;
+    for (const item of keys) {
+      if (!item?.name) continue;
+      const raw = await kv.get(item.name);
+      if (!raw) continue;
+      let incident;
+      try {
+        incident = JSON.parse(raw);
+      } catch {
+        continue;
+      }
+      const state = safeString(incident.status || "unknown", 80);
+      const status = ["pr_opened", "manual_action", "rejected"].includes(state) ? "Needs Manual Action" : state === "already_processed" ? "Moderate" : "Needs Attention";
+      const reason = safeString(incident.reason || incident.detail || "An incident event was recorded.", 450);
+      const target = safeString(incident.target || "", 180);
+      const detail = "Status: " + state + ". " + reason + (target ? " Target: " + target + "." : "");
+      const action = state === "pr_opened" ? "Review the draft pull request; it cannot merge or deploy itself." : "Review the incident and apply or approve the required fix.";
+      checks.push(makeCheck(
+        "Incident",
+        "Auto-heal incident " + safeString(item.name.slice(6, 18), 20),
+        status,
+        detail,
+        action,
+        incident.prUrl || incident.issueUrl || ""
+      ));
+      recorded++;
+    }
+    if (!recorded) checks.push(makeCheck(
+      "Incident",
+      "Incident event collection",
+      "Healthy",
+      "No outstanding auto-heal incident findings are queued for this daily review."
+    ));
+  } catch (error) {
+    checks.push(makeCheck(
+      "Incident",
+      "Incident event collection",
+      "Needs Attention",
+      safeString(error?.message || error, 400),
+      "Check read access to the existing leadmaster-auto-heal KV namespace."
+    ));
+  }
+}
 async function githubHeaders(env) {
   const headers = { accept: "application/vnd.github+json", "user-agent": "LeadMASTER-Reporter/1.0", "x-github-api-version": "2022-11-28" };
   const token2 = await secretValue(env.GITHUB_TOKEN);
@@ -2528,6 +2586,7 @@ async function runDailyReporter(env, scheduledTime = Date.now(), options = {}) {
       checkGitHub(env, checks),
       checkCloudflareControlPlane(env, checks)
     ]);
+    await checkIncidentEvents(env, checks);
     const smtpCheck = checks.find((item) => item.name === "SES SMTP transport");
     const loginAlertStatus = smtpCheck?.status === "Healthy" || smtpCheck?.status === "Fixed" ? "Healthy" : "Needs Attention";
     checks.push(makeCheck(
@@ -2717,6 +2776,14 @@ async function sha256(value) {
 function safe(value, max = 600) {
   return String(value || "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 }
+async function secretValue2(binding) {
+  try {
+    const value = typeof binding?.get === "function" ? await binding.get() : binding;
+    return typeof value === "string" && value.trim() ? value.trim() : null;
+  } catch {
+    return null;
+  }
+}
 async function githubRequest(token2, path, init = {}) {
   const response = await fetch("https://api.github.com" + path, {
     ...init,
@@ -2764,8 +2831,8 @@ async function createManualIssue(token2, repo, title, body, sourceIssue) {
   return { url: issue.html_url, created: true };
 }
 async function analyzeAndPropose(env, frame, stacktrace, sourceIssue) {
-  const token2 = String(env.GITHUB_TOKEN || "");
-  if (!token2) throw new Error("The Worker GITHUB_TOKEN secret is not configured; safe source inspection and PR creation require a least-privilege GitHub token.");
+  const token2 = await secretValue2(env.GITHUB_TOKEN);
+  if (!token2) throw new Error("The Worker GITHUB_TOKEN Secret Store binding is unavailable; safe source inspection and PR creation require a least-privilege GitHub token.");
   const repo = String(env.REPORTER_GITHUB_REPOSITORY || "DevJel/LeadMASTER");
   const branch = await githubRequest(token2, "/repos/" + repo + "/branches/main");
   const sha2 = branch.commit?.sha;
@@ -2837,7 +2904,7 @@ async function processAutoHealEvent(env, event) {
   const repo = String(env.REPORTER_GITHUB_REPOSITORY || "DevJel/LeadMASTER");
   const stacktrace = safe(event.stacktrace || event.issue_body || "", 8e3);
   const frames = parseStackFrames(stacktrace);
-  const token2 = String(env.GITHUB_TOKEN || "");
+  const token2 = await secretValue2(env.GITHUB_TOKEN);
   const computedHash = await sha256((frames[0]?.file || "unknown") + ":" + (frames[0]?.line || 0) + ":" + (stacktrace || safe(event.event_id || event.issue_url || event.event_type, 1e3)));
   const errorHash = event.event_type === "rejected" ? String(event.error_hash || computedHash) : computedHash;
   const kv = env.AUTO_HEAL_KV;
@@ -8607,17 +8674,7 @@ async function handle(request, env, ctx) {
       return json8({ sample: true, report: sample }, sample.status === "sent" ? 200 : 503);
     }
     const result = await processAutoHealEvent(env, event);
-    const report = await runDailyReporter(reporterEnvironment(env, ctx), Date.now(), {
-      incidentId: result.errorHash || crypto.randomUUID(),
-      incident: {
-        status: result.status,
-        reason: result.reason || (result.prUrl ? "A strictly scoped draft fix pull request was opened." : "The event was investigated."),
-        prUrl: result.prUrl,
-        issueUrl: result.issueUrl,
-        eventType: event.event_type
-      }
-    });
-    return json8({ incident: result, report: { status: report.status, reportDate: report.reportDate, emailStatus: report.emailStatus, summary: report.summary } }, report.status === "sent" ? 200 : 503);
+    return json8({ incident: result, report: { status: "queued_for_daily_report" } }, 200);
   }
   const adminSession = await sessionFor(request, env);
   if (url.pathname === "/api/admin/email-html/assistant") {
