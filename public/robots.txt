@@ -14,6 +14,7 @@ Disallow: /dashboard
 Disallow: /dashboard.html
 Disallow: /dashboard.js
 Disallow: /dashboard.css
+Disallow: /developer-api-keys
 Disallow: /developer-api-keys.html
 Disallow: /html-preview.js
 Disallow: /html-preview.css

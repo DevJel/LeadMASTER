@@ -33,7 +33,7 @@
     function pos(event){const r=canvas.getBoundingClientRect();return {x:event.clientX-r.left,y:event.clientY-r.top};}
     canvas.addEventListener('pointermove',event=>{if(!reduced.matches){pointer=pos(event);schedule();}});
     canvas.addEventListener('pointerleave',()=>{pointer={x:-1e5,y:-1e5};schedule();});
-    canvas.addEventListener('click',event=>{const point=pos(event);if(canvas.dataset.halftone==='dark'&&wordmarkBounds&&point.x>=wordmarkBounds.left&&point.x<=wordmarkBounds.right&&point.y>=wordmarkBounds.top&&point.y<=wordmarkBounds.bottom){window.location.assign('./login.html');return;}if(!reduced.matches){ring={...point,t:performance.now()};schedule();}});
+    canvas.addEventListener('click',event=>{const point=pos(event);if(canvas.dataset.halftone==='dark'&&wordmarkBounds&&point.x>=wordmarkBounds.left&&point.x<=wordmarkBounds.right&&point.y>=wordmarkBounds.top&&point.y<=wordmarkBounds.bottom){window.location.assign('/login');return;}if(!reduced.matches){ring={...point,t:performance.now()};schedule();}});
     if('ResizeObserver' in window)new ResizeObserver(resize).observe(parent);else window.addEventListener('resize',resize);
     if('IntersectionObserver' in window)new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;if(visible)schedule();}).observe(parent);
     reduced.addEventListener?.('change',()=>schedule());resize();
