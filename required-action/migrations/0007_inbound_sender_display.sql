@@ -1,0 +1,1 @@
+ALTER TABLE inbound_mail ADD COLUMN from_name TEXT;

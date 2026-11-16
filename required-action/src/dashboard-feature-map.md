@@ -1,0 +1,96 @@
+# Mandatory LeadMASTER Dashboard — production integration map
+
+**Canonical UI:** `src/Mandatory LeadMASTER Dashboard.html`  
+**Production mirror:** `public/dashboard.html`  
+**Authenticated route:** `/dashboard.html`
+
+## Visual contract
+The mandatory HTML is the authoritative React dashboard. Preserve its component tree, embedded styling, layout, typography, spacing, icons, responsive breakpoints, side navigation, mobile bottom navigation, drawers, cards, tables and interactions. API work must update data and behavior without redesigning the interface. The public mirror must remain byte-for-byte identical; `npm run build:assets` synchronizes it and regenerates `src/static-assets.mjs`.
+
+## Live integrations
+| Feature | API | Current behavior |
+|---|---|---|
+| Account identity | `GET /api/auth/session`, `GET /api/account/profile` | Authenticated account and owner profile. |
+| Overview | `GET /api/admin/mail?folder=counts`, `GET /api/admin/activity` | Live mailbox/queue counts and workspace activity. |
+| Emails | `GET /api/admin/mail?folder=...`, `GET /api/admin/mail/:id`, `PATCH /api/admin/mail/:id`, `POST /api/admin/send` | Sending, Receiving, Deleted and Suppressions views. Message soft-delete moves eligible mail to Deleted; Deleted supports restore and confirmed permanent deletion through the existing authenticated endpoint. The action is per message and does not clear the database, queue, delivery events or audit history. Composer retains navigation, local recipient import and optional HTML (subject to rollout). |
+| Reply assistance | `POST /api/admin/mail/:id/suggest` | Existing mailbox reply suggestion flow. |
+| Audience / suppression | `GET/POST /api/admin/unsubscribes` | Real do-not-contact list and manual suppression. Not a contact manager. |
+| Inboxes | Dedicated inbound mailbox | One account mailbox; no inbox provisioning API. |
+| Campaigns | `GET /api/admin/mail?folder=sent`, `POST /api/admin/send` | Recent accepted messages and immediate sending to up to 500 addresses; saved groups and scheduling are not yet implemented. |
+| Metrics | `GET /api/admin/mail?folder=counts` | Accepted sends, inbox, queued, unsuccessful, bounce/complaint counts only. |
+| Activity | `GET /api/admin/activity` | Account activity; not open/click tracking. |
+| API keys | `GET/POST /api/developer/keys`, `DELETE /api/developer/keys/:id` | Account-scoped keys; full key shown once. Optional `webhook:manage` scope is explicit and off by default. |
+| Webhooks | `GET/POST /api/admin/webhooks`, `DELETE /api/admin/webhooks/:id`, `GET /api/admin/webhooks/:id/deliveries` | Account-scoped list/create/revoke/history. Creation requires an active account API key with `webhook:manage`; signing secret shown once. Events: `email.accepted`, `email.failed`, `email.unknown`. |
+| Settings | `GET/PATCH /api/account/profile` | Owner display name editable; account email, workspace and device timezone read-only. |
+| Session | `POST /api/auth/logout` | Existing server-side logout. |
+| HTML preview | `public/html-preview.js`, `public/html-preview.css`, DOMPurify | Separate email and template HTML preview routes. Sanitized content is rendered in a sandboxed iframe with a restrictive CSP; preview content is not sent or persisted. |
+
+## Not available as production features
+Keep these navigation entries visible, but do not invent rows, local-success toasts or statuses:
+- Full saved-template CRUD: composer supports account-scoped creation/list/insert only; edit and delete are not available.
+- Contacts, marketing lists and segments; only suppression data exists.
+- Multiple inbox provisioning and forwarding configuration.
+- Saved drafts and scheduled campaigns; current send endpoint queues immediate sends only.
+- Workflow automation triggers, scheduler and execution engine.
+- Opens, clicks, attribution and engagement time-series.
+- DNS/DKIM/SPF verification; sender allowlist is not a DNS verification service.
+- Team management and account deletion.
+- Persistent onboarding workflow state.
+
+## Mail deletion behavior
+- Move to Deleted is a reversible soft-delete; the message remains recoverable.
+- Restore is available only from Deleted.
+- Permanently delete requires a second explicit confirmation and removes only the selected soft-deleted message record (and its original stored object for inbound mail).
+- Never clear the database or delete send-batch, queue, delivery-event, suppression, API-key, webhook or activity/audit records through mailbox controls.
+- Do not add ordinary delete controls to suppression entries, API keys, webhooks or activity logs: suppression is a sending safety control; keys and webhooks are revoked; audit history is retained.
+
+## Security and data rules
+1. Use authenticated LeadMASTER session and account-scoped server authorization; never client-filter global records.
+2. Cookie-authenticated mutations retain same-origin checks and server validation.
+3. Never expose key hashes, full API keys after creation, webhook secrets after initial reveal, or another account's resources.
+4. Queue acceptance is not recipient delivery. Display the actual backend state.
+5. Preserve login, Turnstile, email OTP and session controls.
+6. Do not enable MCP; production integrations use the documented account-scoped REST API.
+
+## Android parity
+Android shares the authenticated dashboard and backend. Native bottom navigation mirrors mandatory mobile section IDs: `home`, `emails`, `audience`, `metrics`, `profile`. Other modules remain in the dashboard drawer. Back returns to Home before leaving the workspace. Update and build Android in the same branch when section IDs, connected actions or security behavior change.
+
+## Release checks
+Run `npm test`, `npm run build:assets`, syntax checks for worker and developer modules, `node scripts/capture-screenshots.mjs`, and Android APK build when Android changes. Review desktop/mobile screenshots and perform authenticated production smoke tests for mailbox, send queue, suppression, API keys and webhooks before claiming end-to-end readiness. Never deploy while tests or visual checks fail.
+
+
+## Header profile control
+
+The dashboard header must contain only a compact profile SVG icon aligned at the far right (Cloudflare-style). Do not repeat the user's name/avatar or a Profile text tab in the header. The actual Profile page belongs only to the dashboard navigation (mobile bottom tab and desktop sidebar). The icon may expose the signed-in email and Log out; do not add a second profile-page destination. The authenticated login flow already redirects to `/dashboard.html`, which serves the mandatory dashboard; `/dashboard` redirects to that same canonical route. Replace any legacy dashboard rather than maintaining parallel dashboard implementations.
+
+
+## Dashboard authentication is mandatory
+
+Every dashboard document and supporting bundle must be protected by a server-validated `lm_session` cookie using `sessionFor()` before static asset lookup or upstream proxying. Normalize and decode URL paths before checking access; reject malformed paths, case variants, encoded separators and trailing-slash aliases. Unauthenticated dashboard requests must redirect to `/login.html`; never rely on React/client-side checks or hidden navigation. Keep the dashboard's HTML, JS, CSS, preview scripts and DOMPurify asset protected. Add regression tests whenever routes or assets change. Never proxy an unknown dashboard-like path to the preview upstream.
+
+
+## Dashboard authentication is mandatory
+
+Every dashboard document and supporting bundle must be protected by a server-validated `lm_session` cookie using `sessionFor()` before static asset lookup or upstream proxying. Normalize and decode URL paths before checking access; reject malformed paths, case variants, encoded separators and trailing-slash aliases. Unauthenticated dashboard requests must redirect to `/login.html`; never rely on React/client-side checks or hidden navigation. Keep the dashboard's HTML, JS, CSS, preview scripts and DOMPurify asset protected. Add regression tests whenever routes or assets change. Never proxy an unknown dashboard-like path to the preview upstream.
+
+
+## Inbound deletion safety
+
+The deployed Worker contains the deletion-claim code and migration 0008 was applied on 2026-11-09. The code prevents restoring an inbound message while permanent deletion is pending; failed cleanup requires retry. The dashboard branch now adds the Deleted view, confirmation before moving mail, restore, and confirmed permanent deletion. Live end-to-end behavior remains unverified. Validate shared WebView behavior and the full delete/restore confirmation experience before release.
+
+
+## Initial control audit (feature branch)
+
+See `docs/DASHBOARD_CONTROL_AUDIT.md`. Email date/status/key filters and export do not affect the live request; message soft deletion lacks confirmation and does not refresh the list; suppression creation locally appends rather than reloading. These are outstanding, not completed features.
+
+## Composer branch additions (not production verified)
+
+Multi-file CSV/text extraction runs in the browser and adds deduplicated addresses to the immediate send form; it is not a contacts or groups import. `GET/POST /api/admin/templates` and `GET /api/admin/templates/:id` persist account-scoped subject, text and optional HTML after migration 0010. HTML send is blocked unless `ADMIN_HTML_SEND_ENABLED` is explicitly true. Enable only after migrations 0009 and 0010 and compatible queue consumer are deployed and verified; otherwise an older consumer would silently drop HTML. HTML is delivered using existing SES SMTP multipart/alternative, not SESv2 raw MIME. Attachments and scheduling remain unavailable.
+
+## In-dashboard composer branch
+
+Compose opens inside the existing scrollable dashboard content area; desktop sidebar, header and mobile bottom navigation remain available. It uses dashboard theme tokens and neutral controls. File import, saved-template API and sanitized HTML preview remain subject to their existing limits and release gates. Queue pacing is an internal implementation detail; the interface must show honest sending outcomes without displaying the numeric rate.
+
+## Draft persistence branch (not deployed or wired)
+
+Migration 0015 and an unmounted draft service implement account-owned create/list/read/update/delete with optimistic revision checks; `/api/admin/drafts` is not yet routed. This is not a scheduled-send engine and does not submit mail. A dashboard integration, authenticated acceptance, migration rollout, Android WebView review, and release checks remain required.
