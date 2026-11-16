@@ -86,6 +86,7 @@ jobs:
           gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label auto-heal-rejected
           gh pr close "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --comment "Closed automatically: the strict auto-heal policy or existing tests failed. No merge or deployment was performed."
           ERROR_HASH="${HEAD_REF#fix/auto-heal-}"
+          export ERROR_HASH
           node --input-type=module <<'NODE'
           const endpoint = new URL(process.env.ACTIONS_ID_TOKEN_REQUEST_URL);
           endpoint.searchParams.set("audience", "leadmaster-auto-heal");
