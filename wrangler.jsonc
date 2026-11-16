@@ -20,7 +20,7 @@
     "REPORTER_APP_URL": "https://leadmaster.jelvan.space",
     "REPORTER_GITHUB_REPOSITORY": "DevJel/LeadMASTER",
     "REPORTER_CF_ACCOUNT_ID": "967aa086112f862ba9f50ccf7aa09246",
-    "REPORTER_TIME_ZONE": "Asia/Manila",
+    "REPORTER_TIME_ZONE": "Asia/Kuala_Lumpur",
     "TURSO_URL": "libsql://leadmaster-devjel.aws-ap-southeast-2.turso.io"
   },
   "secrets_store_secrets": [
@@ -63,6 +63,16 @@
       "binding": "TURSO_AUTH_TOKEN",
       "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
       "secret_name": "TURSO_AUTH_TOKEN"
+    },
+    {
+      "binding": "GITHUB_TOKEN",
+      "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
+      "secret_name": "GITHUB_TOKEN"
+    },
+    {
+      "binding": "CF_API_TOKEN",
+      "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
+      "secret_name": "CF_API_TOKEN"
     }
   ],
   "observability": {
