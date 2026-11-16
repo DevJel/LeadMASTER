@@ -658,6 +658,14 @@ async function handle(request, env, ctx) {
     return json(result, result.status === "sent" || result.skipped ? 200 : 503);
   }
 
+  if (url.pathname === "/api/admin/reporter/sample") {
+    if (!adminSession) return json({ error: "Unauthorized" }, 401);
+    if (adminSession.email !== await configuredAdminEmail(env)) return json({ error: "Forbidden" }, 403);
+    if (request.method !== "POST" || !sameOrigin(request)) return json({ error: "Invalid request" }, 403);
+    const result = await runDailyReporter(env, Date.now(), { sample: true, sampleId: crypto.randomUUID() });
+    return json(result, result.status === "sent" ? 200 : 503);
+  }
+
   if (url.pathname === "/api/developer/keys" || url.pathname.startsWith("/api/developer/keys/")) {
     const session = await sessionFor(request, env);
     return developerAdminRoute(request, env, session);
