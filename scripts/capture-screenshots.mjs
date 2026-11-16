@@ -134,7 +134,12 @@ try {
       if (!screenshotRecords.has(collection)) screenshotRecords.set(collection, []);
       const records = screenshotRecords.get(collection);
       let data = {};
-      if (action === "records.list") data = {records};
+      if (action === "records.list") {
+        if (collection === "leadmaster_templates" && records.length === 0) {
+          records.push({id:"screenshot-template-1",value:{id:"screenshot-template-1",name:"Screenshot template",subject:"Preview template",body:"This is a local screenshot fixture.",category:"General"}});
+        }
+        data = {records};
+      }
       else if (action === "records.create") {
         const record = {id: "screenshot-record-" + (++screenshotRecordId), value: args.value || {}};
         records.unshift(record);
@@ -196,7 +201,7 @@ try {
       await page.getByText("Refreshing and verifying workspace data…",{exact:true}).waitFor({state:"hidden",timeout:5000});
       await snap("dashboard-refresh-verified");
       await page.getByRole("navigation",{name:"LeadMaster navigation"}).getByRole("button",{name:"Templates",exact:true}).click();
-      const templateCard = page.locator("article").filter({hasText:"Preview template"});
+      const templateCard = page.locator("article").filter({hasText:"Screenshot template"});
       await templateCard.waitFor({state:"visible",timeout:10000});
       await templateCard.getByRole("button",{name:"Preview",exact:true}).click();
       await snap("dashboard-template-preview");
