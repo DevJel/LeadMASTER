@@ -14,7 +14,7 @@ LeadMASTER is an email workspace and developer integration service.
 - **Daily operational reporting:** [docs/DAILY_REPORTER.md](docs/DAILY_REPORTER.md)
 - **Strict incident auto-heal:** [docs/REPORTER_AUTO_HEAL.md](docs/REPORTER_AUTO_HEAL.md)
 
-> **Production integration:** The authenticated workspace, account-scoped records and migrations 0015–0019 are merged into `main` and deployed. The daily Reporter/Worker is scheduled for 08:00 Asia/Kuala_Lumpur after this change is deployed. See `docs/DAILY_REPORTER.md` for its checks, status colors and remediation boundaries.
+> **Production integration:** The authenticated workspace, account-scoped records and migrations 0015–0019 are merged into `main` and deployed. The daily Reporter/Worker is configured for 17:00 Asia/Kuala_Lumpur; verify the deployed schedule separately. See `docs/DAILY_REPORTER.md` for its checks, status colors and remediation boundaries.
 
 ## Feature architecture and implementation guides
 

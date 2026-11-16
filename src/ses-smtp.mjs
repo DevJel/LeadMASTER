@@ -75,6 +75,16 @@ async function secret(value) {
   if (typeof result !== 'string' || !result || /[\r\n\x00-\x1f\x7f]/.test(result) || encoder.encode(result).length > 512) throw new Error('SMTP configuration unavailable');
   return result;
 }
+/** Check configuration shape without exposing secrets or asserting delivery. */
+export async function sesConfigurationHealth(env) {
+  let smtpConfigured = false, fromConfigured = false;
+  try {
+    const [host] = await Promise.all([secret(env?.SES_SMTP_HOST), secret(env?.SES_SMTP_USERNAME), secret(env?.SES_SMTP_PASSWORD)]);
+    smtpConfigured = HOST.test(host);
+  } catch { /* missing, unreadable or malformed credentials */ }
+  try { const from=mailbox(env?.SES_FROM_EMAIL); fromConfigured=from.split('@')[1].includes('.'); } catch { /* invalid sender */ }
+  return {smtpConfigured,fromConfigured};
+}
 /**
  * connect: Cloudflare sockets connect() supplied by caller.
  * env: SES_SMTP_HOST, SES_SMTP_USERNAME, SES_SMTP_PASSWORD, SES_FROM_EMAIL.

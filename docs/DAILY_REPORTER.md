@@ -4,7 +4,7 @@ The daily Reporter/Worker runs inside the production LeadMASTER Worker so it can
 
 ## Schedule and recipient
 
-- Cron: `0 0 * * *` (09:00 UTC / 17:00 Asia/Manila).
+- Cron: `0 9 * * *` (09:00 UTC / 17:00 Asia/Manila).
 - Report date and display date use `REPORTER_TIME_ZONE`, currently `Asia/Manila`.
 - Recipient: the configured `ADMIN_EMAIL` secret-store binding only.
 - Sender: existing LeadMASTER SES coordinator and existing `SES_FROM_EMAIL` sender configuration.
@@ -66,3 +66,9 @@ Migration `0020_leadmaster_daily_reporter.sql` creates `leadmaster_reporter_runs
 
 
 For issue-triggered repair and incident reports, see [REPORTER_AUTO_HEAL.md](REPORTER_AUTO_HEAL.md). The mandatory daily report remains scheduled for 5:00 PM Philippine Standard Time; incident reports are additional and do not replace it.
+
+## Report sending and health-check correction (unreleased)
+
+The report uses a coordinator-compatible sender display name and a stable UUID derived from its existing report job ID. The ledger and coordinator idempotency guards remain in force. The mail configuration check uses the transport's actual validation; it checks configuration shape only, not authentication, connectivity or inbox delivery. Verify the deployed version and the real delivery path before calling either warning resolved.
+
+Existing `unknown` report outcomes must be reconciled; do not reset the ledger or resend them blindly. Repository monitoring needs a least-privilege GitHub token when anonymous API requests are rate-limited. The optional account audit needs a scoped read-only token. Configure both only through the existing secure operator workflow, never chat or source control.

@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { runDailyReporter } from "../src/daily-reporter.mjs";
+import { validateEmailJob, EmailDispatchCore } from "../src/email-queue-core.mjs";
+import { sendSesEmail } from "../src/ses-smtp.mjs";
+import { withSenderSignature } from "../src/email-signatures.mjs";
 
 const TABLES = [
   "accounts", "account_members", "auth_challenges", "auth_sessions",
@@ -96,6 +99,7 @@ function createEnv(options = {}) {
         return { fetch: async (url, init = {}) => {
           if (init.method === "GET") return responseJson({ status: "healthy", smtpConfigured: true, fromConfigured: true });
           const body = JSON.parse(init.body);
+          validateEmailJob(body);
           sent.push(body);
           return responseJson({ status: "accepted" });
         } };
@@ -117,6 +121,8 @@ test("daily reporter creates a branded report and sends only to the configured a
     assert.equal(f.sent.length, 1);
     const message = f.sent[0];
     assert.equal(message.to, "admin@example.com");
+    assert.equal(message.fromName, "LeadMASTER Reporter");
+    assert.match(message.messageId, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     assert.equal(Object.hasOwn(message, "cc"), false);
     assert.equal(Object.hasOwn(message, "bcc"), false);
     assert.match(message.subject, /REPORT OF THE DAY/);
@@ -126,6 +132,7 @@ test("daily reporter creates a branded report and sends only to the configured a
     assert.match(message.html, /CLOUDFLARE — ACCOUNT AND RUNTIME/);
     assert.match(message.html, /APP FUNCTIONS AFFECTED/);
     assert.match(message.html, /Needs Manual Action/);
+    assert.equal(f.db.state.run.email_message_id, message.messageId);
     assert.equal(f.db.state.run.email_status, "accepted");
     assert.equal(f.db.state.run.status, "sent");
   } finally { f.restore(); }
@@ -198,4 +205,22 @@ test("reporter fails closed and does not send when the admin recipient secret is
     const check = report.checks.find(item => item.name === "Admin-only report recipient");
     assert.equal(check.status, "Unable to Fix");
   } finally { f.restore(); }
+});
+
+test("real report payload passes coordinator and mock SMTP, with stable idempotency", async () => {
+  const f=createEnv(), commands=[];let smtpConnections=0;
+  const mailEnv={SES_SMTP_HOST:"email-smtp.us-east-1.amazonaws.com",SES_SMTP_USERNAME:"test-user",SES_SMTP_PASSWORD:"test-password",SES_FROM_EMAIL:"sender@example.com"};
+  function socket(secure){let controller;const readable=new ReadableStream({start(c){controller=c;if(!secure)c.enqueue(new TextEncoder().encode("220 ready\r\n"))}});
+   const writable=new WritableStream({write(bytes){const value=new TextDecoder().decode(bytes);commands.push(value);const reply=value.startsWith("EHLO")?"250 ready":value.startsWith("STARTTLS")?"220 go":value.startsWith("AUTH")?"235 ok":value.startsWith("DATA")?"354 continue":"250 accepted";controller.enqueue(new TextEncoder().encode(reply+"\r\n"))}});
+   return {opened:Promise.resolve(),readable,writable,startTls:()=>socket(true),close:async()=>{}};
+  }
+  class Storage {constructor(){this.data=new Map()}async get(key){return this.data.get(key)}async put(key,value){this.data.set(key,value)}async transaction(fn){return fn(this)}}
+  const core=new EmailDispatchCore({storage:new Storage(),send:job=>sendSesEmail({env:mailEnv,connect:()=>{smtpConnections++;return socket(false)},...withSenderSignature(job)})});
+  f.env.EMAIL_COORDINATOR={idFromName:()=>"global",get:()=>({fetch:async(_url,init)=>{
+   if(init.method==="GET")return responseJson({status:"healthy",smtpConfigured:true,fromConfigured:true});
+   try{return responseJson(await core.dispatch(JSON.parse(init.body)))}catch{return responseJson({status:"invalid_request"},400)}
+  }})};
+  try {const first=await runDailyReporter(f.env,Date.UTC(2026,10,16,9));assert.equal(first.status,"sent");assert.equal(smtpConnections,1);assert.match(commands.at(-1),/From: LeadMASTER Reporter <sender@example.com>/);
+    const second=await runDailyReporter(f.env,Date.UTC(2026,10,16,9));assert.equal(second.skipped,true);assert.equal(smtpConnections,1);
+  } finally {f.restore()}
 });
