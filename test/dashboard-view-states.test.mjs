@@ -30,3 +30,24 @@ test('premium shell keeps centered search, transparent product logo and bottom p
   assert.doesNotMatch(app, /\{k:'settings'/);
   assert.doesNotMatch(app, /aria-label="Show or hide navigation"/);
 });
+
+
+test('all loading and sending states use one dismissible, viewport-centered blurred overlay', async () => {
+  const app = await readFile(new URL('../required-componets-design/App.tsx', import.meta.url), 'utf8');
+  assert.match(app, /loadingOverlayActive = isLoading \|\| viewLoading \|\| isRefreshing \|\| busy \|\| Boolean\(sendingPhase\)/);
+  assert.match(app, /fixed inset-0 z-\[120\] grid place-items-center/);
+  assert.match(app, /backdrop-blur-md/);
+  assert.match(app, /aria-label="Dismiss loading overlay"/);
+  assert.match(app, /setLoadingOverlayDismissed\(true\)/);
+  assert.match(app, /sendingPhase \? <SendingIndicator phase=\{sendingPhase\}\/>/);
+  assert.doesNotMatch(app, /fixed bottom-4 right-4 z-\[80\]/);
+  assert.doesNotMatch(app, /isRefreshing && <div role="status"/);
+  assert.match(app, /const LoadingState = null/);
+});
+
+test('send outcomes remain truthful and uncertain sends are never labelled delivered', async () => {
+  const app = await readFile(new URL('../required-componets-design/App.tsx', import.meta.url), 'utf8');
+  assert.match(app, /if\(kind==='sent'\)setSendingPhase\('unknown'\)/);
+  assert.match(app, /Queue acceptance is not delivery confirmation/);
+  assert.match(app, /Check Outbox before trying again/);
+});

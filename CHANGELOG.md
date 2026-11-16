@@ -1,3 +1,11 @@
+## 2026-11-16 — Unified viewport loading and sending overlays (source change; deployment pending)
+
+- Consolidated initial workspace loading, per-tab loading, refresh, and busy-action feedback into one fixed, viewport-centered overlay with a blurred backdrop and dismiss control.
+- Removed the in-panel loading skeleton and inline refresh spinner/status banner so loading UI no longer appears inside dashboard panels. Dismissing the overlay hides only the visual layer; the underlying request continues.
+- Reused the existing truthful sending-stage component in the same overlay. Unknown send outcomes are labelled as uncertain, never as delivered; transient status clears after the request lifecycle without changing server state.
+- Responsive viewport positioning is shared by desktop, mobile browsers and the Android WebView. No backend, API, authentication, database, or native Android behavior changed.
+- Added regression checks for overlay placement, dismissal, panel-loader removal and truthful send outcomes. CI, generated asset build, authenticated browser/device checks and production deployment remain pending.
+
 ## 2026-11-16 — Premium inbox and navigation refinement (staged; not deployed)
 
 - Removed the Primary, Promotions, Social, Updates and Forums category strip and its category-only inbox filtering; the inbox now presents one unified message list.
