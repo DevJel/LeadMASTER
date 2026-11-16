@@ -121,7 +121,7 @@ try {
     // production API, so provide an isolated in-memory workspace API.
     const screenshotRecords = new Map([["leadmaster_templates", [{
       id: "fixture-template-1",
-      value: {id: "fixture-template-1", name: "Preview template", subject: "A sample subject", body: "This is a synthetic template preview.", category: "Sales"}
+      value: {id: "fixture-template-1", name: "Screenshot template", subject: "A sample subject", body: "This is a synthetic template preview.", category: "Sales"}
     }]]]);
     let screenshotRecordId = 0;
     await page.route("**/api/workspace/actions", async route => {
