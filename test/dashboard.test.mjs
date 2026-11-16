@@ -47,11 +47,11 @@ test('mailbox actions use authoritative API operations instead of local-only sta
 
 test('dashboard JavaScript and CSS remain protected by the clean page route gate', async () => {
  const [worker, routes] = await Promise.all([read('../worker.js'), read('../src/page-routes.mjs')]);
- assert.match(routes, /"\\/dashboard-app\\.js"/);
- assert.match(routes, /"\\/dashboard-app\\.css"/);
- assert.match(worker, /resolvePageRoute\\(routePath\\)/);
- assert.match(worker, /if \\(pageRoute\\.requiresSession\\)/);
- assert.match(worker, /isProtectedPageAsset\\(routePath\\)/);
+ assert.ok(routes.includes('"/dashboard-app.js"'));
+ assert.ok(routes.includes('"/dashboard-app.css"'));
+ assert.ok(worker.includes('resolvePageRoute(routePath)'));
+ assert.ok(worker.includes('if (pageRoute.requiresSession)'));
+ assert.ok(worker.includes('isProtectedPageAsset(routePath)'));
 });
 
 test('design CSS retains the monochrome palette and responsive workspace layout', async () => {
