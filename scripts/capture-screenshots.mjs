@@ -178,7 +178,7 @@ try {
     await mark();
     const views = [["Inbox","inbox"],["Compose","compose"],["Sent","sent"],["Outbox","outbox"],["Deleted","deleted"],["Assistant","assistant"],["Automation","automation"],["Templates","templates"],["Scheduled","scheduled"],["Settings","settings"]];
     for (const [label,slug] of views) {
-      if (device === "mobile") await page.getByRole("button",{name:"Show or hide navigation"}).click();
+      if (device === "mobile") await page.getByRole("button",{name:"Open navigation"}).click();
       if (slug === "settings") {
         // Settings is intentionally opened from the profile menu; it is not a
         // primary sidebar item in the current dashboard information architecture.
@@ -201,7 +201,7 @@ try {
       await templateCard.getByRole("button",{name:"Preview",exact:true}).click();
       await snap("dashboard-template-preview");
     }
-    if (device === "mobile") await page.getByRole("button",{name:"Show or hide navigation"}).click();
+    if (device === "mobile") await page.getByRole("button",{name:"Open navigation"}).click();
     await page.getByRole("navigation",{name:"LeadMaster navigation"}).getByRole("button",{name:"Inbox",exact:true}).click();
     // The current Inbox UI has no legacy category tabs; the main Inbox view was
     // already captured above, so do not wait for removed controls here.
