@@ -8,5 +8,5 @@ test('message detail loads the actual message body and keeps errors separate',()
  assert.match(app,/text_body/);
  assert.match(app,/setActionError/);
  assert.match(app,/Message load failed/);
- assert.match(app,/Message preview:/);
+ assert.match(app,/setOpenEmailId\(id\)/);
 });
