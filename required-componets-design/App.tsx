@@ -7,10 +7,9 @@ import UtilityApps from './UtilityApps';
 import { createMailSoundPlayer, createMailSoundTracker } from './mail-sounds.mjs';
 import { mapLeadMasterError } from '../src/leadmaster-error-mapper.mjs';
 
-type Category = 'Primary' | 'Promotions' | 'Social' | 'Updates' | 'Forums';
 type Folder = 'inbox' | 'sent' | 'drafts';
 type View = 'compose' | 'inbox' | 'sent' | 'outbox' | 'deleted' | 'assistant' | 'automation' | 'templates' | 'scheduled' | 'settings';
-type Email = { id:string; sender:string; email:string; initials:string; color:string; subject:string; snippet:string; body:string; htmlBody?:string; fromAddress?:string; sourceUrl?:string; detailLoaded?:boolean; category:Category; label:string|null; date:string; time:string; unread:boolean; attachment:boolean; folder:Folder; isUser?:boolean; company?:string; value?:string; deliveryStatus?:string };
+type Email = { id:string; sender:string; email:string; initials:string; color:string; subject:string; snippet:string; body:string; htmlBody?:string; fromAddress?:string; sourceUrl?:string; detailLoaded?:boolean; label:string|null; date:string; time:string; unread:boolean; attachment:boolean; folder:Folder; isUser?:boolean; company?:string; value?:string; deliveryStatus?:string };
 type Template = { id:string; name:string; subject:string; body:string; category:string; recordId?:string };
 type Rule = { id:string; name:string; triggerType:'sender'|'subject'; contains:string; action:'label'|'star'|'archive'|'move'; actionValue:string; enabled:boolean; recordId?:string };
 type ScheduledItem = { id:string; to:string; subject:string; body:string; when:string; recordId?:string };
@@ -103,13 +102,6 @@ function UniformIcon({name, size=20, className=''}:{name:IconName; size?:number;
 }
 function Spinner({size=18}:{size?:number}){ return <svg width={size} height={size} viewBox="0 0 24 24" className="lm-spinner" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.25"/><path d="M21 12a9 9 0 0 0-9-9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>; }
 
-const TABS: {name:Category; icon:IconName; desc:string}[] = [
-  {name:'Primary', icon:'inbox', desc:'Important mail first'},
-  {name:'Promotions', icon:'templates', desc:'Deals and offers'},
-  {name:'Social', icon:'contacts', desc:'People and updates'},
-  {name:'Updates', icon:'alert', desc:'Receipts and alerts'},
-  {name:'Forums', icon:'tasks', desc:'Groups and threads'},
-];
 const DEFAULT_COMPONENT_ORDER: View[] = ['compose','inbox','sent','outbox','deleted','assistant','automation','templates','scheduled'];
 const COMPOSE_FONTS = [
   {name:'Arial', value:'Arial, Helvetica, sans-serif'},
@@ -181,7 +173,6 @@ export default function App(){
   const [search, setSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [onlyAttachment, setOnlyAttachment] = useState(false);
-  const [activeTab, setActiveTab] = useState<Category>('Primary');
   const [view, setView] = useState<View>('inbox');
   const [previousView, setPreviousView] = useState<View>('inbox');
   const [starred, setStarred] = useState<Set<string>>(new Set());
@@ -376,10 +367,10 @@ export default function App(){
       }else setPrefsId(null);
       const formatMailDate=(value:any)=>{const d=new Date(typeof value==='number'?value:(value||Date.now()));return Number.isNaN(d.getTime())?'':d.toLocaleDateString([], {month:'short',day:'numeric'});};
       const formatMailTime=(value:any)=>{const d=new Date(typeof value==='number'?value:(value||Date.now()));return Number.isNaN(d.getTime())?'':d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});};
-      const inboxRows=(inboxData?.items||[]).map((m:any)=>({id:m.id,sender:m.from_name||m.from_address||'Unknown sender',email:m.from_address||'',initials:initialsFor(m.from_name||m.from_address||'?'),color:'#333333',subject:m.subject||'(no subject)',snippet:'Open message to load its contents.',body:'',category:'Primary' as Category,label:null,date:formatMailDate(m.received_at),time:formatMailTime(m.received_at),unread:!m.read_at,attachment:false,folder:'inbox' as Folder,isUser:false} as Email));
-      const sentRows=(sentData?.items||[]).map((m:any)=>({id:m.id,sender:'Me',email:m.recipient||'',initials:'Me',color:'#111111',subject:m.subject||'(no subject)',snippet:`${m.delivery_status||m.queue_status||m.status||'Status unavailable'}`,body:m.text_body||'',category:'Primary' as Category,label:null,date:formatMailDate(m.created_at),time:formatMailTime(m.created_at),unread:false,attachment:false,folder:'sent' as Folder,isUser:true,deliveryStatus:String(m.delivery_status||m.status||m.queue_status||'unknown').toLowerCase()} as Email));
-      const deletedRows=(deletedData?.items||[]).map((m:any)=>({id:m.id,sender:m.from_address||m.from_email||'Deleted message',email:m.from_address||m.recipient||'',initials:'DL',color:'#555555',subject:m.subject||'(no subject)',snippet:'Deleted message',body:'',category:'Primary' as Category,label:null,date:formatMailDate(m.received_at),time:formatMailTime(m.received_at),unread:false,attachment:false,folder:(m.kind==='sent'?'sent':'inbox') as Folder,isUser:m.kind==='sent'} as Email));
-      const draftRows=(msgsData?.records||[]).filter((r:any)=>r.value?.kind==='draft').map((r:any)=>{const v=r.value||{};return {id:r.id,sender:'Draft',email:v.to||'',initials:'DR',color:'#555555',subject:v.subject||'(no subject)',snippet:(v.body||'').slice(0,110),body:v.body||'',category:'Primary' as Category,label:null,date:'Saved',time:'',unread:false,attachment:false,folder:'drafts' as Folder,isUser:true} as Email;});
+      const inboxRows=(inboxData?.items||[]).map((m:any)=>({id:m.id,sender:m.from_name||m.from_address||'Unknown sender',email:m.from_address||'',initials:initialsFor(m.from_name||m.from_address||'?'),color:'#333333',subject:m.subject||'(no subject)',snippet:'Open message to load its contents.',body:'',label:null,date:formatMailDate(m.received_at),time:formatMailTime(m.received_at),unread:!m.read_at,attachment:false,folder:'inbox' as Folder,isUser:false} as Email));
+      const sentRows=(sentData?.items||[]).map((m:any)=>({id:m.id,sender:'Me',email:m.recipient||'',initials:'Me',color:'#111111',subject:m.subject||'(no subject)',snippet:`${m.delivery_status||m.queue_status||m.status||'Status unavailable'}`,body:m.text_body||'',label:null,date:formatMailDate(m.created_at),time:formatMailTime(m.created_at),unread:false,attachment:false,folder:'sent' as Folder,isUser:true,deliveryStatus:String(m.delivery_status||m.status||m.queue_status||'unknown').toLowerCase()} as Email));
+      const deletedRows=(deletedData?.items||[]).map((m:any)=>({id:m.id,sender:m.from_address||m.from_email||'Deleted message',email:m.from_address||m.recipient||'',initials:'DL',color:'#555555',subject:m.subject||'(no subject)',snippet:'Deleted message',body:'',label:null,date:formatMailDate(m.received_at),time:formatMailTime(m.received_at),unread:false,attachment:false,folder:(m.kind==='sent'?'sent':'inbox') as Folder,isUser:m.kind==='sent'} as Email));
+      const draftRows=(msgsData?.records||[]).filter((r:any)=>r.value?.kind==='draft').map((r:any)=>{const v=r.value||{};return {id:r.id,sender:'Draft',email:v.to||'',initials:'DR',color:'#555555',subject:v.subject||'(no subject)',snippet:(v.body||'').slice(0,110),body:v.body||'',label:null,date:'Saved',time:'',unread:false,attachment:false,folder:'drafts' as Folder,isUser:true} as Email;});
       setUserEmails([...inboxRows,...sentRows,...deletedRows,...draftRows]);
       setReadIds(new Set([...inboxRows.filter((m:any)=>!m.unread).map((m:any)=>m.id), ...((prefsRec?.value?.read||[]) as string[])]));
       setDeleted(new Set(deletedRows.map((m:any)=>m.id)));
@@ -477,14 +468,14 @@ export default function App(){
 
   const filtered = useMemo(()=>{
     let list = [...allEmails];
-    if(view==='inbox') list = list.filter(e=> e.folder==='inbox' && !deleted.has(e.id) && !archived.has(e.id) && !snoozed.has(e.id) && e.category===activeTab);
+    if(view==='inbox') list = list.filter(e=> e.folder==='inbox' && !deleted.has(e.id) && !archived.has(e.id) && !snoozed.has(e.id));
     else if(view==='sent') list = list.filter(e=> e.folder==='sent' && !deleted.has(e.id));
     else if(view==='deleted') list = list.filter(e=> deleted.has(e.id));
     else list = list.filter(()=>false);
     if(search.trim()){ const q=search.toLowerCase(); list = list.filter(e=> (e.sender+' '+e.subject+' '+e.snippet+' '+e.body+' '+e.email).toLowerCase().includes(q)); }
     if(onlyAttachment) list = list.filter(e=> e.attachment);
     return list;
-  },[allEmails, view, activeTab, search, onlyAttachment, archived, deleted, snoozed]);
+  },[allEmails, view, search, onlyAttachment, archived, deleted, snoozed]);
 
   const q = search.trim().toLowerCase();
   const filteredOutbox = useMemo(()=> outbox.filter(o=> !q || (o.subject+' '+o.to+' '+o.body).toLowerCase().includes(q)), [outbox, q]);
@@ -494,7 +485,7 @@ export default function App(){
 
   const counts = useMemo(()=>{
     const inbox = allEmails.filter(e=> e.folder==='inbox' && !archived.has(e.id) && !snoozed.has(e.id) && !deleted.has(e.id));
-    return { inboxUnread: inbox.filter(e=> !readIds.has(e.id)).length, inboxTotal: inbox.length, sent: allEmails.filter(e=> e.folder==='sent' && !deleted.has(e.id)).length, deleted: deleted.size, outbox: outbox.length, scheduled: scheduled.length, tabUnread: (c:Category)=> inbox.filter(e=> e.category===c && !readIds.has(e.id)).length };
+    return { inboxUnread: inbox.filter(e=> !readIds.has(e.id)).length, inboxTotal: inbox.length, sent: allEmails.filter(e=> e.folder==='sent' && !deleted.has(e.id)).length, deleted: deleted.size, outbox: outbox.length, scheduled: scheduled.length };
   },[allEmails, readIds, archived, deleted, snoozed, outbox, scheduled]);
   const openEmail = allEmails.find(e=> e.id===openEmailId) || null;
 
@@ -618,7 +609,6 @@ export default function App(){
     setCleanupApplied(true);await reloadRecords();setAssistantResult(`Processed archive requests for ${ids.length} read, unstarred message(s). Review Inbox and Archived after refresh.`);setStatus(`Archive requests processed: ${ids.length}.`);
   }
   async function archiveNewsletters(){await applyCleanup();}
-  function deleteOldPromos(){setAssistantResult('Automatic Promotions classification is not provided by the connected mailbox API. No messages were deleted. Use Inbox row actions to review and delete specific messages.');setStatus('No messages changed.');}
   function saveSettings(){ savePrefs({}); setSettingsSaved(true); setStatus('Settings saved — profile, theme, and signature are stored.'); }
 
   // ——— Components Organizer (Settings only): reorder + persist ———
@@ -628,7 +618,7 @@ export default function App(){
   function toggleComponentVisibility(k:View){ const n=new Set(hiddenComponents); n.has(k)?n.delete(k):n.add(k); setHiddenComponents(n); setOrganizerSaved(false); setStatus(n.has(k)?`${componentLabel(k)} hidden from the sidebar — press Save organizer to save.`:`${componentLabel(k)} shown in the sidebar — press Save organizer to save.`); }
   function saveComponentOrder(){ savePrefs({componentOrder, componentHidden:[...hiddenComponents]}); setOrganizerSaved(true); setStatus('Components organizer saved — sidebar order updated.'); }
   function componentSummary(k:View):string{
-    if(k==='inbox') return `${counts.inboxUnread} unread · ${counts.inboxTotal} in Inbox · Primary, Promotions, Social, Updates, Forums`;
+    if(k==='inbox') return `${counts.inboxUnread} unread · ${counts.inboxTotal} messages in your Inbox`;
     if(k==='compose') return 'Full compose tab — chips, templates, schedule send.';
     if(k==='assistant') return 'Summaries, draft replies, cleanup, priority leads.';
     if(k==='automation') return `${rules.filter(r=>r.enabled).length} of ${rules.length} rules on.`;
@@ -685,13 +675,10 @@ export default function App(){
   function insertSignatureIntoCompose(){ pushHistory(); setCompose(prev=>({...prev, body: prev.body + (prev.body?'\n\n':'') + signature})); setStatus('Signature inserted.'); }
   function composeBodyStyle(): React.CSSProperties { return {fontFamily: composeFont, fontSize: composeFontSize, textAlign: composeAlign, color: composeColor, backgroundColor: composeHighlight, textDecoration: fmtStrike ? 'line-through' : undefined}; }
 
-  const viewTitle = view==='compose'?'Compose': view==='inbox'? activeTab : view==='sent'?'Sent': view==='outbox'?'Outbox': view==='deleted'?'Deleted': view==='assistant'?'Assistant': view==='automation'?'Automation': view==='templates'?'Templates': view==='scheduled'?'Scheduled':'Settings';
+  const viewTitle = view==='compose'?'Compose': view==='inbox'?'Inbox': view==='sent'?'Sent': view==='outbox'?'Outbox': view==='deleted'?'Deleted': view==='assistant'?'Assistant': view==='automation'?'Automation': view==='templates'?'Templates': view==='scheduled'?'Scheduled':'Settings';
   const goView = (v:View)=>{ if(v==='compose'){ openComposeTab(); return; } if(view==='compose') setPreviousView(view); setView(v); setOpenEmailId(null); setSelected(new Set()); setMobileSidebar(false); setConfirmEmpty(false); setViewError(false); };
   const badgeFor = (k:View)=> k==='inbox'?counts.inboxUnread : k==='outbox'?counts.outbox : k==='deleted'?counts.deleted : k==='scheduled'?counts.scheduled : 0;
-  const NAV: {k:View; label:string; icon:IconName; badge:number}[] = [
-    ...componentOrder.filter(k=>k!=='settings' && !hiddenComponents.has(k)).map(k=>({k, label:componentLabel(k), icon:componentIcon(k), badge:badgeFor(k)})),
-    {k:'settings', label:'Settings', icon:'settings', badge:0},
-  ];
+  const NAV: {k:View; label:string; icon:IconName; badge:number}[] = componentOrder.filter(k=>k!=='settings' && !hiddenComponents.has(k)).map(k=>({k, label:componentLabel(k), icon:componentIcon(k), badge:badgeFor(k)}));
 
   const stateBar = (
     <div className="mx-1 sm:mx-2 mt-2 space-y-2">
@@ -718,16 +705,24 @@ export default function App(){
   );
 
   const sidebar = (
-    <div className="flex flex-col h-full">
-      <div className="pt-2" />
-      <nav className="px-0 text-[14px] overflow-y-auto" aria-label="LeadMaster navigation">
+    <div className="flex flex-col h-full min-h-0">
+      <nav className="px-0 py-2 text-[14px] overflow-y-auto flex-1 min-h-0" aria-label="LeadMASTER navigation">
         {NAV.map(item=>(
-          <button key={item.k} disabled={viewLoading && view!==item.k} onClick={()=>goView(item.k)} className={`w-full flex items-center gap-3 pl-6 pr-3 py-[9px] rounded-r-full text-left ${view===item.k?'bg-[var(--text)] text-[var(--surface)] font-medium':'hover:bg-[var(--surface-2)] text-[var(--text-2)]'}`}>
+          <button key={item.k} disabled={viewLoading && view!==item.k} onClick={()=>goView(item.k)} className={`w-full flex items-center gap-3 pl-5 pr-3 py-[10px] rounded-r-full text-left ${view===item.k?'bg-[var(--text)] text-[var(--surface)] font-medium':'hover:bg-[var(--surface-2)] text-[var(--text-2)]'}`}>
             <UniformIcon name={item.icon} size={20}/><span className="flex-1 truncate">{item.label}</span>{item.badge>0 && <span className={`text-[12px] font-bold px-2 py-0.5 rounded-full ${view===item.k?'bg-[var(--surface)] text-[var(--text)]':'bg-[var(--text)] text-[var(--surface)]'}`}>{item.badge}</span>}
           </button>
         ))}
       </nav>
-      <div className="mt-auto p-4 text-[12px] text-[var(--text-3)] leading-relaxed hidden lg:block"><p className="font-medium text-[var(--text-2)]">LeadMaster</p><p>Turn conversations into customers.</p><p className="mt-2">{counts.inboxUnread} unread · {counts.scheduled} scheduled</p></div>
+      <div className="shrink-0 border-t border-[var(--border)] p-3 grid gap-1">
+        <button onClick={()=>setShowProfile(!showProfile)} className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-[var(--surface-2)]" aria-label="Open profile and settings" aria-expanded={showProfile}>
+          <span className="w-9 h-9 shrink-0 rounded-full bg-[var(--text)] text-[var(--surface)] grid place-items-center"><UniformIcon name="user" size={18}/></span>
+          <span className="min-w-0 flex-1"><span className="block truncate text-[13px] font-semibold text-[var(--text-2)]">{profileName}</span><span className="block truncate text-[11px] text-[var(--text-3)]">Profile &amp; settings</span></span>
+          <UniformIcon name="chevron-right" size={16}/>
+        </button>
+        <button onClick={()=>{if(window.innerWidth<768){setMobileSidebar(false);setSidebarOpen(false);}else{setSidebarOpen(false);}}} className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] text-[var(--text-3)] hover:bg-[var(--surface-2)]" aria-label={window.innerWidth<768?'Close navigation':'Collapse sidebar'} title={window.innerWidth<768?'Close navigation':'Collapse sidebar'}>
+          <UniformIcon name="panel" size={19}/><span>{window.innerWidth<768?'Close navigation':'Collapse sidebar'}</span>
+        </button>
+      </div>
     </div>
   );
 
@@ -887,11 +882,6 @@ export default function App(){
   const mainContent = (
     <>
       {view==='compose' && composeTab}
-      {view==='inbox' && !openEmail && (
-        <div className="flex gap-0 sm:gap-1 overflow-x-auto px-1 mt-1 border-b border-[var(--border)]">
-          {TABS.map(t=>{ const active = activeTab===t.name; const unread = counts.tabUnread(t.name); const preview = allEmails.find(e=> e.category===t.name && e.folder==='inbox'); return <button key={t.name} disabled={viewLoading} onClick={()=>setActiveTab(t.name)} className={`flex-1 min-w-[118px] sm:min-w-[150px] text-left px-2 sm:px-3 py-2.5 sm:py-3 ${active?'tab-active':''} disabled:opacity-50`} aria-label={`${t.name} tab`}><span className="flex items-center gap-2 text-[14px] font-medium"><UniformIcon name={t.icon} size={19}/><span className="truncate">{t.name}</span>{unread>0 && <span className="ml-auto text-[11px] font-bold bg-[var(--text)] text-[var(--surface)] rounded-full px-2 py-0.5 shrink-0">{unread} new</span>}</span><span className="hidden sm:block text-[12px] text-[var(--text-3)] break-words mt-0.5 leading-snug">{preview? `${preview.sender} — ${preview.subject}` : t.desc}</span></button>; })}
-        </div>
-      )}
       {(view==='inbox'||view==='sent'||view==='deleted') && !openEmail && (
         <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 h-[48px] text-[var(--text-3)]">
           <label className="flex items-center gap-1 p-1"><input type="checkbox" disabled={viewLoading} checked={filtered.length>0 && selected.size===filtered.length} onChange={toggleSelectAll} className="accent-black w-4 h-4" aria-label="Select all"/><UniformIcon name="chevron-down" size={16}/></label>
@@ -1005,7 +995,7 @@ export default function App(){
       )}
 
       {view==='inbox' && !openEmail && <div className="grid sm:grid-cols-3 gap-3 mx-1 sm:mx-2 mt-4">
-        {[{t:'Focus first', d:'Primary holds the leads that need a reply. Promotions and Social wait quietly underneath.', i:'spark' as IconName}, {t:'Triage in seconds', d:'Hover any row to archive, delete, or snooze. Star what you need to find again.', i:'zap' as IconName}, {t:'Assistant does the busywork', d:'Summaries, draft replies, cleanup, and priority leads — in one panel.', i:'assistant' as IconName}].map(x=><div key={x.t} className="bg-[var(--surface)] rounded-2xl p-4 gmail-shadow border border-[var(--border)]"><UniformIcon name={x.i} size={18}/><p className="font-medium mt-2">{x.t}</p><p className="text-[13px] text-[var(--text-3)] leading-relaxed mt-1">{x.d}</p></div>)}
+        {[{t:'One inbox', d:'All incoming messages appear together. Search and use message actions to focus on what matters.', i:'spark' as IconName}, {t:'Triage in seconds', d:'Hover any row to archive, delete, or snooze. Star what you need to find again.', i:'zap' as IconName}, {t:'Assistant does the busywork', d:'Summaries, draft replies, cleanup, and priority leads — in one panel.', i:'assistant' as IconName}].map(x=><div key={x.t} className="bg-[var(--surface)] rounded-2xl p-4 gmail-shadow border border-[var(--border)]"><UniformIcon name={x.i} size={18}/><p className="font-medium mt-2">{x.t}</p><p className="text-[13px] text-[var(--text-3)] leading-relaxed mt-1">{x.d}</p></div>)}
       </div>}
     </>
   );
@@ -1043,34 +1033,44 @@ export default function App(){
   return (
     <div data-safe-area-inset-root className="min-h-screen lg:h-screen lg:min-h-0 lg:overflow-hidden w-full flex flex-col bg-[var(--background)] overflow-x-clip" style={{boxSizing:'border-box', paddingTop:'var(--safe-area-inset-top)'}} onTouchStart={handleRefreshTouchStart} onTouchEnd={handleRefreshTouchEnd} onPointerDown={handleRefreshPointerDown} onPointerUp={handleRefreshPointerUp} onWheel={handleRefreshWheel}>
       <header data-safe-area-sticky-top className="sticky z-40 shrink-0 bg-[var(--background)] border-b border-[var(--border)]" style={{top:'var(--safe-area-inset-top)'}}>
-        <div className="flex items-center gap-1 sm:gap-3 px-2 sm:px-4 h-[64px]">
-          <button onClick={()=>{ if(window.innerWidth<768) setMobileSidebar(true); else setSidebarOpen(!sidebarOpen); }} className="p-2.5 rounded-full hover:bg-[var(--surface-3)]" aria-label="Show or hide navigation"><UniformIcon name="menu" size={20}/></button>
-          <button type="button" className="shrink-0 rounded-lg" onClick={()=>goView('inbox')} aria-label="Go to Inbox"><img src="/assets/brand/favicon-gray.svg" width="36" height="36" alt="" className="w-9 h-9" /></button>
-          <div className="flex-1 max-w-[720px] mx-1 sm:mx-4">
-            <div className={`flex items-center gap-2 rounded-full px-3 sm:px-4 h-[48px] border border-[var(--border)] ${showFilters?'bg-[var(--surface)] shadow':'bg-[var(--surface-2)]'}`}><UniformIcon name="search" size={20}/><input value={search} onChange={e=>{setSearch(e.target.value); setOpenEmailId(null);}} placeholder="Search leads & mail" className="flex-1 min-w-0 bg-transparent outline-none text-[15px] placeholder:text-[var(--text-3)]" aria-label="Search mail"/>{search && <button onClick={()=>setSearch('')} aria-label="Clear search" className="p-1 rounded-full hover:bg-[var(--surface-3)]"><UniformIcon name="x" size={16}/></button>}<button onClick={()=>setShowFilters(!showFilters)} className={`p-1.5 rounded-full ${showFilters?'bg-[var(--text)] text-[var(--surface)]':''}`} aria-label="Show search options"><UniformIcon name="filter" size={19}/></button></div>
-            {showFilters && <div className="absolute left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-auto top-[62px] w-[calc(100%-16px)] max-w-[560px] bg-[var(--surface)] rounded-2xl gmail-shadow p-4 z-50 text-[14px] border border-[var(--border)]"><p className="font-medium mb-3">Search options</p><label className="flex items-center gap-3 py-2"><input type="checkbox" checked={onlyAttachment} onChange={e=>setOnlyAttachment(e.target.checked)} className="accent-black w-4 h-4"/> Has attachment</label><label className="flex items-center gap-3 py-2">Category <select value={activeTab} onChange={e=>setActiveTab(e.target.value as Category)} className="border border-[var(--border)] rounded-lg px-2 py-1 bg-[var(--surface)]"><option>Primary</option><option>Promotions</option><option>Social</option><option>Updates</option><option>Forums</option></select></label><div className="flex justify-end gap-2 mt-3"><button onClick={()=>{setOnlyAttachment(false); setSearch(''); setShowFilters(false);}} className="px-4 py-2 rounded-full hover:bg-[var(--surface-2)]">Clear</button><button onClick={()=>setShowFilters(false)} className="px-5 py-2 rounded-full bg-[var(--text)] text-[var(--surface)]">Search</button></div></div>}
+        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] grid-rows-[52px_48px] gap-x-3 px-3 md:grid-cols-[minmax(0,1fr)_minmax(280px,680px)_minmax(0,1fr)] md:grid-rows-[72px] md:gap-x-5 md:px-6">
+          <button type="button" className="col-start-1 row-start-1 justify-self-start self-center shrink-0 rounded-lg p-0" onClick={()=>goView('inbox')} aria-label="Go to Inbox">
+            <img src="/assets/brand/leadmaster-full.svg" width="164" height="38" alt="LeadMASTER" className="block w-[118px] sm:w-[148px] md:w-[164px] h-auto object-contain"/>
+          </button>
+          <div className="col-span-3 row-start-2 w-full min-w-0 self-start md:col-span-1 md:col-start-2 md:row-start-1 md:self-center">
+            <div className={`mx-auto flex w-full items-center gap-2 rounded-full px-3 sm:px-4 h-[42px] md:h-[48px] border border-[var(--border)] ${showFilters?'bg-[var(--surface)] shadow':'bg-[var(--surface-2)]'}`}><UniformIcon name="search" size={20}/><input value={search} onChange={e=>{setSearch(e.target.value); setOpenEmailId(null);}} placeholder="Search leads & mail" className="flex-1 min-w-0 bg-transparent outline-none text-[14px] md:text-[15px] placeholder:text-[var(--text-3)]" aria-label="Search mail"/>{search && <button onClick={()=>setSearch('')} aria-label="Clear search" className="p-1 rounded-full hover:bg-[var(--surface-3)]"><UniformIcon name="x" size={16}/></button>}<button onClick={()=>setShowFilters(!showFilters)} className={`p-1.5 rounded-full ${showFilters?'bg-[var(--text)] text-[var(--surface)]':''}`} aria-label="Show search options"><UniformIcon name="filter" size={19}/></button></div>
+            {showFilters && <div className="absolute left-1/2 -translate-x-1/2 top-[104px] md:top-[62px] w-[calc(100%-24px)] md:w-full max-w-[560px] bg-[var(--surface)] rounded-2xl gmail-shadow p-4 z-50 text-[14px] border border-[var(--border)]"><p className="font-medium mb-3">Search options</p><label className="flex items-center gap-3 py-2"><input type="checkbox" checked={onlyAttachment} onChange={e=>setOnlyAttachment(e.target.checked)} className="accent-black w-4 h-4"/> Has attachment</label><div className="flex justify-end gap-2 mt-3"><button onClick={()=>{setOnlyAttachment(false); setSearch(''); setShowFilters(false);}} className="px-4 py-2 rounded-full hover:bg-[var(--surface-2)]">Clear</button><button onClick={()=>setShowFilters(false)} className="px-5 py-2 rounded-full bg-[var(--text)] text-[var(--surface)]">Search</button></div></div>}
           </div>
-          <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
-            <button onClick={()=>setShowHelp(!showHelp)} className="p-2.5 rounded-full hover:bg-[var(--surface-3)] hidden sm:block" aria-label="Help"><UniformIcon name="help" size={21}/></button>
-            <button onClick={()=>void refreshWorkspace()} disabled={isRefreshing} className="p-2.5 rounded-full hover:bg-[var(--surface-3)] disabled:opacity-50" aria-label="Refresh workspace" title={lastRefreshedAt ? `Last verified ${new Date(lastRefreshedAt).toLocaleTimeString()}` : "Refresh workspace"}><UniformIcon name="refresh" size={20}/></button>
-            <button onClick={()=>goView('settings')} className="p-2.5 rounded-full hover:bg-[var(--surface-3)]" aria-label="Settings"><UniformIcon name="settings" size={21}/></button>
-            <button onClick={()=>setShowApps(!showApps)} className="p-2.5 rounded-full hover:bg-[var(--surface-3)]" aria-label="Apps"><UniformIcon name="apps" size={20}/></button>
-            <button onClick={()=>setShowProfile(!showProfile)} className="ml-1 w-9 h-9 rounded-full bg-[var(--text)] text-[var(--surface)] grid place-items-center font-medium" aria-label="Profile">A</button>
+          <div className="col-start-3 row-start-1 flex items-center justify-self-end gap-0.5 md:gap-1 shrink-0">
+            <button onClick={()=>setShowHelp(!showHelp)} className="hidden sm:block p-2 md:p-2.5 rounded-full hover:bg-[var(--surface-3)]" aria-label="Help"><UniformIcon name="help" size={20}/></button>
+            <button onClick={()=>void refreshWorkspace()} disabled={isRefreshing} className="p-2 md:p-2.5 rounded-full hover:bg-[var(--surface-3)] disabled:opacity-50" aria-label="Refresh workspace" title={lastRefreshedAt ? `Last verified ${new Date(lastRefreshedAt).toLocaleTimeString()}` : "Refresh workspace"}><UniformIcon name="refresh" size={19}/></button>
+            <button onClick={()=>setShowApps(!showApps)} className="p-2 md:p-2.5 rounded-full hover:bg-[var(--surface-3)]" aria-label="Apps"><UniformIcon name="apps" size={19}/></button>
           </div>
         </div>
-        {(showHelp||showSettings||showApps||showProfile) && <div className="absolute right-2 sm:right-4 top-[64px] w-[320px] max-w-[calc(100vw-16px)] bg-[var(--surface)] rounded-2xl gmail-shadow p-4 z-50 border border-[var(--border)]">
-          {showHelp && <div><p className="font-medium">Help — LeadMaster</p><p className="text-[13px] text-[var(--text-3)] mt-1 leading-relaxed">Search filters this view live. Star, archive, snooze and delete are on every row. Use Assistant for summaries, Automation for rules, Templates for fast replies, and Scheduled for send-later.</p><button onClick={()=>setShowHelp(false)} className="mt-3 text-[14px] underline underline-offset-2">Close</button></div>}
-          {showSettings && <div><p className="font-medium">Quick settings</p><p className="text-[13px] text-[var(--text-3)] mt-1">Density</p><div className="flex gap-2 mt-2">{(['comfortable','compact'] as const).map(d=><button key={d} onClick={()=>{setDensity(d); savePrefs({density:d});}} className={`px-3 py-2 rounded-full border capitalize ${density===d?'bg-[var(--text)] text-[var(--surface)]':'border-[var(--border)]'}`}>{d}</button>)}</div><button onClick={()=>{setShowSettings(false); goView('settings');}} className="mt-4 text-[14px] underline underline-offset-2">Open full Settings →</button></div>}
+        {(showHelp||showApps) && <div className="absolute right-2 sm:right-4 top-[72px] w-[320px] max-w-[calc(100vw-16px)] bg-[var(--surface)] rounded-2xl gmail-shadow p-4 z-50 border border-[var(--border)]">
+          {showHelp && <div><p className="font-medium">Help — LeadMASTER</p><p className="text-[13px] text-[var(--text-3)] mt-1 leading-relaxed">Search filters this view live. Star, archive, snooze and delete are on every row. Use Assistant for summaries, Automation for rules, Templates for fast replies, and Scheduled for send-later.</p><button onClick={()=>setShowHelp(false)} className="mt-3 text-[14px] underline underline-offset-2">Close</button></div>}
           {showApps && <div><p className="font-medium mb-3">Apps</p><div className="grid grid-cols-3 gap-3 text-center text-[12px]">
             {[['Notes','note','notes'],['Contacts','contacts','contacts'],['Calendar','calendar','calendar'],['Calculator','tasks','calculator'],['Currency Conversion','building','currency'],['Email HTML Playground','html','email-html-playground']].map(([name,ic,route])=><a key={route} href={`/dashboard?app=${route}`} target="_blank" rel="noopener noreferrer" onClick={()=>setShowApps(false)} className="p-3 rounded-xl hover:bg-[var(--surface-2)] flex flex-col items-center gap-1 text-[var(--text-2)]"><UniformIcon name={ic as IconName} size={22}/><span>{name}</span></a>)}
           </div></div>}
-          {showProfile && <div className="text-center"><div className="w-16 h-16 rounded-full bg-[var(--text)] text-[var(--surface)] grid place-items-center text-2xl mx-auto">A</div><p className="font-medium mt-2">{profileName}</p><p className="text-[13px] text-[var(--text-3)]">{profileEmail}</p><button onClick={()=>{setShowProfile(false); goView('settings');}} className="mt-3 px-4 py-2 rounded-full border border-[var(--border)] text-[14px]">Manage profile</button></div>}
         </div>}
       </header>
+      {showProfile && <div className="fixed left-3 md:left-4 bottom-20 z-[90] w-[min(310px,calc(100vw-24px))] rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 gmail-shadow" role="dialog" aria-label="Profile and settings">
+        <div className="flex items-center gap-3 pb-3 border-b border-[var(--border)]">
+          <div className="w-11 h-11 rounded-full bg-[var(--text)] text-[var(--surface)] grid place-items-center font-semibold">{profileName.trim().charAt(0).toUpperCase()||'U'}</div>
+          <div className="min-w-0"><p className="font-semibold text-[14px] truncate">{profileName}</p><p className="text-[12px] text-[var(--text-3)] truncate">{profileEmail}</p></div>
+        </div>
+        <button onClick={()=>{setShowProfile(false);goView('settings');}} className="mt-3 w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-medium hover:bg-[var(--surface-2)]"><UniformIcon name="settings" size={18}/> Profile, settings &amp; configurations</button>
+        <button onClick={()=>setShowProfile(false)} className="mt-1 w-full rounded-xl px-3 py-2 text-left text-[12px] text-[var(--text-3)] hover:bg-[var(--surface-2)]">Close</button>
+      </div>}
 
+      {!mobileSidebar && <button onClick={()=>setMobileSidebar(true)} className="md:hidden fixed bottom-4 left-4 z-[60] w-11 h-11 grid place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] shadow-lg" aria-label="Open navigation" title="Open navigation"><UniformIcon name="panel" size={19}/></button>}
       <div className="flex flex-1 min-h-0 items-start lg:overflow-hidden">
-        <aside className={`hidden md:block shrink-0 sticky top-[64px] h-[calc(100vh-64px)] lg:top-0 lg:h-full ${sidebarOpen?'w-[256px]':'w-[72px]'} transition-all overflow-hidden`}>
-          {sidebarOpen ? sidebar : <div className="pt-2 flex flex-col items-center gap-1">{NAV.map(k=><button key={k.k} onClick={()=>goView(k.k)} className={`w-11 h-11 grid place-items-center rounded-full ${view===k.k?'bg-[var(--text)] text-[var(--surface)]':'hover:bg-[var(--surface-2)]'}`} aria-label={k.label} title={k.label}><UniformIcon name={k.icon} size={20}/></button>)}</div>}
+        <aside className={`hidden md:block shrink-0 sticky top-[72px] h-[calc(100vh-72px)] lg:top-0 lg:h-full ${sidebarOpen?'w-[256px]':'w-[72px]'} transition-all overflow-hidden`}>
+          {sidebarOpen ? sidebar : <div className="h-full flex flex-col items-center py-3 gap-1">
+            <nav className="flex-1 flex flex-col items-center gap-1" aria-label="Collapsed LeadMASTER navigation">{NAV.map(k=><button key={k.k} onClick={()=>goView(k.k)} className={`w-11 h-11 grid place-items-center rounded-xl ${view===k.k?'bg-[var(--text)] text-[var(--surface)]':'hover:bg-[var(--surface-2)]'}`} aria-label={k.label} title={k.label}><UniformIcon name={k.icon} size={20}/></button>)}</nav>
+            <button onClick={()=>setShowProfile(!showProfile)} className="w-11 h-11 grid place-items-center rounded-full bg-[var(--text)] text-[var(--surface)] hover:opacity-80" aria-label="Open profile and settings" title="Profile & settings"><UniformIcon name="user" size={19}/></button>
+            <button onClick={()=>setSidebarOpen(true)} className="w-11 h-11 grid place-items-center rounded-xl hover:bg-[var(--surface-2)]" aria-label="Expand sidebar" title="Expand sidebar"><UniformIcon name="panel" size={20}/></button>
+          </div>}
         </aside>
         {mobileSidebar && <div className="fixed inset-0 z-50 md:hidden"><div className="absolute inset-0 bg-black/40" onClick={()=>setMobileSidebar(false)}/><div className="absolute left-0 top-0 bottom-0 w-[280px] bg-[var(--background)] p-2 pt-4 overflow-y-auto">{sidebar}</div></div>}
 

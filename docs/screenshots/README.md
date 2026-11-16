@@ -68,23 +68,5 @@ Click an image for full size. Available/disabled controls reflect the local fixt
 | Scheduled | [![Scheduled desktop](../../assets/screenshots/dashboard-scheduled-desktop.png)](../../assets/screenshots/dashboard-scheduled-desktop.png) | [![Scheduled mobile](../../assets/screenshots/dashboard-scheduled-mobile.png)](../../assets/screenshots/dashboard-scheduled-mobile.png) |
 | Settings | [![Settings desktop](../../assets/screenshots/dashboard-settings-desktop.png)](../../assets/screenshots/dashboard-settings-desktop.png) | [![Settings mobile](../../assets/screenshots/dashboard-settings-mobile.png)](../../assets/screenshots/dashboard-settings-mobile.png) |
 
-### Inbox categories
 
-| Screen | Desktop | Mobile |
-|---|---|---|
-| Primary | [![Primary desktop](../../assets/screenshots/inbox-primary-desktop.png)](../../assets/screenshots/inbox-primary-desktop.png) | [![Primary mobile](../../assets/screenshots/inbox-primary-mobile.png)](../../assets/screenshots/inbox-primary-mobile.png) |
-| Promotions | [![Promotions desktop](../../assets/screenshots/inbox-promotions-desktop.png)](../../assets/screenshots/inbox-promotions-desktop.png) | [![Promotions mobile](../../assets/screenshots/inbox-promotions-mobile.png)](../../assets/screenshots/inbox-promotions-mobile.png) |
-| Social | [![Social desktop](../../assets/screenshots/inbox-social-desktop.png)](../../assets/screenshots/inbox-social-desktop.png) | [![Social mobile](../../assets/screenshots/inbox-social-mobile.png)](../../assets/screenshots/inbox-social-mobile.png) |
-| Updates | [![Updates desktop](../../assets/screenshots/inbox-updates-desktop.png)](../../assets/screenshots/inbox-updates-desktop.png) | [![Updates mobile](../../assets/screenshots/inbox-updates-mobile.png)](../../assets/screenshots/inbox-updates-mobile.png) |
-| Forums | [![Forums desktop](../../assets/screenshots/inbox-forums-desktop.png)](../../assets/screenshots/inbox-forums-desktop.png) | [![Forums mobile](../../assets/screenshots/inbox-forums-mobile.png)](../../assets/screenshots/inbox-forums-mobile.png) |
-
-### Workspace utilities
-
-| Screen | Desktop | Mobile |
-|---|---|---|
-| Notes | [![Notes desktop](../../assets/screenshots/app-notes-desktop.png)](../../assets/screenshots/app-notes-desktop.png) | [![Notes mobile](../../assets/screenshots/app-notes-mobile.png)](../../assets/screenshots/app-notes-mobile.png) |
-| Contacts | [![Contacts desktop](../../assets/screenshots/app-contacts-desktop.png)](../../assets/screenshots/app-contacts-desktop.png) | [![Contacts mobile](../../assets/screenshots/app-contacts-mobile.png)](../../assets/screenshots/app-contacts-mobile.png) |
-| Calendar | [![Calendar desktop](../../assets/screenshots/app-calendar-desktop.png)](../../assets/screenshots/app-calendar-desktop.png) | [![Calendar mobile](../../assets/screenshots/app-calendar-mobile.png)](../../assets/screenshots/app-calendar-mobile.png) |
-| Calculator | [![Calculator desktop](../../assets/screenshots/app-calculator-desktop.png)](../../assets/screenshots/app-calculator-desktop.png) | [![Calculator mobile](../../assets/screenshots/app-calculator-mobile.png)](../../assets/screenshots/app-calculator-mobile.png) |
-| Currency Conversion | [![Currency Conversion desktop](../../assets/screenshots/app-currency-desktop.png)](../../assets/screenshots/app-currency-desktop.png) | [![Currency Conversion mobile](../../assets/screenshots/app-currency-mobile.png)](../../assets/screenshots/app-currency-mobile.png) |
-| Email HTML Playground | [![Email HTML Playground desktop](../../assets/screenshots/app-email-html-playground-desktop.png)](../../assets/screenshots/app-email-html-playground-desktop.png) | [![Email HTML Playground mobile](../../assets/screenshots/app-email-html-playground-mobile.png)](../../assets/screenshots/app-email-html-playground-mobile.png) |
+The inbox is now a unified mailbox. The historical category-specific preview captures are not part of the current navigation; regenerate the gallery after the updated UI build.

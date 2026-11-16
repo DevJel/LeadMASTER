@@ -6,7 +6,7 @@ LeadMASTER is an email workspace and developer integration service.
 
 ## Interface gallery
 
-Desktop and mobile captures of every main workspace view, inbox category, utility and landing tab are in the [screenshot atlas](docs/screenshots/README.md). The code screen is an isolated rendering of existing markup, not an authenticated session.
+Desktop and mobile captures of the main workspace views, utilities and landing tabs are in the [screenshot atlas](docs/screenshots/README.md). The code screen is an isolated rendering of existing markup, not an authenticated session.
 
 | Login | Verification code | Inbox | Compose |
 |---|---|---|---|
