@@ -13,16 +13,9 @@
     "SES_CONFIGURATION_SET": "leadmaster-events",
     "SES_SNS_TOPIC_ARN": "arn:aws:sns:ap-southeast-2:592505728137:leadmaster-ses-events",
     "SES_MAX_MESSAGES_PER_SECOND": "10",
-    "SES_MAX_MESSAGES_PER_DAY": "50000"
+    "SES_MAX_MESSAGES_PER_DAY": "50000",
+    "TURSO_URL": "libsql://leadmaster-devjel.aws-ap-southeast-2.turso.io"
   },
-  "d1_databases": [
-    {
-      "binding": "AUTH_DB",
-      "database_name": "leadmaster-auth",
-      "database_id": "246db481-9bff-4088-8dcc-b810138aea68",
-      "migrations_dir": "migrations"
-    }
-  ],
   "secrets_store_secrets": [
     {
       "binding": "SES_SMTP_HOST",
@@ -58,6 +51,11 @@
       "binding": "TURNSTILE_SECRET",
       "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
       "secret_name": "TURNSTILE_SECRET_KEY"
+    },
+    {
+      "binding": "TURSO_AUTH_TOKEN",
+      "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
+      "secret_name": "TURSO_AUTH_TOKEN"
     }
   ],
   "observability": {
@@ -101,7 +99,9 @@
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["EmailCoordinator"]
+      "new_sqlite_classes": [
+        "EmailCoordinator"
+      ]
     }
   ]
 }
