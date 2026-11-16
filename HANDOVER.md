@@ -15,6 +15,10 @@
 
 Sent HTML preview is sandboxed and blocks active/remote content. The incoming original remains downloadable; individual attachments and incoming HTML are not extracted. Unsafe outbox retry controls were removed pending a complete immutable-message and idempotency design. Threading, attachment transport and standards-compliant replies are not implemented; see `docs/MAIL_THREADS_DESIGN.md`. Validate Android WebView downloads and authenticated account behavior separately.
 
+## Documentation screenshot atlas
+
+`assets/screenshots/` holds watermarked desktop/mobile UI captures produced by `scripts/capture-screenshots.mjs`; [docs/screenshots/README.md](docs/screenshots/README.md) records the viewport, fixture and gallery. The code-entry screenshot renders existing markup without running login or verification, and none of these images prove live deployment or device acceptance. Stack icon sources and license are in `assets/stack-icons/README.md`. The `required-action/project/` and `required-action/ANDROID APK/` README files are historical snapshot copies, not maintained current documentation.
+
 ## 1. Product purpose and truthful status
 
 LeadMASTER is an email workspace and developer integration service. The landing page and integrated documentation are the public product entry point. Human sign-in, API-key management, account-scoped REST routes and webhook code exist. The dashboard displays the authenticated account identity and API base URL, and links to the developer console; campaigns, audiences, persistent templates, domain management and analytics are not complete modules. The email API and webhook paths require controlled authenticated end-to-end acceptance testing before delivery guarantees can be claimed.
@@ -283,22 +287,7 @@ Before deployment:
 
 ## 12. Screenshot evidence
 
-Store genuine screenshots under `docs/screenshots/` with descriptive filenames:
-- `landing.png`
-- `landing-documentation.png`
-- `login.png`
-- `dashboard-overview.png`
-- `dashboard-emails.png`
-- `dashboard-logs.png`
-- `dashboard-broadcasts.png`
-- `dashboard-audiences.png`
-- `dashboard-templates.png`
-- `dashboard-domains.png`
-- `dashboard-api-keys.png`
-- `dashboard-webhooks.png`
-- `dashboard-settings.png`
-
-Screenshots must be captured from the actual rendered UI at a documented viewport. Use a dedicated test account and synthetic data for authenticated pages. Redact email addresses, account IDs, API keys, webhook secrets, OTPs and recipient content. The current dashboard tabs are placeholders; label screenshots accordingly and do not present them as completed features.
+The maintained [screenshot atlas](docs/screenshots/README.md) indexes the watermarked desktop/mobile captures in `assets/screenshots/`, their viewport and fixture setup, reproduction commands, and limitations. CI also retains separately generated synthetic message-safety test captures in its artifact. These are local previews, not production or Android-device evidence. Do not automate the human login challenge or use real credentials or account data. Owner-captured authenticated evidence, if needed, must use an authorized test account and redact identifying or secret information.
 
 ## 13. Current branch and deployment state
 

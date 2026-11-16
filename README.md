@@ -2,6 +2,16 @@
 
 LeadMASTER is an email workspace and developer integration service.
 
+> **Documentation status:** Screenshots are synthetic local previews, not live evidence. Some historical release statements below may describe earlier revisions; verify deployment and capability status separately against current code and [the feature index](docs/FEATURES.md).
+
+## Interface gallery
+
+Desktop and mobile captures of every main workspace view, inbox category, utility and landing tab are in the [screenshot atlas](docs/screenshots/README.md). The code screen is an isolated rendering of existing markup, not an authenticated session.
+
+| Login | Verification code | Inbox | Compose |
+|---|---|---|---|
+| [![Login local preview](assets/screenshots/login-desktop.png)](assets/screenshots/login-desktop.png) | [![Verification code local preview](assets/screenshots/verification-code-desktop.png)](assets/screenshots/verification-code-desktop.png) | [![Inbox local preview](assets/screenshots/dashboard-inbox-desktop.png)](assets/screenshots/dashboard-inbox-desktop.png) | [![Compose local preview](assets/screenshots/dashboard-compose-desktop.png)](assets/screenshots/dashboard-compose-desktop.png) |
+
 - **Production:** https://leadmaster.jelvan.space
 - **Public documentation:** https://leadmaster.jelvan.space/#documentation
 - **AI-agent instructions:** https://leadmaster.jelvan.space/llms.txt
@@ -266,6 +276,8 @@ Any future MCP implementation must:
 | `src/ses-smtp.mjs` | Email delivery transport adapter |
 | `src/static-assets.mjs` | Generated production asset bundle; do not edit by hand |
 | `public/` | Canonical landing, login, dashboard and developer UI assets |
+| `assets/screenshots/` | Watermarked synthetic documentation screenshots; see the screenshot atlas |
+| `assets/stack-icons/` | Monochrome open-source technology icons and license |
 | `migrations/` | Ordered database schema migrations |
 | `test/` | Unit, regression, integration-boundary and account-isolation tests |
 | `docs/API.md` | Detailed developer API reference |
@@ -307,7 +319,7 @@ If a layer is unaffected, record why. Never update documentation to claim a feat
 
 ## Screenshot evidence
 
-The CI workflow creates a `leadmaster-ui-screenshots` artifact containing landing, landing Documentation tab, login, dashboard section and account API-key console screenshots. These are watermarked local UI previews with synthetic data, not production evidence. See [docs/screenshots/README.md](docs/screenshots/README.md).
+The [screenshot atlas](docs/screenshots/README.md) lists every checked-in desktop/mobile local preview, capture settings, safety boundaries and reproduction steps. CI publishes the same captures as `leadmaster-ui-screenshots`; they are not production evidence.
 
 ## Release and verification
 
@@ -365,6 +377,18 @@ LeadMASTER is an email workspace and developer email integration service. The cu
 | Marketing consent, unsubscribe, suppression and campaign compliance tools | Not implemented | Do not use this API as a bulk marketing platform |
 
 ## Technology stack
+
+<img src="assets/stack-icons/cloudflare.svg" alt="Cloudflare" width="24" height="24">
+<img src="assets/stack-icons/javascript.svg" alt="JavaScript" width="24" height="24">
+<img src="assets/stack-icons/typescript.svg" alt="TypeScript" width="24" height="24">
+<img src="assets/stack-icons/react.svg" alt="React" width="24" height="24">
+<img src="assets/stack-icons/nodedotjs.svg" alt="Node.js" width="24" height="24">
+<img src="assets/stack-icons/sqlite.svg" alt="SQLite" width="24" height="24">
+<img src="assets/stack-icons/android.svg" alt="Android" width="24" height="24">
+<img src="assets/stack-icons/kotlin.svg" alt="Kotlin" width="24" height="24">
+<img src="assets/stack-icons/githubactions.svg" alt="GitHub Actions" width="24" height="24">
+
+Monochrome brand icons: [Simple Icons](assets/stack-icons/README.md) (CC0 1.0); trademarks belong to their owners.
 
 | Layer | Technology | Purpose |
 |---|---|---|

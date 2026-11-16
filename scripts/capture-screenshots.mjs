@@ -4,7 +4,7 @@ import { extname, resolve, sep } from "node:path";
 import { chromium } from "playwright";
 
 const root = resolve("public");
-const output = resolve("docs/screenshots/generated");
+const output = resolve("assets/screenshots");
 const port = 4179;
 const accountId = "acct_preview_account_00000001";
 const apiBase = "https://leadmaster.jelvan.pro/api/v1/accounts/" + accountId;
@@ -88,64 +88,80 @@ await mkdir(output,{recursive:true});
 await new Promise(resolveListen=>server.listen(port,"127.0.0.1",resolveListen));
 const browser = await chromium.launch({headless:true,...(process.env.LOCAL_CHROMIUM ? {executablePath:process.env.LOCAL_CHROMIUM} : {}),args:["--no-sandbox"]});
 try {
-  const page = await browser.newPage({viewport:{width:1440,height:1000},deviceScaleFactor:1});
-  page.on("pageerror", error => console.log("Dashboard page error:", error.message));
-  const mark = async () => page.addStyleTag({content:watermarkCss});
-
-  await page.goto("http://127.0.0.1:"+port+"/",{waitUntil:"domcontentloaded"});
-  await mark();
-  await page.waitForTimeout(500);
-  await page.screenshot({path:output+"/landing.png",fullPage:true});
-  await page.locator("[data-open-tab='documentation']").first().click();
-  await page.waitForSelector("#docs-search");
-  await mark();
-  await page.screenshot({path:output+"/landing-documentation.png",fullPage:true});
-
-  await page.goto("http://127.0.0.1:"+port+"/login.html",{waitUntil:"domcontentloaded"});
-  await mark();
-  await page.waitForTimeout(500);
-  await page.screenshot({path:output+"/login.png",fullPage:true});
-
-  await page.goto("http://127.0.0.1:"+port+"/dashboard.html",{waitUntil:"domcontentloaded"});
-  await page.waitForSelector("#root main",{timeout:15000});
-  await page.waitForFunction(()=>!document.querySelector("#root")?.textContent?.includes("Loading workspace"),null,{timeout:10000}).catch(()=>{});
-  await mark();
-  const views = [
-    ["Inbox","inbox"],["Assistant","assistant"],["Automation","automation"],
-    ["Templates","templates"],["Scheduled","scheduled"],["Sent","sent"],
-    ["Outbox","outbox"],["Deleted","deleted"],["Settings","settings"]
-  ];
-  for (const [label,slug] of views) {
-    const button=page.getByRole("button",{name:label,exact:true}).first();
-    await button.click();
-    await page.waitForTimeout(180);
-    await page.screenshot({path:output+"/dashboard-"+slug+".png",fullPage:true});
+  for (const [device,viewport] of [["desktop",{width:1440,height:1000}],["mobile",{width:390,height:844}]]) {
+    const page = await browser.newPage({viewport,deviceScaleFactor:1, reducedMotion:"reduce"});
+    // Never contact a real service or load/execute the human sign-in challenge.
+    await page.route("**/*", route => {
+      const u = new URL(route.request().url());
+      if (u.hostname !== "127.0.0.1" || u.port !== String(port)) return route.abort();
+      if (u.pathname === "/login.js") return route.fulfill({status:200,contentType:"text/javascript",body:""});
+      return route.continue();
+    });
+    const pageErrors = [];
+    page.on("pageerror", error => pageErrors.push(error.message));
+    const mark = async () => page.addStyleTag({content:watermarkCss});
+    const snap = async name => page.screenshot({path:`${output}/${name}-${device}.png`,fullPage:true,animations:"disabled"});
+    await page.goto(`http://127.0.0.1:${port}/`,{waitUntil:"domcontentloaded"});
+    await mark();
+    await page.waitForTimeout(300);
+    await snap("landing");
+    for (const tab of ["features","documentation","api","campaigns","integrations","status"]) {
+      await page.locator(`#tab-${tab}`).click();
+      await page.locator(`#panel-${tab}`).scrollIntoViewIfNeeded();
+      await snap(`landing-${tab}`);
+    }
+    await page.goto(`http://127.0.0.1:${port}/login.html`,{waitUntil:"domcontentloaded"});
+    await mark();
+    await snap("login");
+    // Present the existing OTP markup only. No credentials, OTP, authentication,
+    // challenge response or verify endpoint is invoked by this local fixture.
+    await page.evaluate(() => { document.querySelector("#login-step").hidden = true; document.querySelector("#otp-step").hidden = false; });
+    await snap("verification-code");
+    await page.goto(`http://127.0.0.1:${port}/dashboard.html`,{waitUntil:"domcontentloaded"});
+    await page.waitForSelector("#root main",{timeout:15000});
+    await page.waitForFunction(()=>!document.querySelector("#root")?.textContent?.includes("Loading workspace"),null,{timeout:10000});
+    await mark();
+    const views = [["Inbox","inbox"],["Compose","compose"],["Sent","sent"],["Outbox","outbox"],["Deleted","deleted"],["Assistant","assistant"],["Automation","automation"],["Templates","templates"],["Scheduled","scheduled"],["Settings","settings"]];
+    for (const [label,slug] of views) {
+      if (device === "mobile") await page.getByRole("button",{name:"Show or hide navigation"}).click();
+      await page.getByRole("navigation",{name:"LeadMaster navigation"}).getByRole("button",{name:label,exact:true}).click();
+      await page.waitForTimeout(200);
+      await snap(`dashboard-${slug}`);
+    }
+    // Retain the existing refresh and template-preview smoke checks.
+    if (device === "desktop") {
+      await page.getByRole("button",{name:"Refresh workspace"}).click();
+      await page.getByText("Refreshing and verifying workspace data…",{exact:true}).waitFor({state:"hidden",timeout:5000});
+      await snap("dashboard-refresh-verified");
+      await page.getByRole("navigation",{name:"LeadMaster navigation"}).getByRole("button",{name:"Templates",exact:true}).click();
+      await page.getByRole("button",{name:/New Template/}).first().click();
+      await page.getByLabel("Name").fill("Preview template");
+      await page.getByLabel("Subject").fill("A sample subject");
+      await page.getByLabel("Body").fill("This is a synthetic template preview.");
+      await page.getByRole("button",{name:"Save template"}).click();
+      await page.getByRole("button",{name:"Preview",exact:true}).first().click();
+      await snap("dashboard-template-preview");
+    }
+    if (device === "mobile") await page.getByRole("button",{name:"Show or hide navigation"}).click();
+    await page.getByRole("navigation",{name:"LeadMaster navigation"}).getByRole("button",{name:"Inbox",exact:true}).click();
+    for (const tab of ["Primary","Promotions","Social","Updates","Forums"]) {
+      await page.getByRole("button",{name:new RegExp(`^${tab}`)}).first().click();
+      await snap(`inbox-${tab.toLowerCase()}`);
+    }
+    for (const app of ["notes","contacts","calendar","calculator","currency","email-html-playground"]) {
+      await page.goto(`http://127.0.0.1:${port}/dashboard.html?app=${app}`,{waitUntil:"domcontentloaded"});
+      await page.waitForSelector("#root",{timeout:15000});
+      await page.waitForTimeout(300);
+      await mark();
+      await snap(`app-${app}`);
+    }
+    await page.goto(`http://127.0.0.1:${port}/help-center.html`,{waitUntil:"domcontentloaded"});
+    await mark();
+    await snap("help-center");
+    await page.close();
+    if (pageErrors.length) throw new Error(`Preview JavaScript errors (${device}): ${pageErrors.join("; ")}`);
   }
-
-  await page.getByRole("button",{name:"Refresh workspace"}).click();
-  await page.getByText("Refreshing and verifying workspace data…",{exact:true}).waitFor({state:"hidden",timeout:5000});
-  await page.screenshot({path:output+"/dashboard-refresh-verified.png",fullPage:true});
-
-  await page.getByRole("button",{name:"Templates",exact:true}).first().click();
-  await page.getByRole("button",{name:/New Template/}).first().click();
-  await page.getByLabel("Name").fill("Preview template");
-  await page.getByLabel("Subject").fill("A sample subject");
-  await page.getByLabel("Body").fill("This is a synthetic template preview.");
-  await page.getByRole("button",{name:"Save template"}).click();
-  await page.getByRole("button",{name:"Preview",exact:true}).first().click();
-  await page.screenshot({path:output+"/dashboard-template-preview.png",fullPage:true});
-
-  await page.getByRole("button",{name:"Compose",exact:true}).first().click();
-  await page.waitForSelector('textarea[aria-label="Message body"]');
-  await page.screenshot({path:output+"/dashboard-compose.png",fullPage:true});
-  await page.setViewportSize({width:390,height:844});
-  await page.screenshot({path:output+"/dashboard-compose-mobile.png",fullPage:true});
-  // On narrow screens the sidebar is intentionally hidden behind the navigation drawer.
-  // Open that drawer before selecting Inbox so the smoke test exercises the real mobile path.
-  await page.getByRole("button",{name:"Show or hide navigation"}).click();
-  await page.getByRole("navigation",{name:"LeadMaster navigation"}).getByRole("button",{name:"Inbox",exact:true}).click();
-  await page.screenshot({path:output+"/dashboard-mobile-inbox.png",fullPage:true});
-  console.log("Captured landing, login, production React workspace views, template preview and mobile layouts into "+output);
+  console.log("Captured local presentation-only previews to "+output);
 } finally {
   await browser.close();
   await new Promise(resolveClose=>server.close(resolveClose));

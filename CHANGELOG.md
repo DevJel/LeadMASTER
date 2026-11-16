@@ -1,3 +1,9 @@
+## 2026-11-16 — Documentation screenshot atlas (not deployed)
+
+- Captured watermarked local desktop/mobile UI previews for the public tabs, Help Center, login/code layouts, workspace views, inbox categories and six utilities. The code view is static markup only; no human challenge, OTP or real account is used.
+- Added a screenshot gallery, capture instructions, monochrome attributed Simple Icons stack logos and Mermaid diagrams for the Android shell, screenshot pipeline and historical handoff. Archived project README copies remain unchanged.
+- Documentation and local capture tooling only: no product UI, API, backend, authentication, schema, assets served to customers or Android behavior changed. CI artifacts are local previews; production deployment and Android device checks remain separate.
+
 ## 2026-11-16 — Daily report validation repair (not deployed)
 
 - Corrected report sender identity and the coordinator message ID while preserving the existing idempotency key.
