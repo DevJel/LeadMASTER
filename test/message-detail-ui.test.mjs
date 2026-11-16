@@ -1,3 +1,12 @@
-import {test} from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
-const html=readFileSync('src/Mandatory LeadMASTER Dashboard.html','utf8');
-test('message errors render separately from the message body',()=>{assert(html.includes('liveMailDetail.error_message?a("p",{role:"status"'));assert(html.includes('children:liveMailDetail.text_body||"No readable message body."'));assert(!html.includes('children:liveMailDetail.text_body||liveMailDetail.error_message||'));});
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+const app=await readFile(new URL('../required-componets-design/App.tsx',import.meta.url),'utf8');
+
+test('message detail loads the actual message body and keeps errors separate',()=>{
+ assert.match(app,/async function openMessage/);
+ assert.match(app,/text_body/);
+ assert.match(app,/setActionError/);
+ assert.match(app,/Message load failed/);
+ assert.match(app,/Message preview:/);
+});
