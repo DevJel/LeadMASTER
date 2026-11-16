@@ -1,0 +1,60 @@
+/* LeadMASTER states: loading, sending, confirm, empty.
+   Everything is transparent and drawn in currentColor, so it adapts to any
+   background. Override --lm-ink / --lm-surface on a parent to theme it. */
+.lm-state{--lm-ink:currentColor;--lm-muted:color-mix(in srgb,currentColor 58%,transparent);--lm-line:color-mix(in srgb,currentColor 16%,transparent);
+  box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  width:100%;max-width:340px;margin:0 auto;padding:clamp(20px,5vw,32px) 16px;text-align:center;color:inherit;background:transparent;
+  font-family:inherit}
+.lm-state *{box-sizing:border-box}
+.lm-state svg{display:block;max-width:100%;height:auto;overflow:visible}
+.lm-state-title{margin:0;font-weight:600;font-size:15px;line-height:1.4;color:var(--lm-ink)}
+.lm-state-sub{margin:0;font-size:12.5px;line-height:1.5;color:var(--lm-muted);min-height:1.5em}
+.lm-state-empty{max-width:380px}
+.lm-state-empty svg{width:min(160px,48vw)}
+/* loading */
+.lm-load-svg{width:min(120px,36vw)}
+.lm-env{transform-origin:60px 65px;animation:lm-scale 1.6s ease-in-out infinite}
+.lm-flap,.lm-building,.lm-person{animation:lm-pulse 1.6s ease-in-out infinite}
+.lm-person{animation-delay:.8s}
+.lm-dash{stroke-dasharray:3 4;animation:lm-dash 1s linear infinite}
+.lm-dash2{animation-delay:.5s}
+.lm-dots{display:flex;gap:6px}.lm-dots i{width:6px;height:6px;border-radius:50%;background:var(--lm-ink);opacity:.35;animation:lm-dot 1.2s ease-in-out infinite}
+.lm-dots i:nth-child(2){animation-delay:.15s}.lm-dots i:nth-child(3){animation-delay:.3s}
+.lm-bar{width:min(140px,60%);height:3px;border-radius:99px;background:var(--lm-line);overflow:hidden}
+.lm-bar i{display:block;height:100%;width:40%;border-radius:99px;background:var(--lm-ink);animation:lm-bar 1.4s ease-in-out infinite}
+/* sending */
+.lm-send-svg{width:min(280px,86%)}
+.lm-flight{stroke-dasharray:4 5;animation:lm-dash 1s linear infinite}
+.lm-steps{display:flex;align-items:flex-start;width:100%;margin-top:4px}
+.lm-step{display:flex;flex-direction:column;align-items:center;gap:5px;flex:0 0 auto;min-width:56px}
+.lm-step b{width:26px;height:26px;border-radius:50%;border:1.8px solid var(--lm-ink);display:grid;place-items:center;color:var(--lm-ink);transition:background .25s,color .25s}
+.lm-step svg{width:14px;height:14px}
+.lm-step span{font-size:10.5px;font-weight:500;color:var(--lm-muted);white-space:nowrap}
+.lm-step.on b,.lm-step.done b{background:color-mix(in srgb,var(--lm-ink) 14%,transparent);border-width:2.4px}
+.lm-step.on span,.lm-step.done span{color:var(--lm-ink)}
+.lm-step-line{flex:1;height:1.8px;margin:12px 6px 0;background:var(--lm-line)}
+.lm-step-line.done{background:var(--lm-ink)}
+/* confirm */
+.lm-overlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));background:rgba(0,0,0,.45);backdrop-filter:blur(4px);animation:lm-fade .2s ease both}
+.lm-dialog{--lm-surface:Canvas;--lm-ink:CanvasText;--lm-muted:color-mix(in srgb,CanvasText 58%,transparent);--lm-line:color-mix(in srgb,CanvasText 16%,transparent);
+  width:100%;max-width:400px;max-height:100%;overflow:auto;position:relative;padding:28px 24px 22px;text-align:center;border:1px solid var(--lm-line);border-radius:20px;background:var(--lm-surface);color:var(--lm-ink);box-shadow:0 24px 60px rgba(0,0,0,.25);animation:lm-pop .32s cubic-bezier(.2,1.2,.4,1) both}
+.lm-dialog-x{position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;border:1px solid var(--lm-line);background:transparent;color:inherit;font-size:18px;line-height:1;cursor:pointer}
+.lm-dialog-icon{width:68px;height:68px;margin:4px auto 14px;border-radius:50%;border:1.8px solid var(--lm-ink);display:grid;place-items:center}
+.lm-dialog h2{margin:0;font-size:18px;line-height:1.35;font-weight:700}
+.lm-dialog p{margin:8px 0 0;font-size:13px;line-height:1.6;color:var(--lm-muted)}
+.lm-item{display:flex;align-items:center;gap:10px;margin:16px auto 0;max-width:300px;padding:10px 12px;text-align:left;border:1px solid var(--lm-line);border-radius:12px}
+.lm-item .n{display:block;font-size:13px;font-weight:600;color:var(--lm-ink);overflow-wrap:anywhere}.lm-item .e{display:block;font-size:11px;color:var(--lm-muted);overflow-wrap:anywhere}
+.lm-actions{display:flex;gap:10px;margin-top:20px}
+.lm-btn{flex:1;min-height:44px;padding:12px 10px;border-radius:99px;border:1.8px solid var(--lm-ink);font:600 14px/1 inherit;font-family:inherit;cursor:pointer}
+.lm-btn.no{background:transparent;color:var(--lm-ink)}
+.lm-btn.yes{background:var(--lm-ink);color:var(--lm-surface)}
+.lm-btn:focus-visible,.lm-dialog-x:focus-visible{outline:2px solid var(--lm-ink);outline-offset:2px}
+@media (max-width:380px){.lm-actions{flex-direction:column-reverse}}
+@keyframes lm-scale{50%{transform:scale(1.04)}}
+@keyframes lm-pulse{50%{opacity:.45}}
+@keyframes lm-dash{to{stroke-dashoffset:-14}}
+@keyframes lm-dot{50%{transform:translateY(-4px);opacity:1}}
+@keyframes lm-bar{from{transform:translateX(-110%)}to{transform:translateX(310%)}}
+@keyframes lm-fade{from{opacity:0}}
+@keyframes lm-pop{from{transform:scale(.9) translateY(12px);opacity:0}}
+@media (prefers-reduced-motion:reduce){.lm-state *,.lm-overlay,.lm-dialog{animation:none!important;transition:none!important}}
