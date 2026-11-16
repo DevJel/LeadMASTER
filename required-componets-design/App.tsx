@@ -4,6 +4,7 @@ import { SendingIndicator, SendingPhase } from '../src/dashboard-tsx/SendingIndi
 import { ActionConfirmation, ActionConfirmationRequest } from '../src/dashboard-tsx/ActionConfirmation';
 import { SafeEmailHtml } from '../src/dashboard-tsx/SafeEmailHtml';
 import UtilityApps from './UtilityApps';
+import { GravatarAvatar } from '../src/dashboard-tsx/GravatarAvatar';
 import { createMailSoundPlayer, createMailSoundTracker } from './mail-sounds.mjs';
 import { mapLeadMasterError } from '../src/leadmaster-error-mapper.mjs';
 
@@ -157,7 +158,7 @@ function initialsFor(name:string){ return name.split(' ').filter(Boolean).slice(
 const PERSONAL_MAIL_DOMAINS = new Set(['gmail.com','yahoo.com','icloud.com','outlook.com','hotmail.com','protonmail.com','aol.com','mail.com','gmx.com','zoho.com']);
 function avatarKindForEmail(email:string){ const domain = (email||'').split('@')[1]?.toLowerCase().trim() || ''; return (PERSONAL_MAIL_DOMAINS.has(domain) || [...PERSONAL_MAIL_DOMAINS].some(d=>domain.endsWith('.'+d))) ? 'user' as const : 'building' as const; }
 function avatarLabelForEmail(email:string){ return avatarKindForEmail(email)==='building' ? 'Organization' : 'Personal'; }
-function AvatarIcon({email, size=18}:{email:string; size?:number}){ return <UniformIcon name={avatarKindForEmail(email)} size={size} />; }
+function AvatarIcon({email, size=18}:{email:string; size?:number}){ return <GravatarAvatar email={email} size={size} fallback={<UniformIcon name={avatarKindForEmail(email)} size={size} />} />; }
 
 async function api(action:string, args:any, signal?:AbortSignal){
   const res = await fetch("/api/workspace/actions", {method:'POST', credentials:'same-origin', headers:{'content-type':'application/json'}, body: JSON.stringify({action, args}), ...(signal ? {signal} : {})});
