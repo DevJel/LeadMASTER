@@ -131,7 +131,10 @@ try {
   await page.screenshot({path:output+"/dashboard-compose.png",fullPage:true});
   await page.setViewportSize({width:390,height:844});
   await page.screenshot({path:output+"/dashboard-compose-mobile.png",fullPage:true});
-  await page.getByRole("button",{name:"Inbox",exact:true}).first().click();
+  // On narrow screens the sidebar is intentionally hidden behind the navigation drawer.
+  // Open that drawer before selecting Inbox so the smoke test exercises the real mobile path.
+  await page.getByRole("button",{name:"Show or hide navigation"}).click();
+  await page.getByRole("navigation",{name:"LeadMaster navigation"}).getByRole("button",{name:"Inbox",exact:true}).click();
   await page.screenshot({path:output+"/dashboard-mobile-inbox.png",fullPage:true});
   console.log("Captured landing, login, production React workspace views, template preview and mobile layouts into "+output);
 } finally {
