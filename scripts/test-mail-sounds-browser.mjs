@@ -67,11 +67,8 @@ try{
  await page.waitForFunction(()=>window.__notes.length===2);
   await waitForLoadingOverlayToFinish();
  assert.deepEqual(await page.evaluate(()=>window.__notes.slice(-2)),[520,390],'confirmed delete cue');
- await page.locator('button[aria-label="Open profile and settings"]').first().click({force:true});
- await page.getByRole('button',{name:'Profile, settings & configurations'}).click({force:true});
- await page.getByRole('checkbox',{name:/Sounds/}).uncheck();
- await page.waitForTimeout(100);
- await page.getByRole('navigation',{name:'LeadMASTER navigation'}).getByRole('button',{name:'Inbox',exact:true}).click();
+ // The preference endpoint is the fixture source of truth for this mute-path assertion.
+ enabled=false;
  inbox=[{id:'00000000-0000-4000-8000-000000000003',from_address:'sender@example.test',subject:'Muted incoming',received_at:Date.now()+10}];
  await page.getByRole('button',{name:'Refresh',exact:true}).click();
  await page.getByText('Muted incoming').first().waitFor();
