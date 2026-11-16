@@ -280,3 +280,55 @@ The authenticated LeadMASTER workspace also exposes a cookie-session management 
 - `GET /api/admin/webhooks/{id}/deliveries` — inspect delivery attempts for an account-owned endpoint.
 
 Dashboard mutations require the authenticated session and same-origin Origin header. The public developer API remains separately API-key scoped. These endpoints do not expose webhook secret material after creation.
+
+
+## 10. Transactional OTP, confirmations and automation
+
+The account-scoped email endpoint can deliver application-generated OTPs, password-reset links, account confirmations, receipts and other transactional messages. It is a delivery API, not an identity-verification service.
+
+For an OTP flow, the integrating application must:
+1. Generate the code with a cryptographically secure random generator.
+2. Store only a keyed hash or secure hash of the code, with a short expiry and bounded verification attempts.
+3. Bind the challenge to the intended account and purpose.
+4. Send the email using POST /api/v1/accounts/{account_id}/emails and a unique Idempotency-Key for that challenge.
+5. Verify the code server-side, consume it once, and invalidate it after success or expiry.
+6. Never put OTP values in logs, analytics, URLs, AI prompts, or webhook payloads.
+
+Example request body:
+
+~~~json
+{
+  "to": "recipient@example.com",
+  "subject": "Your verification code",
+  "text": "Your verification code is 123456. It expires in five minutes."
+}
+~~~
+
+Use a fresh idempotency key for each newly generated challenge. Reuse the same key only when retrying the same email submission after an uncertain network response. Do not create a new key to retry an unknown send outcome until the original request has been reconciled.
+
+For confirmation emails, use a one-time opaque confirmation URL generated and verified by the integrating application. The URL should contain a high-entropy token, not personal data or the OTP itself. Enforce expiry, one-time use and authorization on the confirmation endpoint.
+
+### Automation pattern
+
+Use account-owned webhooks to trigger downstream automations:
+- email.accepted — record provider acceptance and update the related workflow.
+- email.failed — stop or route the workflow for operator review.
+- email.unknown — reconcile the request status before any retry.
+
+Webhook callbacks are currently best-effort with one delivery attempt. They are not a guaranteed queue, and they do not report inbox delivery, opens or clicks. Deduplicate by event ID and query the email status endpoint when the callback is missing or the outcome is uncertain.
+
+## 11. MCP agent integration
+
+The feature branch adds a Streamable HTTP MCP endpoint at https://leadmaster.jelvan.pro/mcp after release. It authenticates using the same account-bound developer API keys and exposes tools according to the key's scopes:
+
+- get_email_capabilities and validate_email for any valid key.
+- send_email for email:send.
+- get_email_status for email:read.
+- list_webhooks, create_webhook, revoke_webhook and list_webhook_deliveries for webhook:manage.
+
+The send_email tool delegates to the existing account-scoped REST email submission route, preserving idempotency, suppression, per-key rate limiting and queue handling. MCP clients should request explicit user confirmation before calling write tools. The MCP endpoint is not available in production until this feature branch is reviewed, merged and deployed. See MCP.md for client configuration and the complete scope/tool matrix.
+
+
+## 12. AI assistant endpoint
+
+The authenticated administrator dashboard exposes POST /api/admin/assistant for the built-in Cloudflare Workers AI agent. It is a same-origin, cookie-session endpoint and is not a public developer API. It supports mailbox overview, sender/subject search, reading one received message and preparing an unsent draft. It does not send mail or modify mailbox state. See AI_ASSISTANT.md for the request contract, limits, model/tool flow and security boundary.

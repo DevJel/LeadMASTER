@@ -1,70 +1,118 @@
 # LeadMASTER MCP integration
 
-## Status
+## Release status
 
-The repository contains an experimental, read-only Model Context Protocol server implemented with the official MCP SDK and stateless Streamable HTTP transport.
+This implementation adds an account-scoped MCP Streamable HTTP endpoint to the LeadMASTER Worker. It is available only after the feature branch is merged and deployed. Until then, the production /mcp route remains unavailable.
 
-**It is not mounted by the current production Worker and is not available as a public service.** There is no production MCP URL, client credential, OAuth registration or supported connection procedure. Do not connect to `https://leadmaster.jelvan.pro/mcp` or assume that route is enabled.
+**Endpoint after release:** https://leadmaster.jelvan.pro/mcp
 
-## Tools in the prototype
+MCP does not use a shared platform token or a separate MCP password. It authenticates with a LeadMASTER developer API key created in the user's own account. The key's account ID and scopes determine the tools exposed to that MCP client.
 
-Only two tools are registered:
+## Connect a client
 
-- `get_email_capabilities` — returns a static description of the experimental MCP capabilities. It is not a live service health check.
-- `validate_email` — validates message shape and size against the queue input rules. It does not store, queue or send the message, verify recipient consent or sender identity, check quotas, or report delivery. The result does not echo message content.
+1. Sign in to the intended LeadMASTER account.
+2. Open **API Keys** and create a separate key for the MCP client.
+3. Select only the scopes the client needs:
+   - **email:send** — submit transactional email.
+   - **email:read** — inspect status for messages submitted with that same key.
+   - **webhook:manage** — manage webhook subscriptions and inspect their delivery attempts.
+4. Copy the key once and store it in the MCP client's server-side secret manager.
+5. Configure the MCP client with:
+   - URL: https://leadmaster.jelvan.pro/mcp
+   - Transport: Streamable HTTP
+   - Authorization: Bearer YOUR_LEADMASTER_DEVELOPER_API_KEY
+6. Never place the key in browser JavaScript, a mobile bundle, public source control, prompts, or logs.
 
-The MCP implementation has no tools for sending email, campaigns, audiences, templates, delivery history, analytics or account administration. It makes no SMTP or AWS API calls.
+The key is account-bound. The server derives account context from the authenticated key; tool arguments cannot select another account. Revoking the developer API key immediately prevents future MCP requests using it.
 
-## Protocol behavior in the source implementation
+## Available tools
 
-The handler uses stateless Streamable HTTP with JSON responses. It accepts POST requests with JSON content and enforces a 100 KB body limit. Unsupported methods and content types are rejected. These are implementation details for isolated testing, not a production service-level contract.
+All tools are registered only when the API key has the required scope.
 
-## Experimental configuration
+| Tool | Required scope | Behavior |
+|---|---|---|
+| get_email_capabilities | Valid key | Reports account ID, granted scopes and available tools |
+| validate_email | Valid key | Validates payload shape; does not send or save |
+| send_email | email:send | Submits one message through the existing account-scoped email API and queue |
+| get_email_status | email:read | Reads status only for requests created by the same API key |
+| list_webhooks | webhook:manage | Lists webhooks created by the same key |
+| create_webhook | webhook:manage | Creates an HTTPS callback and returns its signing secret once |
+| revoke_webhook | webhook:manage | Revokes a webhook owned by the same key |
+| list_webhook_deliveries | webhook:manage | Lists the latest 50 attempts for an owned webhook |
 
-The prototype fails closed unless:
+MCP does not expose the private administrator inbox, login credentials, OTP values, Cloudflare infrastructure, secret stores, database access, or other accounts' data.
 
-- `MCP_EXPERIMENTAL_ENABLED` is set to `true`; and
-- a separate `MCP_ACCESS_TOKEN` secret is bound.
+## Sending workflow and confirmations
 
-The token must be a cryptographically random base64url string of 43–128 characters (at least 32 random bytes). It must never reuse administrator credentials, session-signing secrets, SES SMTP credentials or any email API key. If an Origin header is present, the prototype checks it against `MCP_ALLOWED_ORIGIN`.
+The send_email tool is a write action and is marked destructive in its MCP annotations. MCP clients should request explicit user confirmation before invoking it. The tool requires a stable idempotency_key and delegates to the same LeadMASTER developer email route used by REST, preserving:
 
-This is bearer-token authentication, not OAuth. There is no client registration, per-client scopes, token issuance/rotation/revocation service or production rate limiting. Any holder can call all registered tools. Origin checking is not a replacement for authorization or CORS.
+- API-key account ownership and email:send scope checks.
+- Recipient validation and suppression-list checks.
+- Per-key rate limits.
+- Idempotency and duplicate-request protection.
+- Durable queue submission and existing send outcome states.
 
-## Deployment and security gates
+A successful tool response means the request was accepted by the queue, not that the recipient received or read the email. If the result is uncertain, query get_email_status with the same key before retrying. Never retry an uncertain send with a new idempotency key.
 
-Before any public deployment, complete an isolated staging release, Workers runtime compatibility tests, client-level authorization, token lifecycle and revocation, abuse/rate controls, privacy-safe monitoring, independent security review and end-to-end tests. Confirm that tools cannot bypass authentication or email sending safeguards.
+## OTP, confirmations and transactional messages
 
-Any future email-send capability requires a separately reviewed public API, durable queue/outbox, idempotency, delivery events and operator reconciliation. It must not be implicitly exposed through MCP.
+MCP and REST are transactional email delivery interfaces, not OTP identity providers. An integrating application must generate OTPs using a cryptographically secure random generator, store only a hash, enforce a short expiry and attempt limit, verify once, and invalidate after successful use. Send the code through send_email or the REST email endpoint with a unique idempotency key for that challenge. Never ask an AI agent to generate, store or verify a user's authentication OTP.
 
-Local tests use mocked boundaries and do not prove Cloudflare deployment, authorization safety or email delivery.
+The same API supports order confirmations, account notifications, password-reset messages and other transactional notices. Keep business authorization and confirmation state in the integrating application; the email API only submits the message.
+
+## Automation with webhooks
+
+Use create_webhook to register a public HTTPS callback for:
+- email.accepted
+- email.failed
+- email.unknown
+
+The response includes signing_secret once. Store it in the callback service's secret manager. Verify HMAC-SHA256 over the exact bytes timestamp + "." + rawBody, reject stale timestamps, compare signatures in constant time, and deduplicate event IDs.
+
+The current webhook delivery mechanism makes one attempt. Automatic retry, replay and dead-letter recovery are not implemented. A missing webhook callback does not prove an email was not submitted; query the email status endpoint.
+
+## Security model
+
+- Each MCP request requires an active lm_live_ API key.
+- Account ID and scopes are loaded from the hashed API-key record, not trusted from MCP arguments.
+- Every email status read is constrained to the same key and account.
+- Every webhook read, create, revoke and delivery-history query is constrained to the same key and account.
+- send_email delegates to the existing REST handler; it does not create a second sending implementation.
+- MCP requests have a per-key rate limit and bounded request body.
+- An Origin header, if present, must match the configured MCP_ALLOWED_ORIGIN; server-to-server clients normally omit it.
+- Authorization headers, message bodies, OTPs and signing secrets must never be logged.
+
+## Example client configuration
+
+~~~json
+{
+  "mcpServers": {
+    "leadmaster": {
+      "url": "https://leadmaster.jelvan.pro/mcp",
+      "headers": {
+        "Authorization": "Bearer YOUR_LEADMASTER_API_KEY"
+      }
+    }
+  }
+}
+~~~
+
+Configure the API key in the MCP client's secure environment; do not paste a real key into a shared configuration file.
+
+## Testing and release gates
+
+Before the production endpoint is advertised, run:
+1. MCP initialize and tools/list using an account-bound API key.
+2. Negative authentication, revoked-key, invalid-origin and request-size tests.
+3. Scope matrix tests proving that missing scopes hide and reject write/read tools.
+4. Cross-account and cross-key tests for email status and webhook resources.
+5. Email submission tests using a controlled recipient and idempotency replay.
+6. Webhook signature verification and callback tests.
+7. Cloudflare production route checks and a final deployment smoke test.
+
+The local test suite does not prove live inbox delivery or successful third-party webhook receipt. Keep claims limited to the evidence collected.
 
 
-## Relationship to the Developer Email API
+## External platform boundaries
 
-The Developer Email API is a separate HTTPS integration for server-to-server application sending. Developers generate and revoke scoped credentials in the authenticated LeadMASTER workspace and use the REST endpoints documented in [API.md](./API.md). MCP clients must not treat a developer API key as an MCP access token. The current MCP server remains experimental and read-only; it does not expose email-send tools or bypass API-key scopes, idempotency, rate limits or audit records. Any future MCP send tool must call the same authorized email-submission service and receive a separate security review.
-
-
-## Public documentation location
-
-The public product and integration documentation is consolidated into the Documentation tab on the main landing page: [LeadMASTER documentation](https://leadmaster.jelvan.pro/#documentation). The legacy `/mcp.html` URL redirects to the MCP section of that landing page. This repository file remains the engineering source of truth for MCP implementation and release gates; it is not a separate public documentation destination.
-
-
-## Agent integration policy
-
-AI agents must not use the human administrator sign-in page, security challenge, password or email OTP. The supported agent integration is the LeadMASTER REST API with a least-privilege server-side API key. The canonical machine-readable guide is [`/llms.txt`](https://leadmaster.jelvan.pro/llms.txt). Do not publish or assume a production MCP endpoint until the MCP server is deployed, authenticated, monitored and acceptance-tested.
-
-
-## Account isolation requirements for any future MCP release
-
-No MCP endpoint is available in production. If MCP is implemented, it must be account-bound by design:
-
-- Authenticate each client as a specific LeadMASTER account principal.
-- Derive account identity from the authenticated principal; never trust an account ID passed as a tool argument to select data.
-- Store MCP client credentials, revocation state, permissions and audit events per account.
-- Route every tool through the same account-scoped service functions used by REST.
-- Apply account and resource ownership predicates to every read, write, webhook operation and result.
-- Never provide platform-wide, operator or cross-account MCP access. Do not reuse a global token.
-- Include negative tests for cross-account resource enumeration, IDOR, prompt injection and account-context substitution.
-- Do not publish an MCP URL or advertise a tool until all authentication, authorization, rate, audit, privacy and deployment acceptance gates pass.
-
-The current prototype is not mounted, and its read-only tools are not a production integration. The account-scoped REST API remains the only supported agent integration.
+This MCP server does not inherit Gmail, Google Drive, GitHub, Slack or Notion OAuth sessions from ChatGPT, Notion, or another connector. Those credentials are not exposed to LeadMASTER by a Notion API integration. Each external platform must be separately authorized through its official OAuth/API flow or an explicitly configured automation gateway. The current LeadMASTER MCP tools are limited to LeadMASTER transactional email and webhook resources.

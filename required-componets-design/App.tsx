@@ -5,6 +5,7 @@ import { ActionConfirmation, ActionConfirmationRequest } from '../src/dashboard-
 import { SafeEmailHtml } from '../src/dashboard-tsx/SafeEmailHtml';
 import UtilityApps from './UtilityApps';
 import { GravatarAvatar } from '../src/dashboard-tsx/GravatarAvatar';
+import { AssistantAgent, type AssistantPreparedEmail } from '../src/dashboard-tsx/AssistantAgent';
 import { createMailSoundPlayer, createMailSoundTracker } from './mail-sounds.mjs';
 import { mapLeadMasterError } from '../src/leadmaster-error-mapper.mjs';
 
@@ -946,6 +947,7 @@ export default function App(){
             {assistantTab==='cleanup' && <div className="mt-3"><button disabled={busy} onClick={applyCleanup} className="px-4 py-2 rounded-full bg-[var(--text)] text-[var(--surface)] text-[13px] disabled:opacity-50">Archive eligible read messages</button>{cleanupApplied&&<span className="ml-3 text-[13px]">Archive requests processed</span>}</div>}
             {assistantTab==='priority' && <div className="space-y-2 mt-3">{allEmails.filter(e=>e.folder==='inbox'&&!deleted.has(e.id)).sort((a,b)=>Number(starred.has(b.id))-Number(starred.has(a.id))||Number(!readIds.has(b.id))-Number(!readIds.has(a.id))).slice(0,12).map(e=><button key={e.id} onClick={()=>openMessage(e.id)} className="w-full text-left border border-[var(--border)] rounded-xl p-3"><span className="font-medium">{starred.has(e.id)?'★ ':''}{e.sender}</span><span className="text-[13px] text-[var(--text-3)]"> · {e.subject}{readIds.has(e.id)?'':' · Unread'}</span></button>)}</div>}
           </div>
+          <AssistantAgent onPrepareEmail={(draft:AssistantPreparedEmail)=>{openCompose('new');setCompose({to:draft.to,cc:'',bcc:'',subject:draft.subject,body:draft.text,showCc:false});setStatus('AI prepared an unsent email. Review the recipient and content before sending.');}} />
         </div>
       )}
 
