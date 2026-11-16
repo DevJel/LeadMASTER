@@ -186,7 +186,7 @@ export default function UtilityApps({route}:{route:string|null}){
     const blob=new Blob([cleanHtml(html)],{type:'text/html;charset=utf-8'});const url=URL.createObjectURL(blob);const anchor=document.createElement('a');anchor.href=url;anchor.download='leadmaster-email-template.html';anchor.click();URL.revokeObjectURL(url);
   }
 
-  const nav=<div className="flex flex-wrap gap-2">{routeList.map(item=><a key={item} href={'/dashboard.html?app='+item} className={'rounded-full px-3 py-2 text-xs border '+(selected===item?'bg-[#222] text-white border-[#222]':'border-[#ddd] hover:bg-[#f5f5f5')}>{labels[item]}</a>)}</div>;
+  const nav=<div className="flex flex-wrap gap-2">{routeList.map(item=><a key={item} href={'/dashboard?app='+item} className={'rounded-full px-3 py-2 text-xs border '+(selected===item?'bg-[#222] text-white border-[#222]':'border-[#ddd] hover:bg-[#f5f5f5')}>{labels[item]}</a>)}</div>;
   const panel='rounded-2xl border border-[#e5e5e5] bg-white p-4 sm:p-5';
   const field='w-full rounded-xl border border-[#d9d9d9] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#555]';
   const action='rounded-full bg-[#222] px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50';
