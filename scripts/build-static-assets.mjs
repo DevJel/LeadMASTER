@@ -10,7 +10,7 @@ const tailwind = spawnSync("npx", [
   "tailwindcss@3.4.19",
   "-i", join(root, "required-componets-design", "index.css"),
   "-o", join(publicDir, "dashboard-app.css"),
-  "--config", join(root, "tailwind.config.js"),
+  "--config", join(root, "tailwind.config.cjs"),
   "--minify"
 ], { cwd: root, stdio: "inherit" });
 if (tailwind.status !== 0) throw new Error("Tailwind CSS compilation failed.");
