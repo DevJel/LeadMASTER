@@ -590,7 +590,7 @@ async function handle(request, env, ctx) {
   // Enforce the dashboard gate before API routing, static asset lookup or upstream proxying.
   // This also closes case, percent-encoding and trailing-slash variants of dashboard URLs.
   const dashboardRoute = routePath === "/dashboard" || routePath.startsWith("/dashboard/") || routePath.startsWith("/dashboard.");
-  const dashboardAssets = new Set(["/dashboard.js", "/dashboard.css", "/developer-api-keys.html", "/html-preview.js", "/html-preview.css", "/assets/vendor/dompurify.min.js"]);
+  const dashboardAssets = new Set(["/dashboard.js", "/dashboard.css", "/dashboard-app.js", "/dashboard-app.css", "/developer-api-keys.html", "/html-preview.js", "/html-preview.css", "/assets/vendor/dompurify.min.js"]);
   if (dashboardRoute || dashboardAssets.has(routePath)) {
     const session = await sessionFor(request, env);
     if (!session) return Response.redirect(new URL("/login.html", request.url), 302);
