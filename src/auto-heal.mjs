@@ -195,6 +195,10 @@ async function analyzeAndPropose(env, frame, stacktrace, sourceIssue, tokenValue
     candidate = typeof raw === "string" ? JSON.parse(raw) : raw;
   } catch { throw new Error("Workers AI did not return valid JSON."); }
   const patch = validateSurgicalPatch(candidate, frame, scoped.snippet, source);
+  const preflightFiles = [patch.target];
+  if (preflightFiles.length !== 1 || patch.changedLines > MAX_CHANGED_LINES || patch.changedLines > MAX_DIFF_LINES || isProtectedPath(patch.target)) {
+    throw new Error("Pre-branch gatekeeper rejected the candidate before any Git branch was created.");
+  }
   const errorHash = await sha256(frame.file + ":" + frame.line + ":" + safe(stacktrace, 8000));
   const branchName = "fix/auto-heal-" + errorHash.slice(0, 12);
   const ref = await githubRequest(token, "/repos/" + repo + "/git/ref/heads/main");
