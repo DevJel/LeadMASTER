@@ -6,17 +6,19 @@ import {resolve,sep,extname} from 'node:path';
 import {chromium} from 'playwright';
 const root=resolve('public'), id='12345678-1234-1234-1234-123456789abc';
 const inboundId='12345678-1234-1234-1234-123456789abb';
-const payload='<h2 style="color:rgb(42, 42, 42)">Example email</h2><p>Styled content</p><script>parent.document.body.dataset.compromised="yes"</script><img src="https://tracker.invalid/pixel" onerror="parent.document.body.dataset.compromised=1"><a href="https://tracker.invalid/">Link</a>';
+let trackerHits=0;
+const payload=base=>`<h2 style="color:rgb(42, 42, 42)">Example email</h2><p>Styled content</p><script>parent.document.body.dataset.compromised="yes"</script><img src="${base}/tracker" onerror="parent.document.body.dataset.compromised=1"><a href="${base}/tracker">Link</a>`;
 let failed=true;
 const server=createServer(async(req,res)=>{
  const u=new URL(req.url||'/', 'http://localhost');
+ if(u.pathname==='/tracker'){trackerHits++;res.writeHead(204);return res.end()}
  if(u.pathname.startsWith('/api/')){
   let value={}; let status=200;
   if(u.pathname==='/api/workspace/actions')value={data:{records:[]}};
   else if(u.pathname==='/api/admin/mail')value={items:u.searchParams.get('folder')==='sent'?[{id,recipient:'person@example.test',subject:'Example message',status:'accepted',queue_status:'complete',created_at:1700000000000},{id:'12345678-1234-1234-1234-123456789abd',recipient:'a@example.test',subject:'Unknown outcome',status:'unknown',queue_status:'complete',created_at:1700000000000},{id:'12345678-1234-1234-1234-123456789abe',recipient:'b@example.test',subject:'Failed message',status:'failed',queue_status:'complete',created_at:1700000000000},{id:'12345678-1234-1234-1234-123456789abf',recipient:'c@example.test',subject:'Queued message',status:'sending',queue_status:'queued',created_at:1700000000000}]:u.searchParams.get('folder')==='inbox'?[{id:inboundId,from_address:'sender@example.test',subject:'Incoming example',received_at:1700000000000,read_at:1,size_bytes:100}]:[]};
   else if(u.pathname===`/api/admin/mail/${inboundId}` && req.method==='GET')value={id:inboundId,from_address:'sender@example.test',text_body:'Incoming plain version',attachments:1,download_url:`/api/admin/mail/${inboundId}/source`};
   else if(u.pathname===`/api/admin/mail/${id}` && req.method==='GET'){
-   if(failed){failed=false;status=503;value={error:'unavailable'}}else value={id,sender:'sender@example.test',text_body:'Plain version',html_body:payload};
+   if(failed){failed=false;status=503;value={error:'unavailable'}}else value={id,sender:'sender@example.test',text_body:'Plain version',html_body:payload(`http://127.0.0.1:${server.address().port}`)};
   }
   res.writeHead(status,{'content-type':'application/json'});return res.end(JSON.stringify(value));
  }
@@ -29,7 +31,6 @@ try{
  browser=await chromium.launch({headless:true,...(process.env.LOCAL_CHROMIUM?{executablePath:process.env.LOCAL_CHROMIUM}:{}),args:['--no-sandbox']});
  const page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
  await page.addInitScript(()=>Object.defineProperty(document,'visibilityState',{get:()=> 'hidden'}));
- let remote=false;page.on('request',req=>{if(req.url().includes('tracker.invalid'))remote=true});
  await page.goto(`http://127.0.0.1:${server.address().port}/dashboard.html`);
  await page.getByRole('button',{name:'Sent',exact:true}).first().click();
  await page.getByText('Example message',{exact:true}).first().click();
@@ -48,7 +49,7 @@ try{
  assert.equal(await frame.locator('a').getAttribute('href'),null);
  await page.waitForTimeout(250);
  assert.equal(await page.locator('body').getAttribute('data-compromised'),null);
- assert.equal(remote,false,'remote content must not be requested');
+ assert.equal(trackerHits,0,'tracking content must not reach the server');
  await mkdir('docs/screenshots/generated',{recursive:true});
  await page.addStyleTag({content:'body::after{content:"LOCAL UI PREVIEW · SYNTHETIC MESSAGE";position:fixed;z-index:999999;bottom:12px;right:12px;background:#222;color:#fff;font:600 10px Arial;padding:8px;border-radius:5px}'});
  await page.screenshot({path:'docs/screenshots/generated/html-message-desktop.png'});
