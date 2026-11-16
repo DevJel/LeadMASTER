@@ -131,6 +131,29 @@ test("daily reporter creates a branded report and sends only to the configured a
   } finally { f.restore(); }
 });
 
+test("daily reporter uses in-process Worker probes instead of recursive network requests", async () => {
+  const f = createEnv();
+  const probed = [];
+  try {
+    f.env.REPORTER_INTERNAL_PROBE = async path => {
+      probed.push(path);
+      if (path === "/api/auth/config") return responseJson({ turnstileSiteKey: "0x4AAAAAAF6m40DGlxOgE2qB" });
+      if (path === "/api/auth/session") return responseJson({ authenticated: false });
+      if (path === "/dashboard") return new Response(null, { status: 302, headers: { location: "/login.html" } });
+      if (path === "/" || path === "/login.html") return new Response("ok", { status: 200 });
+      return new Response("Unauthorized", { status: 401 });
+    };
+    const result = await runDailyReporter(f.env, Date.UTC(2026, 10, 16, 9, 0, 0));
+    assert.equal(result.status, "sent");
+    const report = JSON.parse(f.db.state.run.report_json);
+    const appChecks = report.checks.filter(item => item.area === "App Functions");
+    assert.ok(appChecks.length >= 19);
+    assert.ok(appChecks.every(item => item.status === "Healthy"), JSON.stringify(appChecks.filter(item => item.status !== "Healthy")));
+    assert.ok(probed.includes("/api/auth/config"));
+    assert.equal(f.calls.size, 0, "the app's own hostname must not be fetched recursively from its Worker");
+  } finally { f.restore(); }
+});
+
 test("sample report uses a separate idempotency key and the same admin-only SES route", async () => {
   const f = createEnv();
   try {

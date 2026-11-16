@@ -99,9 +99,12 @@ async function retryProbe(run) {
 function addResult(checks, area, name, result, action = "", url = "") {
   checks.push(makeCheck(area, name, result.status || (result.ok ? "Healthy" : "Needs Attention"), result.detail, action, url));
 }
-async function checkHttpRoute(url, expectedStatus, name) {
+async function checkHttpRoute(url, expectedStatus, name, internalProbe) {
   const result = await retryProbe(async () => {
-    const response = await fetchResponse(url, { method: "GET", headers: { "accept": "application/json,text/html" } });
+    const parsed = new URL(url);
+    const response = typeof internalProbe === "function"
+      ? await internalProbe(parsed.pathname + parsed.search)
+      : await fetchResponse(url, { method: "GET", headers: { "accept": "application/json,text/html" } });
     const ok = response.status === expectedStatus;
     const location = response.headers.get("location") || "";
     const detail = name === "Protected dashboard gate"
@@ -145,8 +148,9 @@ async function checkApplication(env, checks) {
     ["/api/account/profile", 401, "Admin profile authorization"],
     ["/api/developer/keys", 401, "Developer key authorization"]
   ];
+  const internalProbe = typeof env.REPORTER_INTERNAL_PROBE === "function" ? env.REPORTER_INTERNAL_PROBE : null;
   const routeResults = await Promise.all(routeSpecs.map(async ([path, expected, name]) => ({
-    path, expected, name, result: await checkHttpRoute(base + path, expected, name)
+    path, expected, name, result: await checkHttpRoute(base + path, expected, name, internalProbe)
   })));
   for (const item of routeResults) {
     const action = item.result.ok ? "" : "Inspect the deployed route, authentication middleware and Worker logs; do not weaken the expected authorization response.";
@@ -155,7 +159,15 @@ async function checkApplication(env, checks) {
   const auth = routeResults.find(x => x.path === "/api/auth/config");
   if (auth?.result.ok) {
     const data = await retryProbe(async () => {
-      const { response, body } = await fetchJson(base + "/api/auth/config", { headers: { accept: "application/json" } });
+      let response, body;
+      if (internalProbe) {
+        response = await internalProbe("/api/auth/config");
+        body = await response.json().catch(() => null);
+      } else {
+        const result = await fetchJson(base + "/api/auth/config", { headers: { accept: "application/json" } });
+        response = result.response;
+        body = result.body;
+      }
       const ok = response.status === 200 && typeof body?.turnstileSiteKey === "string" && body.turnstileSiteKey.length > 10;
       return { ok, detail: ok ? "Turnstile public configuration is present; the secret key is never read or included in the report." : "Authentication configuration is missing the expected public Turnstile site key." };
     });

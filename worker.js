@@ -582,6 +582,18 @@ async function adminSendRoute(request,env,session){
  return json({batch_id:batchId,queued:ids.length,skipped:recipients.length-ids.length,status:"queued",message:"Your messages are queued. Queue acceptance does not mean delivery."},202);
 }
 
+function reporterEnvironment(env, ctx) {
+  const base = String(env.REPORTER_APP_URL || "https://leadmaster.jelvan.space");
+  return {
+    ...env,
+    REPORTER_INTERNAL_PROBE: async path => {
+      const target = new URL(path, base);
+      const request = new Request(target, { method: "GET", headers: { accept: "application/json,text/html" } });
+      return handle(request, env, ctx);
+    }
+  };
+}
+
 async function handle(request, env, ctx) {
   const url = new URL(request.url);
   let decodedPath;
@@ -614,11 +626,11 @@ async function handle(request, env, ctx) {
     let event;
     try { event = JSON.parse(raw); } catch { return json({ error: "Invalid incident payload" }, 400); }
     if (event.event_type === "sample") {
-      const sample = await runDailyReporter(env, Date.now(), { sample: true, sampleId: String(event.event_id || crypto.randomUUID()) });
+      const sample = await runDailyReporter(reporterEnvironment(env, ctx), Date.now(), { sample: true, sampleId: String(event.event_id || crypto.randomUUID()) });
       return json({ sample: true, report: sample }, sample.status === "sent" ? 200 : 503);
     }
     const result = await processAutoHealEvent(env, event);
-    const report = await runDailyReporter(env, Date.now(), {
+    const report = await runDailyReporter(reporterEnvironment(env, ctx), Date.now(), {
       incidentId: result.errorHash || crypto.randomUUID(),
       incident: {
         status: result.status,
@@ -654,7 +666,7 @@ async function handle(request, env, ctx) {
     if (!adminSession) return json({ error: "Unauthorized" }, 401);
     if (adminSession.email !== await configuredAdminEmail(env)) return json({ error: "Forbidden" }, 403);
     if (request.method !== "POST" || !sameOrigin(request)) return json({ error: "Invalid request" }, 403);
-    const result = await runDailyReporter(env, Date.now(), { manual: true });
+    const result = await runDailyReporter(reporterEnvironment(env, ctx), Date.now(), { manual: true });
     return json(result, result.status === "sent" || result.skipped ? 200 : 503);
   }
 
@@ -662,7 +674,7 @@ async function handle(request, env, ctx) {
     if (!adminSession) return json({ error: "Unauthorized" }, 401);
     if (adminSession.email !== await configuredAdminEmail(env)) return json({ error: "Forbidden" }, 403);
     if (request.method !== "POST" || !sameOrigin(request)) return json({ error: "Invalid request" }, 403);
-    const result = await runDailyReporter(env, Date.now(), { sample: true, sampleId: crypto.randomUUID() });
+    const result = await runDailyReporter(reporterEnvironment(env, ctx), Date.now(), { sample: true, sampleId: crypto.randomUUID() });
     return json(result, result.status === "sent" ? 200 : 503);
   }
 
@@ -750,7 +762,7 @@ export default {
     }
   },
   async scheduled(controller, env, ctx) {
-    ctx.waitUntil(runDailyReporter(env, controller.scheduledTime).then(result => {
+    ctx.waitUntil(runDailyReporter(reporterEnvironment(env, ctx), controller.scheduledTime).then(result => {
       console.log(JSON.stringify({ event: "leadmaster_daily_reporter_completed", reportDate: result.reportDate, status: result.status || (result.skipped ? "skipped" : "unknown"), checks: result.summary?.total || 0 }));
     }).catch(error => {
       console.error(JSON.stringify({ event: "leadmaster_daily_reporter_failed", error: String(error?.message || error).slice(0, 500) }));
