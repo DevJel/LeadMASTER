@@ -1,4 +1,3 @@
-import './sending-indicator.css';
 
 /** The caller must derive this state from the request or authoritative server data. */
 export type SendingPhase = 'submitting' | 'queued' | 'sending' | 'accepted' | 'failed' | 'unknown';

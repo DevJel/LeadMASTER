@@ -71,14 +71,25 @@ function sameOrigin(request) {
   const origin = request.headers.get("Origin");
   return origin === new URL(request.url).origin;
 }
-async function readJson(request) {
+async function readJson(request, maxBytes = 12000) {
   if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get("content-type") || "")) throw new Error("bad-content-type");
   const raw = await request.text();
-  if (enc.encode(raw).length > 12000) throw new Error("too-large");
+  if (enc.encode(raw).length > maxBytes) throw new Error("too-large");
   const body = JSON.parse(raw);
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("bad-body");
   return body;
 }
+
+function sanitizeGeneratedEmailHtml(value) {
+  return String(value || "")
+    .replace(/<!--[\\s\\S]*?-->/g, "")
+    .replace(/<(script|iframe|object|embed|form|meta|link|base)\b[\s\S]*?<\/\1\s*>/gi, "")
+    .replace(/<(script|iframe|object|embed|form|meta|link|base)\b[^>]*\/?\s*>/gi, "")
+    .replace(/\s(?:on[a-z]+|srcdoc|formaction)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/(href|src|xlink:href)\s*=\s*(["'])\s*javascript:[\s\S]*?\2/gi, '$1="#"')
+    .slice(0, 24000);
+}
+
 async function verifyLoginTurnstile(token, env, action) {
   return verifyTurnstile({
     token,
@@ -644,6 +655,39 @@ async function handle(request, env, ctx) {
   }
 
     const adminSession=await sessionFor(request,env);
+  if (url.pathname === "/api/admin/email-html/assistant") {
+    if (!adminSession) return json({ errorCode: "LM-USR-1002", error: "Your session has expired. Sign in again." }, 401);
+    if (adminSession.email !== await configuredAdminEmail(env)) return json({ errorCode: "LM-USR-1007", error: "You do not have access to this action. Ask your workspace administrator to review your role." }, 403);
+    if (request.method !== "POST" || !sameOrigin(request)) return json({ errorCode: "LM-USR-2005", error: "We could not complete the connection. Try again in a moment." }, 403);
+    let input;
+    try { input = await readJson(request, 16000); } catch { return json({ errorCode: "LM-USR-3001", error: "Complete the required details and try again." }, 400); }
+    const prompt = typeof input.prompt === "string" ? input.prompt.trim() : "";
+    const currentHtml = typeof input.html === "string" ? input.html.slice(0, 12000) : "";
+    const subject = typeof input.subject === "string" ? input.subject.slice(0, 240) : "";
+    if (!prompt || prompt.length > 3000) return json({ errorCode: "LM-USR-3001", error: "Add a short description of the email you want to create." }, 400);
+    if (!env.AI || typeof env.AI.run !== "function") return json({ errorCode: "342322", error: "We couldn't complete this action due to a system issue (Error 342322). Please contact the LeadMASTER support team for further assistance at cs@leadmaster.jelvan.space." }, 503);
+    const requestId = crypto.randomUUID();
+    try {
+      const output = await env.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast", {
+        messages: [
+          { role: "system", content: "You design accessible, responsive email HTML. Return only valid JSON with keys subject, html, notes. Produce a complete email fragment using semantic, email-client-friendly tables and inline styles. Do not include script, form, iframe, object, embedded media, external stylesheets, tracking pixels, or event handlers. Keep CSS inline. Do not invent customer names, addresses, offers, links or facts. Preserve the supplied draft's factual meaning unless the user requests a change." },
+          { role: "user", content: JSON.stringify({ task: prompt, current_subject: subject, current_html: currentHtml }) }
+        ],
+        response_format: { type: "json_object" }
+      });
+      const raw = typeof output === "string" ? output : output?.response;
+      let result = typeof raw === "string" ? JSON.parse(raw) : raw;
+      if (typeof result === "string") result = JSON.parse(result);
+      const generatedHtml = sanitizeGeneratedEmailHtml(result?.html);
+      const generatedSubject = String(result?.subject || subject || "Email update").slice(0, 240);
+      if (!generatedHtml || generatedHtml.length < 8) throw new Error("invalid model output");
+      return json({ subject: generatedSubject, html: generatedHtml, notes: String(result?.notes || "").slice(0, 1200) });
+    } catch (error) {
+      console.error("LEADMASTER_EMAIL_HTML_ASSISTANT_FAILED", JSON.stringify({ requestId, reason: String(error?.message || "unknown").slice(0, 240) }));
+      return json({ errorCode: "342322", error: "We couldn't complete this action due to a system issue (Error 342322). Please contact the LeadMASTER support team for further assistance at cs@leadmaster.jelvan.space." }, 503);
+    }
+  }
+
   const aiSuggest=url.pathname.match(/^\/api\/admin\/mail\/([0-9a-f-]{36})\/suggest$/i);
   if (aiSuggest) return adminAiSuggestRoute(request,env,adminSession,aiSuggest[1]);
   if (url.pathname === "/api/admin/mail" || url.pathname.startsWith("/api/admin/mail/") || url.pathname === "/api/admin/unsubscribes") return adminMailboxRoute(request,env,adminSession);
@@ -757,8 +801,10 @@ export default {
         if (p.startsWith("/api/auth/") || p.startsWith("/dashboard")) return json({ error: "Authentication service is not configured" }, 503);
       }
       return await handle(request, env, ctx);
-    } catch {
-      return json({ error: "Service temporarily unavailable" }, 503);
+    } catch (error) {
+      const requestId = crypto.randomUUID();
+      console.error("LEADMASTER_UNHANDLED_SYSTEM_ERROR", JSON.stringify({ requestId, reason: String(error?.message || "unknown").slice(0, 300) }));
+      return json({ errorCode: "342322", error: "We couldn't complete this action due to a system issue (Error 342322). Please contact the LeadMASTER support team for further assistance at cs@leadmaster.jelvan.space." }, 503);
     }
   },
   async scheduled(controller, env, ctx) {

@@ -1,0 +1,22 @@
+.lm-confirm-overlay{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.46);backdrop-filter:blur(4px);animation:lm-confirm-fade .18s ease both}
+.lm-confirm-modal{position:relative;width:100%;max-width:410px;padding:28px 24px 22px;border:1px solid #e5e5e5;border-radius:20px;background:#fff;color:#222;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.22);animation:lm-confirm-pop .25s cubic-bezier(.2,1.2,.4,1) both}
+.lm-confirm-modal:before{content:"";position:absolute;top:0;left:0;width:100%;height:4px;border-radius:20px 20px 0 0;background:#222}
+.lm-confirm-close{position:absolute;top:13px;right:13px;width:30px;height:30px;border:1px solid #e5e5e5;border-radius:50%;background:#fff;color:#222;font-size:18px;cursor:pointer}
+.lm-confirm-close:disabled{opacity:.45}
+.lm-confirm-icon{display:grid;place-items:center;width:70px;height:70px;margin:7px auto 15px;border:1.8px solid #222;border-radius:50%;position:relative}
+.lm-confirm-icon:after{content:"";position:absolute;inset:-7px;border:1px dashed #555;border-radius:50%;animation:lm-confirm-ring 2s ease-out infinite}
+.lm-confirm-trash{animation:lm-confirm-shake 2.4s ease-in-out infinite;transform-origin:50% 0}
+.lm-confirm-title{margin:0;font:700 19px/1.35 system-ui,-apple-system,Segoe UI,sans-serif}
+.lm-confirm-message{margin:9px 0 0;color:#666;font:400 13px/1.6 system-ui,-apple-system,Segoe UI,sans-serif}
+.lm-confirm-item{display:flex;align-items:center;gap:10px;max-width:310px;margin:16px auto 0;padding:10px 12px;border:1px solid #e5e5e5;border-radius:12px;background:#fafafa;text-align:left;color:#333;font-size:13px;overflow-wrap:anywhere}
+.lm-confirm-item-icon{display:grid;place-items:center;flex:none;width:30px;height:30px;border-radius:50%;background:#222;color:#fff;font-weight:700}
+.lm-confirm-actions{display:flex;gap:10px;margin-top:21px}
+.lm-confirm-cancel,.lm-confirm-accept{flex:1;min-height:44px;padding:11px 12px;border:1.6px solid #222;border-radius:999px;font:600 13px system-ui;cursor:pointer}
+.lm-confirm-cancel{background:#fff;color:#222}.lm-confirm-accept{background:#222;color:#fff}
+.lm-confirm-cancel:disabled,.lm-confirm-accept:disabled{opacity:.55;cursor:wait}
+.lm-confirm-note{margin:12px 0 0;color:#9a9a9a;font-size:11px;line-height:1.45}
+@keyframes lm-confirm-fade{from{opacity:0}to{opacity:1}}
+@keyframes lm-confirm-pop{from{transform:scale(.94) translateY(7px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+@keyframes lm-confirm-ring{0%{transform:scale(.86);opacity:.65}100%{transform:scale(1.14);opacity:0}}
+@keyframes lm-confirm-shake{0%,90%,100%{transform:rotate(0)}92%{transform:rotate(-5deg)}94%{transform:rotate(4deg)}96%{transform:rotate(-2deg)}98%{transform:rotate(1deg)}}
+@media(prefers-reduced-motion:reduce){.lm-confirm-overlay,.lm-confirm-modal,.lm-confirm-icon:after,.lm-confirm-trash{animation:none!important}}
