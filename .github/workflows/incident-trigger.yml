@@ -1,0 +1,110 @@
+name: LeadMASTER Incident Trigger
+
+on:
+  workflow_run:
+    workflows: ["LeadMASTER CI"]
+    types: [completed]
+  issues:
+    types: [opened, labeled]
+  workflow_dispatch:
+    inputs:
+      send_sample:
+        description: Send one branded sample report to the configured primary administrator
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+  issues: read
+
+jobs:
+  notify-worker:
+    if: >-
+      github.event_name == 'workflow_run' ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' &&
+        (contains(toJSON(github.event.issue.labels), 'bug') ||
+         contains(toJSON(github.event.issue.labels), 'incident') ||
+         contains(toJSON(github.event.issue.labels), 'production')))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract the failed workflow stack trace
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --log-failed > /tmp/failed.log 2>/dev/null || true
+          python3 - <<'PY'
+          import re
+          text = open("/tmp/failed.log", errors="replace").read()
+          lines = text.splitlines()
+          hits = [i for i, line in enumerate(lines) if re.search(r'(?:Error:|Exception|\bat\s+.*:\d+:\d+|\.m?js:\d+:\d+|\.tsx?:\d+:\d+)', line)]
+          selected = set()
+          for i in hits[-20:]:
+              selected.update(range(max(0, i-2), min(len(lines), i+8)))
+          out = "\n".join(lines[i] for i in sorted(selected))[-8000:]
+          open("/tmp/stacktrace.txt", "w").write(out)
+          PY
+
+      - name: Send verified incident to LeadMASTER Worker
+        env:
+          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_ID: ${{ github.run_id }}-${{ github.run_attempt }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          SEND_SAMPLE: ${{ inputs.send_sample }}
+          WORKER_URL: https://leadmaster.jelvan.space/api/auto-heal/trigger
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const endpoint = new URL(process.env.ACTIONS_ID_TOKEN_REQUEST_URL);
+          endpoint.searchParams.set("audience", "leadmaster-auto-heal");
+          const oidcResponse = await fetch(endpoint, { headers: { authorization: "Bearer " + process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN } });
+          if (!oidcResponse.ok) throw new Error("Could not obtain GitHub Actions OIDC token");
+          const oidc = (await oidcResponse.json()).value;
+          let event;
+          if (process.env.SEND_SAMPLE === "true") {
+            event = { event_type: "sample", event_id: process.env.EVENT_ID };
+          } else if (process.env.EVENT_NAME === "workflow_run") {
+            let stacktrace = "";
+            try { stacktrace = readFileSync("/tmp/stacktrace.txt", "utf8"); } catch {}
+            event = {
+              event_type: "workflow_failure",
+              event_id: process.env.RUN_ID || process.env.EVENT_ID,
+              title: "LeadMASTER CI failed",
+              stacktrace,
+              issue_body: "",
+              run_url: process.env.RUN_URL,
+              conclusion: process.env.RUN_CONCLUSION
+            };
+          } else {
+            event = {
+              event_type: "issue_opened",
+              event_id: process.env.EVENT_ID,
+              title: process.env.ISSUE_TITLE || "LeadMASTER issue",
+              issue_body: process.env.ISSUE_BODY || "",
+              issue_url: process.env.ISSUE_URL || ""
+            };
+          }
+          event.github_token = process.env.GITHUB_TOKEN;
+          const response = await fetch(process.env.WORKER_URL, {
+            method: "POST",
+            headers: { authorization: "Bearer " + oidc, "content-type": "application/json" },
+            body: JSON.stringify(event)
+          });
+          const result = await response.text();
+          console.log(result.slice(0, 6000));
+          if (!response.ok) throw new Error("LeadMASTER incident worker returned HTTP " + response.status);
+          NODE
