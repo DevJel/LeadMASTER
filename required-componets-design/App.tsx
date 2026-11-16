@@ -232,7 +232,7 @@ const CANNED_RESPONSES = [
   {name:'Following up', body:'Hi,\n\nJust following up on my last note — happy to help if you have questions.\n\nBest,\nAlex'},
   {name:'Book a call', body:'Hi,\n\nWould a 20-minute call on Tuesday or Wednesday morning work for you?\n\nBest,\nAlex'},
 ];
-function sanitizeHtml(html:string){ return html.replace(/<script[\s\S]*?<\/script>/gi,''); }
+function sanitizeHtml(html:string){ const purifier=(window as any).DOMPurify; if(purifier && typeof purifier.sanitize==='function') return purifier.sanitize(html,{USE_PROFILES:{html:true},FORBID_TAGS:['script','style','iframe','object','embed','form','meta','link'],FORBID_ATTR:['srcdoc'],ALLOW_DATA_ATTR:false}); return html.replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'} as Record<string,string>)[ch]); }
 function isValidRecipientChip(v:string){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
 function containsHtml(s:string){ return /<[a-z][\s\S]*>/i.test(s); }
 function initialsFor(name:string){ return name.split(' ').filter(Boolean).slice(0,2).map(s=>s[0]).join('').toUpperCase() || '—'; }
