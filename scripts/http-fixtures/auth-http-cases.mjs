@@ -56,3 +56,62 @@ test('failed session persistence rolls back OTP consumption so the valid code is
 test('explicit logout revokes the persistent session and clears its cookie',async()=>{const {env,sql}=setup();await session(sql,'persistent');const r=await call(env,'/api/auth/logout',{token:'persistent',method:'POST',body:{}});assert.equal(r.status,200);assert.match(r.headers.get('set-cookie')||'',/Max-Age=0/);assert.equal((await call(env,'/api/admin/mail',{token:'persistent'})).status,401);const row=sql.prepare('SELECT revoked_at FROM auth_sessions').get();assert.ok(row.revoked_at)});
 
 test('session restore renews the persistent server session and HttpOnly cookie',async()=>{const {env,sql}=setup();await session(sql,'remember-me');const before=sql.prepare('SELECT expires_at FROM auth_sessions').get().expires_at;const r=await call(env,'/api/auth/session',{token:'remember-me'});assert.equal(r.status,200);const body=await r.json();assert.equal(body.authenticated,true);const after=sql.prepare('SELECT expires_at FROM auth_sessions').get().expires_at;assert.ok(after>before+1000*60*60*24*179);assert.match(r.headers.get('set-cookie')||'',/Max-Age=15552000/);assert.match(r.headers.get('set-cookie')||'',/HttpOnly; Secure; SameSite=Strict/)});
+
+test('a generated verification code is identical in delivery and accepted by the real verification route',async()=>{
+ const {env,sql}=setup();const delivered=[];const originalFetch=globalThis.fetch;
+ const {EmailDispatchCore}=await import('../../src/email-queue-core.mjs');
+ class Storage{constructor(){this.data=new Map()}async get(k){return this.data.get(k)}async put(k,v){this.data.set(k,v)}async transaction(fn){return fn(this)}}
+ const core=new EmailDispatchCore({storage:new Storage(),send:async job=>{delivered.push(job);return {status:'accepted'}}});
+ env.EMAIL_COORDINATOR={idFromName:()=> 'synthetic',get:()=>({fetch:async(_url,init)=>{try{return Response.json(await core.dispatch(JSON.parse(init.body)))}catch{return Response.json({status:'invalid_request'},{status:400})}}})};
+ // This synthetic fixture does not contact, open, or solve a real human challenge.
+ globalThis.fetch=async url=>String(url)==='https://challenges.cloudflare.com/turnstile/v0/siteverify'?Response.json({success:true,hostname:'leadmaster.jelvan.space',action:'login'}):new Response('SYNTHETIC UPSTREAM',{status:404});
+ try{
+  const start=await call(env,'/api/auth/login',{method:'POST',body:{identity:email,password:'synthetic',turnstileToken:'synthetic'}});
+  assert.equal(start.status,200);assert.equal((await start.json()).next,'verify_email');assert.equal(delivered.length,1);
+  const match=delivered[0].text.match(/verification code is (\d{6})\./);assert.ok(match);const code=match[1];
+  assert.ok(delivered[0].html.includes('>'+code+'</div>'));assert.ok(delivered[0].html.includes('>'+code+'</strong>'));
+  assert.notEqual(sql.prepare('SELECT code_hash FROM auth_challenges').get().code_hash,code);
+  // Once delivery occurred, verification must not require sender or password bindings.
+  for(const k of ['SES_SMTP_HOST','SES_SMTP_USERNAME','SES_SMTP_PASSWORD','SES_FROM_EMAIL','ADMIN_PASSWORD','TURNSTILE_SITE_KEY','TURNSTILE_SECRET'])delete env[k];
+  const background=[];const result=await call(env,'/api/auth/verify',{method:'POST',body:{code},ctx:{waitUntil(p){background.push(p)}}});
+  assert.equal(result.status,200);assert.equal((await result.json()).authenticated,true);
+  const token=(result.headers.get('set-cookie')||'').match(/lm_session=([^;]+)/)?.[1];assert.ok(token);
+  assert.equal((await call(env,'/dashboard',{token})).status,200);
+  assert.equal((await call(env,'/api/auth/verify',{method:'POST',body:{code}})).status,401);
+  await Promise.allSettled(background);
+ }finally{globalThis.fetch=originalFetch}
+});
+
+test('an unconfirmed fallback write keeps the code claimed and cannot reset attempts',async()=>{
+ const {env,sql}=setup();await seedOtp(sql);sql.exec('UPDATE auth_challenges SET attempts=4');
+ env.AUTH_DB.batch=async()=>{throw Error('synthetic batch failure')};
+ sql.exec("CREATE TRIGGER fail_auth_session BEFORE INSERT ON auth_sessions BEGIN SELECT RAISE(ABORT,'synthetic session write failure'); END");
+ assert.equal((await call(env,'/api/auth/verify',{method:'POST',body:{code:'123456'}})).status,503);
+ assert.equal(sql.prepare('SELECT attempts FROM auth_challenges').get().attempts,9);
+ assert.equal((await call(env,'/api/auth/verify',{method:'POST',body:{code:'000000'}})).status,429);
+ assert.equal((await call(env,'/api/auth/verify',{method:'POST',body:{code:'123456'}})).status,429);
+});
+
+test('leading-zero code is accepted once, while expired and incorrect codes are rejected',async()=>{
+ const {env,sql}=setup();await seedOtp(sql,'012345');
+ const invalid=await call(env,'/api/auth/verify',{method:'POST',body:{code:'012346'}});assert.equal(invalid.status,401);
+ assert.equal(sql.prepare('SELECT attempts FROM auth_challenges').get().attempts,1);
+ assert.equal((await call(env,'/api/auth/verify',{method:'POST',body:{code:'012345'}})).status,200);
+ assert.equal((await call(env,'/api/auth/verify',{method:'POST',body:{code:'012345'}})).status,401);
+ await seedOtp(sql,'000001');sql.exec('UPDATE auth_challenges SET expires_at=0');
+ assert.equal((await call(env,'/api/auth/verify',{method:'POST',body:{code:'000001'}})).status,401);
+});
+
+test('verification fails closed when required authentication dependencies are absent',async()=>{
+ for(const key of ['AUTH_DB','ADMIN_EMAIL','SESSION_SECRET']){const {env}=setup();delete env[key];const r=await call(env,'/api/auth/verify',{method:'POST',body:{code:'123456'}});assert.equal(r.status,503,key)}
+});
+
+test('a fallback write with a lost response cannot replay an already committed session',async()=>{
+ const {env,sql}=setup();await seedOtp(sql);env.AUTH_DB.batch=async()=>{throw Error('synthetic batch failure')};
+ const prepare=env.AUTH_DB.prepare.bind(env.AUTH_DB);
+ env.AUTH_DB.prepare=query=>{const stmt=prepare(query);if(!query.startsWith('INSERT INTO auth_sessions'))return stmt;const bind=stmt.bind.bind(stmt);stmt.bind=(...params)=>{bind(...params);const run=stmt.run.bind(stmt);stmt.run=async()=>{await run();throw Error('synthetic lost response')};return stmt};return stmt};
+ assert.equal((await call(env,'/api/auth/verify',{method:'POST',body:{code:'123456'}})).status,503);
+ assert.equal(sql.prepare('SELECT count(*) n FROM auth_sessions').get().n,1);
+ assert.equal((await call(env,'/api/auth/verify',{method:'POST',body:{code:'123456'}})).status,429);
+ assert.equal(sql.prepare('SELECT count(*) n FROM auth_sessions').get().n,1);
+});

@@ -274,19 +274,19 @@ async function verifyOtp(request, env, ctx) {
       env.AUTH_DB.prepare("DELETE FROM auth_challenges WHERE id=? AND code_hash=? AND attempts<5 AND expires_at>?")
         .bind(row.id, row.code_hash, now)
     ]);
-  } catch (batchError) {
+  } catch {
     // Some production D1 runtime failures can reject batch() even when individual
     // prepared statements remain available. Claim the OTP first so this fallback
     // still prevents concurrent replay, then create the session and remove it.
-    console.error("OTP_SESSION_BATCH_FAILED", String(batchError?.message || batchError).slice(0, 300));
+    console.error("OTP_SESSION_BATCH_FAILED");
     let claimed;
     try {
       claimed = await env.AUTH_DB.prepare(
-        "UPDATE auth_challenges SET attempts=5 WHERE id=? AND code_hash=? AND attempts<5 AND expires_at>?"
+        "UPDATE auth_challenges SET attempts=attempts+5 WHERE id=? AND code_hash=? AND attempts>=0 AND attempts<5 AND expires_at>?"
       ).bind(row.id, row.code_hash, now).run();
-    } catch (claimError) {
-      console.error("OTP_SESSION_FALLBACK_CLAIM_FAILED", String(claimError?.message || claimError).slice(0, 300));
-      return json({ error: "We could not complete sign-in. Your code is still available; please retry." }, 503);
+    } catch {
+      console.error("OTP_SESSION_FALLBACK_CLAIM_UNCONFIRMED");
+      return json({ error: "We could not confirm sign-in. Return to sign in and request a new code." }, 503);
     }
     if ((claimed?.meta?.changes || 0) !== 1) {
       return json({ error: "This code is no longer active. Request a new sign-in code and use the latest email." }, 401);
@@ -294,28 +294,25 @@ async function verifyOtp(request, env, ctx) {
     let fallbackSession;
     try {
       fallbackSession = await env.AUTH_DB.prepare(
-        "INSERT INTO auth_sessions (token_hash,email,created_at,expires_at,revoked_at) SELECT ?,?,?,?,NULL WHERE EXISTS (SELECT 1 FROM auth_challenges WHERE id=? AND code_hash=? AND attempts=5 AND expires_at>?)"
+        "INSERT INTO auth_sessions (token_hash,email,created_at,expires_at,revoked_at) SELECT ?,?,?,?,NULL WHERE EXISTS (SELECT 1 FROM auth_challenges WHERE id=? AND code_hash=? AND attempts>=5 AND attempts<10 AND expires_at>?)"
       ).bind(tokenHash, adminEmail, now, expires, row.id, row.code_hash, now).run();
-    } catch (sessionError) {
-      try {
-        await env.AUTH_DB.prepare("UPDATE auth_challenges SET attempts=0 WHERE id=? AND code_hash=? AND attempts=5").bind(row.id, row.code_hash).run();
-      } catch (restoreError) {
-        console.error("OTP_SESSION_FALLBACK_RESTORE_FAILED", String(restoreError?.message || restoreError).slice(0, 300));
-      }
-      console.error("OTP_SESSION_FALLBACK_INSERT_FAILED", String(sessionError?.message || sessionError).slice(0, 300));
-      return json({ error: "We could not complete sign-in. Your code is still available; please retry." }, 503);
+    } catch {
+      // The write may have committed despite a lost response. Keep the challenge
+      // claimed: unlocking it could create a second session for the same code.
+      console.error("OTP_SESSION_FALLBACK_INSERT_UNCONFIRMED");
+      return json({ error: "We could not confirm sign-in. Return to sign in and request a new code." }, 503);
     }
     if ((fallbackSession?.meta?.changes || 0) !== 1) {
       try {
-        await env.AUTH_DB.prepare("UPDATE auth_challenges SET attempts=0 WHERE id=? AND code_hash=? AND attempts=5").bind(row.id, row.code_hash).run();
+        await env.AUTH_DB.prepare("UPDATE auth_challenges SET attempts=attempts-5 WHERE id=? AND code_hash=? AND attempts>=5 AND attempts<10").bind(row.id, row.code_hash).run();
       } catch {}
       return json({ error: "This code is no longer active. Request a new sign-in code and use the latest email." }, 401);
     }
-    // attempts=5 already consumes the code if this cleanup encounters a transient error.
+    // The claimed attempt count already consumes the code if cleanup fails.
     try {
-      await env.AUTH_DB.prepare("DELETE FROM auth_challenges WHERE id=? AND code_hash=? AND attempts=5").bind(row.id, row.code_hash).run();
-    } catch (cleanupError) {
-      console.error("OTP_SESSION_FALLBACK_CLEANUP_FAILED", String(cleanupError?.message || cleanupError).slice(0, 300));
+      await env.AUTH_DB.prepare("DELETE FROM auth_challenges WHERE id=? AND code_hash=? AND attempts>=5 AND attempts<10").bind(row.id, row.code_hash).run();
+    } catch {
+      console.error("OTP_SESSION_FALLBACK_CLEANUP_FAILED");
     }
     authCommit = [{ meta: { changes: 1 } }, { meta: { changes: 1 } }];
   }
@@ -809,10 +806,17 @@ async function handle(request, env, ctx) {
 export default {
   async fetch(request, env, ctx) {
     try {
-      if (!env.AUTH_DB || !env.ADMIN_EMAIL || !env.ADMIN_PASSWORD || !env.SESSION_SECRET || !env.TURNSTILE_SITE_KEY || !env.TURNSTILE_SECRET || !env.SES_SMTP_HOST || !env.SES_SMTP_USERNAME || !env.SES_SMTP_PASSWORD || !env.SES_FROM_EMAIL) {
-        // Public pages remain available while auth fails closed.
-        const p = new URL(request.url).pathname.toLowerCase();
-        if (p.startsWith("/api/auth/") || p.startsWith("/dashboard")) return json({ error: "Authentication service is not configured" }, 503);
+      // Verification and an existing session do not depend on the mail sender or
+      // the password/security-check configuration. A sender outage must not block
+      // a code already delivered, or block access after its session is issued.
+      const p = new URL(request.url).pathname.toLowerCase();
+      const verificationOrSession = p === "/api/auth/verify" || p === "/api/auth/session" || p === "/api/auth/logout" || p.startsWith("/dashboard");
+      const baseAuthMissing = !env.AUTH_DB || !env.ADMIN_EMAIL;
+      const verificationMissing = p === "/api/auth/verify" && !env.SESSION_SECRET;
+      const loginConfigurationMissing = !env.AUTH_DB || !env.ADMIN_EMAIL || !env.ADMIN_PASSWORD || !env.SESSION_SECRET || !env.TURNSTILE_SITE_KEY || !env.TURNSTILE_SECRET || !env.SES_SMTP_HOST || !env.SES_SMTP_USERNAME || !env.SES_SMTP_PASSWORD || !env.SES_FROM_EMAIL;
+      if ((verificationOrSession && (baseAuthMissing || verificationMissing)) ||
+          (!verificationOrSession && p.startsWith("/api/auth/") && loginConfigurationMissing)) {
+        return json({ error: "Authentication service is not configured" }, 503);
       }
       return await handle(request, env, ctx);
     } catch (error) {
