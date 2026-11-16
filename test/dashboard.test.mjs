@@ -45,12 +45,13 @@ test('mailbox actions use authoritative API operations instead of local-only sta
  assert.match(app, /\/api\/admin\/mail\/.*\/suggest/);
 });
 
-test('dashboard JavaScript and CSS are included in the authenticated asset gate', async () => {
- const worker = await read('../worker.js');
- assert.match(worker, /"\/dashboard-app\.js"/);
- assert.match(worker, /"\/dashboard-app\.css"/);
- assert.match(worker, /Enforce the dashboard gate before API routing/);
- assert.match(worker, /if \(!session\) return Response\.redirect/);
+test('dashboard JavaScript and CSS remain protected by the clean page route gate', async () => {
+ const [worker, routes] = await Promise.all([read('../worker.js'), read('../src/page-routes.mjs')]);
+ assert.match(routes, /"\\/dashboard-app\\.js"/);
+ assert.match(routes, /"\\/dashboard-app\\.css"/);
+ assert.match(worker, /resolvePageRoute\\(routePath\\)/);
+ assert.match(worker, /if \\(pageRoute\\.requiresSession\\)/);
+ assert.match(worker, /isProtectedPageAsset\\(routePath\\)/);
 });
 
 test('design CSS retains the monochrome palette and responsive workspace layout', async () => {
@@ -63,7 +64,9 @@ test('design CSS retains the monochrome palette and responsive workspace layout'
  assert.match(app, /<aside/);
  assert.match(app, /<main/);
  assert.match(app, /md:hidden/);
- assert.match(app, /rightPanel/);
+ assert.doesNotMatch(app, /rightPanel/);
+ assert.match(css, /html,body,#root\\{height:100%;min-height:0;overflow:hidden\\}/);
+ assert.match(css, /\\.lm-main-scroll\\{height:100%;min-height:0;overflow-y:auto/);
 });
 
 test('Android companion keeps the authenticated responsive dashboard as its single source', async () => {
