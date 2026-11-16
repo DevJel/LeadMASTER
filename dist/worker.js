@@ -2549,8 +2549,8 @@ async function runDailyReporter(env, scheduledTime = Date.now(), options = {}) {
   const timeZone = String(env.REPORTER_TIME_ZONE || DEFAULT_TIME_ZONE);
   const reportDate = getLocalDate(Number(scheduledTime) || Date.now(), timeZone);
   const dateLabel = formatReportDate(reportDate);
-  const reportKey = options.incidentId ? reportDate + "-incident-" + safeString(options.incidentId, 48).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 48) : options.sample ? reportDate + "-sample-" + safeString(options.sampleId || crypto.randomUUID(), 36).replace(/[^A-Za-z0-9_-]/g, "") : reportDate;
-  const reportId = "leadmaster-" + (options.incidentId ? "incident-" : options.sample ? "sample-" : "daily-report-") + reportKey;
+  const reportKey = options.sample ? reportDate + "-sample-" + safeString(options.sampleId || crypto.randomUUID(), 36).replace(/[^A-Za-z0-9_-]/g, "") : reportDate;
+  const reportId = "leadmaster-" + (options.sample ? "sample-" : "daily-report-") + reportKey;
   const messageId = await reportMessageId(reportId);
   const now = Date.now();
   const existing = await env.AUTH_DB.prepare("SELECT status,email_status,started_at FROM leadmaster_reporter_runs WHERE report_date=?").bind(reportKey).first();
@@ -2567,16 +2567,6 @@ async function runDailyReporter(env, scheduledTime = Date.now(), options = {}) {
   if (!current || current.status !== "running" || Number(current.started_at) !== now) return { skipped: true, reason: "another_run_in_progress", reportDate };
   const checks = [];
   try {
-    if (options.incident) {
-      checks.push(makeCheck(
-        "Incident",
-        "Triggered event",
-        options.incident.status === "pr_opened" ? "Needs Manual Action" : "Needs Attention",
-        "Event: " + safeString(options.incident.eventType || "GitHub incident") + ". Result: " + safeString(options.incident.status || "investigated") + ". " + safeString(options.incident.reason || options.incident.prUrl || "The event was investigated by the bounded auto-heal worker.", 450),
-        options.incident.prUrl ? "Review the draft pull request; it cannot merge or deploy itself." : "Review the linked issue and apply a manual fix if required.",
-        options.incident.prUrl || options.incident.issueUrl || ""
-      ));
-    }
     if (options.sample) checks.push(makeCheck("Reporter", "Sample report", "Healthy", "This is a one-time sample of the configured daily report layout and checks."));
     await checkApplication(env, checks);
     await Promise.all([
@@ -2614,7 +2604,7 @@ async function runDailyReporter(env, scheduledTime = Date.now(), options = {}) {
         messageId,
         to: admin,
         fromName: "LeadMASTER Reporter",
-        subject: (options.incident ? "LEADMASTER INCIDENT REPORT \u2014 " : options.sample ? "LEADMASTER REPORT SAMPLE \u2014 " : "REPORT OF THE DAY \u2014 ") + dateLabel + " \u2014 " + summary.overall,
+        subject: (options.sample ? "LEADMASTER REPORT SAMPLE \u2014 " : "REPORT OF THE DAY \u2014 ") + dateLabel + " \u2014 " + summary.overall,
         text,
         html
       });
