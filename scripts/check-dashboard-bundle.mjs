@@ -11,23 +11,27 @@ const result = await build({
   format: 'esm',
   target: ['es2022'],
   jsx: 'automatic',
-  logLevel: 'silent',
+  logLevel: 'silent'
 });
-for (const name of ['SmtpSettings','SendingIndicator','Inbox']) {
+
+for (const name of ['SmtpSettings', 'SendingIndicator', 'Inbox']) {
   if (!result.outputFiles.some(file => file.path.endsWith(`/${name}.js`))) {
     throw new Error(`Dashboard validation did not emit ${name}.js`);
   }
 }
-for (const name of ['SmtpSettings','Inbox']) {
+
+for (const name of ['SmtpSettings', 'Inbox']) {
   if (!result.outputFiles.some(file => file.path.endsWith(`/${name}.css`))) {
     throw new Error(`Dashboard validation did not emit ${name}.css`);
   }
 }
-// SendingIndicator uses the dashboard's shared stylesheet.
+
+// SendingIndicator styles are declared in the shared dashboard stylesheet.
 const sharedCss = await readFile('required-componets-design/index.css', 'utf8');
 for (const selector of ['.lm-send{', '.lm-send-art{', '.lm-send-step{']) {
   if (!sharedCss.includes(selector)) {
     throw new Error(`Dashboard shared stylesheet is missing ${selector}`);
   }
 }
-console.log('Staged TSX settings, sending indicator and Inbox bundle successfully (not deployed).');
+
+console.log('Staged TSX components and shared sending styles validated (not deployed).');
