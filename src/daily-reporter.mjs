@@ -125,6 +125,8 @@ async function adminRecipient(env) {
 async function checkApplication(env, checks) {
   const base = String(env.REPORTER_APP_URL || DEFAULT_APP_URL).replace(/\/+$/, "");
   const routeSpecs = [
+    ["/", 200, "Public application landing page"],
+    ["/login.html", 200, "Administrator login page"],
     ["/api/auth/config", 200, "Public authentication configuration"],
     ["/api/auth/session", 200, "Session endpoint"],
     ["/dashboard", 302, "Protected dashboard gate"],
