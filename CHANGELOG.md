@@ -263,3 +263,7 @@ Unit tests do not prove live Turnstile, SES inbox delivery or webhook callback r
 ### Foreground mail sounds (unreleased)
 - Added opt-in, distinct foreground audio for received mail, accepted sends and confirmed deletions in the shared web/Android workspace.
 - Suppressed duplicate Android foreground notification-card audio; no background push or inbox-delivery guarantee is implied.
+
+### OTP verification read resilience (unreleased)
+- Bounded retries for temporary read-only verification dependencies, with fail-closed behavior and non-sensitive diagnostic categories.
+- Retained single-use challenge, attempt limits and non-retry rules for authentication writes. A real production failure and deployment remain unverified.

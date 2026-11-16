@@ -5,6 +5,7 @@ import { emailTemplatesRoute } from "./src/email-templates-api.mjs";
 import { audienceRoute } from "./src/audience-api.mjs";
 import { batchProgressRoute } from "./src/batch-progress.mjs";
 import { readBoundedJson } from "./src/bounded-json.mjs";
+import { readAuthDependency } from "./src/auth-read-retry.mjs";
 import { sendThroughEmailCoordinator } from "./src/email-coordinator-client.mjs";
 import { emailOtpTemplate, emailSecurityAlertTemplate } from "./src/email-templates.mjs";
 import { staticAssets } from "./src/static-assets.mjs";
@@ -241,20 +242,38 @@ async function login(request, env) {
   return json({ next: "verify_email" });
 }
 async function verifyOtp(request, env, ctx) {
-  const adminEmail = await configuredAdminEmail(env);
-  if (!adminEmail) return json({ error: "Authentication service is not configured" }, 503);
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405, { allow: "POST" });
   if (!sameOrigin(request)) return json({ error: "Invalid request" }, 403);
   let body;
   try { body = await readJson(request); } catch { return json({ error: "Invalid request" }, 400); }
   const code = typeof body.code === "string" ? body.code.replace(/[^0-9]/g, "").slice(0, 6) : "";
   if (!/^\d{6}$/.test(code)) return json({ error: "Enter the six-digit code from the latest email." }, 400);
-  const row = await env.AUTH_DB.prepare("SELECT id,code_hash,expires_at,attempts FROM auth_challenges WHERE email = ? ORDER BY created_at DESC LIMIT 1").bind(adminEmail).first();
+  // Only read-only dependencies are retried. A shared deadline leaves time for
+  // the session write and prevents long-hanging reads from trapping the browser.
+  const readDeadline = Date.now() + 8500;
+  let adminEmail, row;
+  try {
+    adminEmail = await readAuthDependency(() => configuredAdminEmail(env), {deadline:readDeadline, accept:value=>Boolean(value)});
+  } catch {
+    console.error("OTP_VERIFY_IDENTITY_UNAVAILABLE");
+    return json({ error: "Sign-in verification is temporarily unavailable. Please try again.", errorCode: "LM-AUTH-RETRY" }, 503);
+  }
+  try {
+    row = await readAuthDependency(() => env.AUTH_DB.prepare("SELECT id,code_hash,expires_at,attempts FROM auth_challenges WHERE email = ? ORDER BY created_at DESC LIMIT 1").bind(adminEmail).first(), {deadline:readDeadline});
+  } catch {
+    console.error("OTP_VERIFY_CHALLENGE_READ_UNAVAILABLE");
+    return json({ error: "Sign-in verification is temporarily unavailable. Please try again.", errorCode: "LM-AUTH-RETRY" }, 503);
+  }
   if (!row) return json({ error: "No active code was found. Return to sign in and request a new code." }, 401);
   if (row.expires_at <= Date.now()) return json({ error: "This code has expired. Return to sign in and request a new one." }, 401);
   if (row.attempts >= 5) return json({ error: "Too many incorrect codes. Return to sign in and request a new code." }, 429);
-  const sessionSecret = await secret(env.SESSION_SECRET);
-  if (!sessionSecret) return json({ error: "Service unavailable" }, 503);
+  let sessionSecret;
+  try {
+    sessionSecret = await readAuthDependency(() => secret(env.SESSION_SECRET), {deadline:readDeadline, accept:value=>Boolean(value)});
+  } catch {
+    console.error("OTP_VERIFY_KEY_UNAVAILABLE");
+    return json({ error: "Sign-in verification is temporarily unavailable. Please try again.", errorCode: "LM-AUTH-RETRY" }, 503);
+  }
   const candidate = await hmac(sessionSecret, "otp:" + row.id + ":" + code);
   if (!equal(candidate, row.code_hash)) {
     await env.AUTH_DB.prepare("UPDATE auth_challenges SET attempts = attempts + 1 WHERE id = ? AND attempts < 5").bind(row.id).run();

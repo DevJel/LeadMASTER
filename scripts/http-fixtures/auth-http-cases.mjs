@@ -115,3 +115,25 @@ test('a fallback write with a lost response cannot replay an already committed s
  assert.equal((await call(env,'/api/auth/verify',{method:'POST',body:{code:'123456'}})).status,429);
  assert.equal(sql.prepare('SELECT count(*) n FROM auth_sessions').get().n,1);
 });
+
+test('temporary verification read failures recover without consuming the code twice',async()=>{
+ const {env,sql}=setup();await seedOtp(sql,'012345');let adminReads=0,keyReads=0,challengeReads=0;
+ env.ADMIN_EMAIL={get:async()=>{if(++adminReads===1)throw Error('synthetic transient');return email}};
+ env.SESSION_SECRET={get:async()=>{if(++keyReads===1)throw Error('synthetic transient');return 'synthetic'}};
+ const prepare=env.AUTH_DB.prepare.bind(env.AUTH_DB);
+ env.AUTH_DB.prepare=query=>{const stmt=prepare(query);if(query.startsWith('SELECT id,code_hash,expires_at,attempts FROM auth_challenges')){const first=stmt.first.bind(stmt);stmt.first=async()=>{if(++challengeReads===1)throw Error('synthetic transient');return first()}}return stmt};
+ const result=await call(env,'/api/auth/verify',{method:'POST',body:{code:'012345'}});
+ assert.equal(result.status,200);assert.equal((await result.json()).authenticated,true);
+ assert.equal(adminReads,2);assert.equal(keyReads,2);assert.equal(challengeReads,2);
+ assert.equal(sql.prepare('SELECT count(*) n FROM auth_sessions').get().n,1);
+ assert.equal(sql.prepare('SELECT count(*) n FROM auth_challenges').get().n,0);
+});
+
+test('persistent verification read failure preserves the code for a later retry',async()=>{
+ const {env,sql}=setup();await seedOtp(sql);env.SESSION_SECRET={get:async()=>{throw Error('synthetic unavailable')}};
+ const failure=await call(env,'/api/auth/verify',{method:'POST',body:{code:'123456'}});
+ assert.equal(failure.status,503);assert.equal((await failure.json()).errorCode,'LM-AUTH-RETRY');
+ assert.equal(sql.prepare('SELECT attempts FROM auth_challenges').get().attempts,0);
+ assert.equal(sql.prepare('SELECT count(*) n FROM auth_sessions').get().n,0);
+ env.SESSION_SECRET='synthetic';assert.equal((await call(env,'/api/auth/verify',{method:'POST',body:{code:'123456'}})).status,200);
+});

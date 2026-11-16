@@ -456,3 +456,7 @@ Verification and existing-session access no longer require unrelated outbound-ma
 ## Foreground mail sounds — branch change
 
 The shared dashboard now uses opt-in foreground sounds for new mail, confirmed sending-service acceptance and successful deletions. Android uses the same WebView implementation and its local notification cards are silent to avoid duplicate/premature cues. Initial mailbox snapshots are silent; queued, failed and unknown sends do not sound. This does not implement background push. Android device testing, signed release and production web deployment remain separate release gates.
+
+## OTP verification read resilience — branch change
+
+The verification endpoint retries only read-only identity, challenge and verification-key lookups with bounded per-attempt and total deadlines. Failed reads leave the code and its attempt count unchanged. OTP attempt updates, session creation, challenge claims and email delivery are never automatically retried. Fixed, non-sensitive diagnostic event names identify the unavailable step without recording credentials or code values. This addresses transient read failures but does not establish the cause of any particular live error. Confirm the exact deployed revision and have the authorized user test after release; no agent should access a human sign-in challenge or credentials.
