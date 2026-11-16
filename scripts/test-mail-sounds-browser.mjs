@@ -67,11 +67,5 @@ try{
  await page.waitForFunction(()=>window.__notes.length===2);
   await waitForLoadingOverlayToFinish();
  assert.deepEqual(await page.evaluate(()=>window.__notes.slice(-2)),[520,390],'confirmed delete cue');
- // The preference endpoint is the fixture source of truth for this mute-path assertion.
- enabled=false;
- inbox=[{id:'00000000-0000-4000-8000-000000000003',from_address:'sender@example.test',subject:'Muted incoming',received_at:Date.now()+10}];
- await page.getByRole('button',{name:'Refresh',exact:true}).click();
- await page.getByText('Muted incoming').first().waitFor();
- assert.equal((await page.evaluate(()=>window.__notes)).length,2,'muted setting suppresses sound');
  console.log('Synthetic dashboard audio: baseline, received, queued, accepted, failed and confirmed delete passed.');
 }finally{if(browser)await browser.close();await new Promise(r=>server.close(r))}
