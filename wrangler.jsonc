@@ -4,6 +4,9 @@
   "main": "worker.js",
   "compatibility_date": "2026-11-04",
   "compatibility_flags": [],
+  "triggers": {
+    "crons": ["0 0 * * *"]
+  },
   "vars": {
     "SES_FROM_EMAIL": "noreply@leadmaster.jelvan.pro",
     "TURNSTILE_SITE_KEY": "0x4AAAAAAF6m40DGlxOgE2qB",
@@ -11,7 +14,11 @@
     "SES_SNS_TOPIC_ARN": "arn:aws:sns:ap-southeast-2:592505728137:leadmaster-ses-events",
     "SES_MAX_MESSAGES_PER_SECOND": "10",
     "SES_MAX_MESSAGES_PER_DAY": "50000",
-    "APP_HOSTNAME": "leadmaster.jelvan.pro"
+    "APP_HOSTNAME": "leadmaster.jelvan.pro",
+    "REPORTER_APP_URL": "https://leadmaster.jelvan.space",
+    "REPORTER_GITHUB_REPOSITORY": "DevJel/LeadMASTER",
+    "REPORTER_CF_ACCOUNT_ID": "967aa086112f862ba9f50ccf7aa09246",
+    "REPORTER_TIME_ZONE": "Asia/Kuala_Lumpur"
   },
   "d1_databases": [
     {
