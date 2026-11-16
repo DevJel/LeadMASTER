@@ -95,7 +95,7 @@ test("incident payload credentials cannot authorize GitHub calls", async () => {
       github_token: "untrusted-event-token"
     });
     assert.equal(result.status, "manual_action");
-    assert.match(result.reason, /Worker GITHUB_TOKEN secret is not configured/);
+    assert.match(result.reason, /GITHUB_TOKEN Secret Store binding is unavailable/);
     assert.equal(calls, 0);
     assert.doesNotMatch(JSON.stringify(result), /untrusted-event-token/);
   } finally { globalThis.fetch = original; }
@@ -130,4 +130,35 @@ test("manual issue creation uses only the server-configured credential", async (
     assert.deepEqual(authorizations, ["Bearer server-fixture-token"]);
     assert.doesNotMatch(JSON.stringify(result), /fixture-token/);
   } finally { globalThis.fetch = original; }
+});
+
+
+test("auto-heal reads the GitHub token from a Cloudflare Secret Store binding", async () => {
+  const original = globalThis.fetch;
+  const authorizations = [];
+  const secret = "secret-store-fixture-token";
+  globalThis.fetch = async (_url, init) => {
+    authorizations.push(init.headers.authorization);
+    return Response.json({ html_url: "https://github.com/DevJel/LeadMASTER/issues/987" });
+  };
+  try {
+    const result = await processAutoHealEvent({ GITHUB_TOKEN: { get: async () => secret } }, {
+      event_type: "workflow_failure", event_id: "no-frame", title: "Secret Store binding test"
+    });
+    assert.equal(result.status, "manual_action");
+    assert.deepEqual(authorizations, ["Bearer " + secret]);
+    assert.doesNotMatch(JSON.stringify(result), /secret-store-fixture-token/);
+  } finally { globalThis.fetch = original; }
+});
+
+test("incident callback queues findings for the daily report and sends no immediate incident email", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const worker = await readFile(new URL("../worker.js", import.meta.url), "utf8");
+  const start = worker.indexOf('if (url.pathname === "/api/auto-heal/trigger")');
+  const end = worker.indexOf("const adminSession", start);
+  assert.ok(start >= 0 && end > start);
+  const route = worker.slice(start, end);
+  const afterProcessing = route.slice(route.indexOf("const result = await processAutoHealEvent"));
+  assert.match(afterProcessing, /queued_for_daily_report/);
+  assert.doesNotMatch(afterProcessing, /runDailyReporter/);
 });
