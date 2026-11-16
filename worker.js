@@ -19,6 +19,8 @@ import { leadmasterRecordsRoute } from "./src/leadmaster-records-api.mjs";
 import { runDailyReporter, reporterStatus } from "./src/daily-reporter.mjs";
 import { processAutoHealEvent, verifyActionsOidc } from "./src/auto-heal.mjs";
 import { withTursoDatabase } from "./src/turso-database.mjs";
+import { assistantAgentRoute } from "./src/assistant-agent.mjs";
+import { handleMcp } from "./src/mcp-server.mjs";
 export { EmailCoordinator } from "./src/email-coordinator.mjs";
 
 const HOSTNAME = "leadmaster.jelvan.pro";
@@ -684,6 +686,7 @@ async function handle(request, env, ctx) {
   }
 
     const adminSession=await sessionFor(request,env);
+  if (url.pathname === "/api/admin/assistant") return assistantAgentRoute(request,env,adminSession,await configuredAdminEmail(env));
   if (url.pathname === "/api/admin/email-html/assistant") {
     if (!adminSession) return json({ errorCode: "LM-USR-1002", error: "Your session has expired. Sign in again." }, 401);
     if (adminSession.email !== await configuredAdminEmail(env)) return json({ errorCode: "LM-USR-1007", error: "You do not have access to this action. Ask your workspace administrator to review your role." }, 403);
@@ -786,7 +789,7 @@ async function handle(request, env, ctx) {
 
   if (url.pathname === "/logout" && request.method === "GET") return Response.redirect(new URL("/login", request.url), 302);
 
-  if (url.pathname === "/mcp" || url.pathname.startsWith("/mcp/")) return json({ error: "MCP is not available in production. Use the documented LeadMASTER REST API." }, 404);
+  if (url.pathname === "/mcp" || url.pathname.startsWith("/mcp/")) return handleMcp(request,env);
 
   const assetPath = pageRoute.assetPath;
   const asset = staticAssets[assetPath];
