@@ -1,16 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
-const html=readFileSync('src/Mandatory LeadMASTER Dashboard.html','utf8');
-test('mail controls no longer claim unsupported filters and export',()=>{
-  assert(!html.includes('Export prepared as a workspace feature'));
-  assert(!html.includes('aria:"Last 15 days",value:S'));
-  assert(html.includes('"aria-label":"Search messages"'));
+import {readFile} from 'node:fs/promises';
+const app=await readFile(new URL('../required-componets-design/App.tsx',import.meta.url),'utf8');
+
+test('mail search and refresh operate on the connected mailbox',()=>{
+ assert.match(app,/Search leads &amp; mail|Search leads & mail/);
+ assert.match(app,/reloadRecords\(\)/);
+ assert.match(app,/api\/admin\/mail\?folder=inbox/);
+ assert.match(app,/api\/admin\/mail\?folder=sent/);
 });
-test('mailbox has confirmation, authoritative reload, and uncertain results',()=>{
-  assert(html.includes('window.confirm("Move this message to Deleted?")'));
-  assert(html.includes('The result could not be confirmed. Refresh the mailbox before trying again.'));
-  assert(html.includes('setLiveMailDetail(null);setMailRefresh(x=>x+1);R("Message moved to Deleted.")'));
-  assert(html.includes('Messages are temporarily unavailable.'));
-  assert(html.includes('Could not open message. Please try again.'));
+
+test('mail actions report failures and reload authoritative state',()=>{
+ assert.match(app,/Could not archive this message/);
+ assert.match(app,/Could not move this message to Deleted/);
+ assert.match(app,/Could not restore this message/);
+ assert.match(app,/await reloadRecords\(\)/);
 });
