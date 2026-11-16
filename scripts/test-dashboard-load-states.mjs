@@ -75,7 +75,7 @@ try {
   assert.ok(utilityBox && utilityViewport && Math.abs((utilityBox.x + utilityBox.width / 2) - utilityViewport.width / 2) < 4, 'utility loading card horizontally centered');
   assert.ok(utilityBox && utilityViewport && Math.abs((utilityBox.y + utilityBox.height / 2) - utilityViewport.height / 2) < 4, 'utility loading card vertically centered');
   await utilityPage.getByRole('button', { name: 'Dismiss loading overlay' }).click();
-  await utilityPage.getByRole('alert').waitFor({ timeout: 5000 });
+  await utilityPage.getByText('No notes have been saved yet.', { exact: true }).waitFor({ timeout: 5000 });
   assert.ok(requestCount > utilityStart, 'utility overlay dismissal does not cancel its request');
   await utilityPage.close();
 
