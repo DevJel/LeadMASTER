@@ -309,7 +309,7 @@ test("daily report includes queued auto-heal incidents without a separate incide
     assert.equal(f.sent.length, 1);
     assert.match(f.sent[0].subject, /^REPORT OF THE DAY/);
     const report = JSON.parse(f.db.state.run.report_json);
-    const incident = report.checks.find(item => item.area === "Incident" && item.name.includes("incident-fixture"));
+    const incident = report.checks.find(item => item.area === "Incident" && item.name.startsWith("Auto-heal incident "));
     assert.ok(incident);
     assert.equal(incident.status, "Needs Manual Action");
     assert.equal(incident.url, "https://github.com/DevJel/LeadMASTER/issues/987");

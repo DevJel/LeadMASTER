@@ -95,7 +95,7 @@ test("incident payload credentials cannot authorize GitHub calls", async () => {
       github_token: "untrusted-event-token"
     });
     assert.equal(result.status, "manual_action");
-    assert.match(result.reason, /Worker GITHUB_TOKEN secret is not configured/);
+    assert.match(result.reason, /GITHUB_TOKEN Secret Store binding is unavailable/);
     assert.equal(calls, 0);
     assert.doesNotMatch(JSON.stringify(result), /untrusted-event-token/);
   } finally { globalThis.fetch = original; }
