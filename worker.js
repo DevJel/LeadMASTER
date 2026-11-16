@@ -64,6 +64,24 @@ function equal(a, b) {
 function json(body, status = 200, headers = {}) {
   return Response.json(body, { status, headers: { "cache-control": "no-store", "x-content-type-options": "nosniff", ...headers } });
 }
+function isD1DailyReadLimit(error) {
+  const message = String(error?.message || error || "");
+  return /(?:7500|exceeded D1's free tier daily row read limit|daily row read limit)/i.test(message);
+}
+function authCapacityResponse(error) {
+  if (isD1DailyReadLimit(error)) {
+    return json({
+      error: "LeadMASTER has reached its daily database read allowance. Your verification code has not been consumed. Please try again after 00:00 UTC or increase the D1 allowance.",
+      errorCode: "LM-AUTH-D1-LIMIT",
+      retryable: false
+    }, 503);
+  }
+  return json({
+    error: "Sign-in verification is temporarily unavailable. Your verification code has not been consumed. Please try again shortly.",
+    errorCode: "LM-AUTH-RETRY",
+    retryable: true
+  }, 503);
+}
 function cookieValue(request, name) {
   const raw = request.headers.get("Cookie") || "";
   const item = raw.split(";").map(x => x.trim()).find(x => x.startsWith(name + "="));
@@ -164,6 +182,7 @@ async function accountForEmail(env, email) {
   const ownerEmail = String(email || "").trim().toLowerCase();
   if (!ownerEmail) throw new Error("Account identity unavailable");
   let account = await env.AUTH_DB.prepare("SELECT id,name,owner_name,created_at,updated_at FROM accounts WHERE owner_email=?").bind(ownerEmail).first();
+  const needsProvisioning = !account;
   if (!account) {
     const id = "acct_" + randomToken(16);
     const now = Date.now();
@@ -172,11 +191,14 @@ async function accountForEmail(env, email) {
     account = await env.AUTH_DB.prepare("SELECT id,name,owner_name,created_at,updated_at FROM accounts WHERE owner_email=?").bind(ownerEmail).first();
   }
   if (!account) throw new Error("Account could not be initialized");
-  await env.AUTH_DB.prepare("INSERT OR IGNORE INTO account_members (account_id,email,role,created_at) VALUES (?,?, 'owner', ?)").bind(account.id,ownerEmail,Date.now()).run();
-  // Adopt legacy integrations only when their recorded owner exactly matches this signed-in identity.
-  await env.AUTH_DB.prepare("UPDATE developer_api_keys SET account_id=? WHERE account_id IS NULL AND lower(trim(created_by))=?").bind(account.id,ownerEmail).run();
-  await env.AUTH_DB.prepare("UPDATE developer_email_requests SET account_id=? WHERE account_id IS NULL AND api_key_id IN (SELECT id FROM developer_api_keys WHERE account_id=?)").bind(account.id,account.id).run();
-  await env.AUTH_DB.prepare("UPDATE developer_webhooks SET account_id=? WHERE account_id IS NULL AND api_key_id IN (SELECT id FROM developer_api_keys WHERE account_id=?)").bind(account.id,account.id).run();
+  // Provision membership and adopt legacy integrations only on first account creation.
+  // Existing sessions must not trigger multiple writes on every page restore.
+  if (needsProvisioning) {
+    await env.AUTH_DB.prepare("INSERT OR IGNORE INTO account_members (account_id,email,role,created_at) VALUES (?,?, 'owner', ?)").bind(account.id,ownerEmail,Date.now()).run();
+    await env.AUTH_DB.prepare("UPDATE developer_api_keys SET account_id=? WHERE account_id IS NULL AND lower(trim(created_by))=?").bind(account.id,ownerEmail).run();
+    await env.AUTH_DB.prepare("UPDATE developer_email_requests SET account_id=? WHERE account_id IS NULL AND api_key_id IN (SELECT id FROM developer_api_keys WHERE account_id=?)").bind(account.id,account.id).run();
+    await env.AUTH_DB.prepare("UPDATE developer_webhooks SET account_id=? WHERE account_id IS NULL AND api_key_id IN (SELECT id FROM developer_api_keys WHERE account_id=?)").bind(account.id,account.id).run();
+  }
   return account;
 }
 async function sessionFor(request, env) {
@@ -254,15 +276,15 @@ async function verifyOtp(request, env, ctx) {
   let adminEmail, row;
   try {
     adminEmail = await readAuthDependency(() => configuredAdminEmail(env), {deadline:readDeadline, accept:value=>Boolean(value)});
-  } catch {
+  } catch (error) {
     console.error("OTP_VERIFY_IDENTITY_UNAVAILABLE");
-    return json({ error: "Sign-in verification is temporarily unavailable. Please try again.", errorCode: "LM-AUTH-RETRY" }, 503);
+    return authCapacityResponse(error);
   }
   try {
     row = await readAuthDependency(() => env.AUTH_DB.prepare("SELECT id,code_hash,expires_at,attempts FROM auth_challenges WHERE email = ? ORDER BY created_at DESC LIMIT 1").bind(adminEmail).first(), {deadline:readDeadline});
-  } catch {
-    console.error("OTP_VERIFY_CHALLENGE_READ_UNAVAILABLE");
-    return json({ error: "Sign-in verification is temporarily unavailable. Please try again.", errorCode: "LM-AUTH-RETRY" }, 503);
+  } catch (error) {
+    console.error("OTP_VERIFY_CHALLENGE_READ_UNAVAILABLE", isD1DailyReadLimit(error) ? "D1_DAILY_READ_LIMIT" : "DEPENDENCY_ERROR");
+    return authCapacityResponse(error);
   }
   if (!row) return json({ error: "No active code was found. Return to sign in and request a new code." }, 401);
   if (row.expires_at <= Date.now()) return json({ error: "This code has expired. Return to sign in and request a new one." }, 401);
@@ -270,9 +292,9 @@ async function verifyOtp(request, env, ctx) {
   let sessionSecret;
   try {
     sessionSecret = await readAuthDependency(() => secret(env.SESSION_SECRET), {deadline:readDeadline, accept:value=>Boolean(value)});
-  } catch {
+  } catch (error) {
     console.error("OTP_VERIFY_KEY_UNAVAILABLE");
-    return json({ error: "Sign-in verification is temporarily unavailable. Please try again.", errorCode: "LM-AUTH-RETRY" }, 503);
+    return authCapacityResponse(error);
   }
   const candidate = await hmac(sessionSecret, "otp:" + row.id + ":" + code);
   if (!equal(candidate, row.code_hash)) {
@@ -840,6 +862,10 @@ export default {
       return await handle(request, env, ctx);
     } catch (error) {
       const requestId = crypto.randomUUID();
+      if (isD1DailyReadLimit(error)) {
+        console.error("LEADMASTER_D1_DAILY_READ_LIMIT", JSON.stringify({ requestId, path: new URL(request.url).pathname }));
+        return authCapacityResponse(error);
+      }
       console.error("LEADMASTER_UNHANDLED_SYSTEM_ERROR", JSON.stringify({ requestId, reason: String(error?.message || "unknown").slice(0, 300) }));
       return json({ errorCode: "342322", error: "We couldn't complete this action due to a system issue (Error 342322). Please contact the LeadMASTER support team for further assistance at cs@leadmaster.jelvan.space." }, 503);
     }
