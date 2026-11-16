@@ -50,11 +50,14 @@ export function errorByCode(code) {
 export function mapLeadMasterError(error, context = "") {
   const raw = textOf(error);
   const normalized = (context + " " + raw).toLowerCase();
-  const suppliedCode = raw.match(/LM-USR-\\d{4}/)?.[0];
+  const suppliedCode = raw.match(/LM-USR-\d{4}/)?.[0];
   let code = suppliedCode || "";
   if (code) { const supplied = errorByCode(code); if (supplied) return { code: supplied.code, title: supplied.title, message: supplied.what + " " + supplied.steps[0] }; }
   if (typeof navigator !== "undefined" && navigator.onLine === false) code = "LM-USR-2001";
   else if (/popup|pop-up|new tab|blocked.*window/.test(normalized)) code = "LM-USR-2004";
+  else if (/too many.*(sign.in|login|attempt)|sign.in.*attempts/.test(normalized)) code = "LM-USR-1008";
+  else if (/invalid credentials|incorrect password|wrong password|password.*incorrect/.test(normalized)) code = "LM-USR-1001";
+  else if (/expired.*(verification|sign.in|login).*link|verification link.*expired/.test(normalized)) code = "LM-USR-1003";
   else if (/duplicate|already exists|unique constraint/.test(normalized)) code = "LM-USR-3003";
   else if (/invalid.*email|email.*invalid|recipient.*format/.test(normalized)) code = "LM-USR-3002";
   else if (/required|missing.*field|name and email|add a recipient/.test(normalized)) code = "LM-USR-3001";
@@ -75,6 +78,7 @@ export function mapLeadMasterError(error, context = "") {
   else if (/file.*(large|size)|too large/.test(normalized)) code = "LM-USR-3005";
   else if (/date|time.*invalid|future/.test(normalized)) code = "LM-USR-3007";
   else if (/recipient|to field/.test(normalized)) code = "LM-USR-3008";
+  else if (/batch size|too many messages.*one action|recipient count.*limit/.test(normalized)) code = "LM-USR-4005";
   const entry = errorByCode(code);
   if (entry) return { code: entry.code, title: entry.title, message: entry.what + " " + entry.steps[0] };
   return { code: "342322", title: "We couldn't complete this action", message: SYSTEM_FALLBACK };
