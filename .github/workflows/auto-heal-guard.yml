@@ -1,0 +1,109 @@
+name: LeadMASTER Auto-Heal Guard
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches:
+      - "fix/auto-heal-*"
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  strict-guard:
+    if: startsWith(github.head_ref || github.ref_name, 'fix/auto-heal-')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: File count, whitelist, test immutability and diff-size gate
+        id: diff
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          BASE=origin/main
+          FILES="$(git diff --name-only "$BASE"...HEAD)"
+          COUNT="$(printf '%s\n' "$FILES" | sed '/^$/d' | wc -l | tr -d ' ')"
+          if [ "$COUNT" -gt 2 ]; then echo "More than two files changed ($COUNT)." >&2; exit 1; fi
+          if [ "$COUNT" -ne 1 ]; then echo "Auto-heal patch must modify exactly one source file." >&2; exit 1; fi
+          if printf '%s\n' "$FILES" | grep -Eiq '(^|/)(package(-lock)?\.json|build\.gradle(\.kts)?|settings\.gradle(\.kts)?|gradle\.properties|worker\.js|wrangler\.(jsonc|toml)|tsconfig[^/]*|vite\.config\.[^/]+|\.github/|migrations/|.*\.(test|spec)\.[^.]+|.*Test\.kt)$|(^|/)(auth|config|secrets?)([-./]|$)'; then
+            echo "Protected path or test file changed." >&2
+            exit 1
+          fi
+          if ! printf '%s\n' "$FILES" | grep -Eq '^src/.*\.(mjs|cjs|js|ts|tsx|jsx)$'; then
+            echo "Target is outside the source whitelist." >&2
+            exit 1
+          fi
+          STATS="$(git diff --shortstat "$BASE"...HEAD)"
+          echo "$STATS"
+          ADDED="$(printf '%s' "$STATS" | grep -oE '[0-9]+ insertion' | awk '{print $1}' || true)"
+          DELETED="$(printf '%s' "$STATS" | grep -oE '[0-9]+ deletion' | awk '{print $1}' || true)"
+          TOTAL=$((${ADDED:-0} + ${DELETED:-0}))
+          if [ "$TOTAL" -gt 20 ]; then echo "Diff exceeds 20 changed lines ($TOTAL)." >&2; exit 1; fi
+          if git diff --name-only "$BASE"...HEAD | grep -Eiq '(^|/)(package(-lock)?\.json|.*\.test\.[^.]+|.*\.spec\.[^.]+)$'; then
+            echo "Test files or dependency manifests are immutable." >&2
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Existing test suite
+        run: |
+          npm ci
+          npm test
+          npm run check:dashboard
+
+  reject-on-failure:
+    if: failure() && github.event_name == 'pull_request' && startsWith(github.head_ref, 'fix/auto-heal-')
+    needs: strict-guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Close rejected PR, label it, and record the hash in Worker KV
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTIONS_ID_TOKEN_REQUEST_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_REF: ${{ github.head_ref }}
+          WORKER_URL: https://leadmaster.jelvan.space/api/auto-heal/trigger
+        run: |
+          set -euo pipefail
+          gh api --method POST "repos/$GITHUB_REPOSITORY/labels" -f name=auto-heal-rejected -f color=991b1b -f description="Rejected by strict automated repair guard" >/dev/null 2>&1 || true
+          gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label auto-heal-rejected
+          gh pr close "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --comment "Closed automatically: the strict auto-heal policy or existing tests failed. No merge or deployment was performed."
+          ERROR_HASH="${HEAD_REF#fix/auto-heal-}"
+          node --input-type=module <<'NODE'
+          const endpoint = new URL(process.env.ACTIONS_ID_TOKEN_REQUEST_URL);
+          endpoint.searchParams.set("audience", "leadmaster-auto-heal");
+          const auth = await fetch(endpoint, { headers: { authorization: "Bearer " + process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN } });
+          if (!auth.ok) throw new Error("Could not obtain OIDC token for rejection audit");
+          const oidc = (await auth.json()).value;
+          const payload = {
+            event_type: "rejected",
+            event_id: process.env.PR_NUMBER,
+            error_hash: process.env.ERROR_HASH,
+            detail: "Auto-Heal Guard failed its file/path/diff policy or existing tests. PR #" + process.env.PR_NUMBER + " was closed and labelled auto-heal-rejected.",
+            github_token: process.env.GITHUB_TOKEN
+          };
+          const response = await fetch(process.env.WORKER_URL, {
+            method: "POST",
+            headers: { authorization: "Bearer " + oidc, "content-type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          console.log((await response.text()).slice(0, 3000));
+          if (!response.ok) throw new Error("Worker rejection record failed: HTTP " + response.status);
+          NODE
