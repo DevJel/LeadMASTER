@@ -404,7 +404,7 @@ Monochrome brand icons: [Simple Icons](assets/stack-icons/README.md) (CC0 1.0); 
 | Development and tests | Node.js 20+, npm and Node test runner | Local development and automated tests |
 | Agent integration research | MCP SDK dependency and prototype | Experimental only, not a production integration |
 
-The current Wrangler configuration declares the leadmaster Worker, D1 binding AUTH_DB, Secrets Store bindings and observability. It does not configure a production Queue/Durable Object sending pipeline. Configuration values and secret names are not proof that a sender identity, quota or inbox delivery has been verified.
+The Turso migration branch configures the LeadMASTER Worker and mail consumers with a Turso libSQL database URL and a Secrets Store token binding. The production cutover remains gated on dependency-lock regeneration, automated tests and live Worker verification.
 
 ## High-level system architecture
 
@@ -417,8 +417,8 @@ flowchart TB
   Router --> Auth[Authentication and session checks]
   Router --> API[Developer API and webhook modules]
   Router --> Static[Generated static assets]
-  Auth --> D1[(Cloudflare D1: AUTH_DB)]
-  API --> D1
+  Auth --> Turso[(Turso / libSQL)]
+  API --> Turso
   Auth --> Secrets[Cloudflare Secrets Store]
   API --> Secrets
   Auth --> Turnstile[Cloudflare Turnstile Siteverify]
@@ -443,9 +443,9 @@ flowchart TB
 | Queue producer | src/email-api.mjs | Disabled-by-default experimental bearer-key producer |
 | MCP prototype | src/mcp-server.mjs | Experimental read-only MCP code; not mounted in production |
 | Public interface | public/ | Canonical HTML, CSS, JavaScript, brand assets and email templates |
-| Database schema | migrations/ | Ordered D1 migrations |
+| Database schema | migrations/ | Ordered SQLite/libSQL migrations applied to Turso |
 | Tests | test/ | Unit, regression and security-boundary tests |
-| Deployment | wrangler.jsonc | Worker, D1, Secrets Store and observability configuration |
+| Deployment | wrangler.jsonc | Worker, Turso, Secrets Store and observability configuration |
 
 ## Account and data ownership architecture
 
