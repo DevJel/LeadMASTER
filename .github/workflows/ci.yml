@@ -45,6 +45,10 @@ jobs:
           node --check worker.js
           node --check src/auto-heal.mjs
           node --check src/daily-reporter.mjs
+          node --check src/email-html-sanitizer.mjs
+          node --check src/leadmaster-error-mapper.mjs
+          node --check test/leadmaster-error-mapper.test.mjs
+          node --check test/email-html-sanitizer.test.mjs
           node --check src/email-coordinator.mjs
           node --check src/email-coordinator-client.mjs
           node --check src/email-queue-core.mjs
