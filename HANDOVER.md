@@ -452,3 +452,7 @@ Corrected the coordinator-compatible report sender name and stable UUID message 
 ## Sign-in verification resilience — branch change
 
 Verification and existing-session access no longer require unrelated outbound-mail, password or security-check bindings; authentication storage, identity and OTP-key checks remain required where needed. This fixes one reproducible configuration-dependent 503, but does not establish the cause of any particular live failure. A synthetic Worker test now follows the generated code through the real coordinator validation to verification and session use, checks both message formats, expiry, leading zeroes and single use. A failed fallback session write with an uncertain outcome leaves the OTP claimed, requiring a fresh code rather than risking replay. No production credentials, login challenge, database or deployment were accessed or changed by this branch; a human must verify live sign-in after an authorized release.
+
+## Foreground mail sounds — branch change
+
+The shared dashboard now uses opt-in foreground sounds for new mail, confirmed sending-service acceptance and successful deletions. Android uses the same WebView implementation and its local notification cards are silent to avoid duplicate/premature cues. Initial mailbox snapshots are silent; queued, failed and unknown sends do not sound. This does not implement background push. Android device testing, signed release and production web deployment remain separate release gates.
