@@ -9,6 +9,7 @@ LeadMASTER is an email workspace and developer integration service.
 - **Feature architecture and Mermaid diagrams:** [docs/FEATURES.md](docs/FEATURES.md)
 - **Detailed API reference:** [docs/API.md](docs/API.md)
 - **Engineering handover:** [HANDOVER.md](HANDOVER.md)
+- **Proposed mail thread and attachment design (not implemented):** [docs/MAIL_THREADS_DESIGN.md](docs/MAIL_THREADS_DESIGN.md)
 - **Production mail workflow:** [docs/MAIL_WORKFLOW.md](docs/MAIL_WORKFLOW.md)
 - **Daily operational reporting:** [docs/DAILY_REPORTER.md](docs/DAILY_REPORTER.md)
 - **Strict incident auto-heal:** [docs/REPORTER_AUTO_HEAL.md](docs/REPORTER_AUTO_HEAL.md)

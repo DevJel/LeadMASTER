@@ -1,3 +1,11 @@
+## 2026-11-16 — Safer message viewing and retry safeguards (not deployed)
+
+- Sent message details expose their stored HTML alternative, displayed through a sanitized opaque-origin sandbox that blocks scripts, links and remote content. Incoming HTML extraction is not implemented.
+- Replaced a fictional attachment card with the existing authenticated original-message download, and added message-load retry handling.
+- Outbox distinguishes unknown outcomes; removed unsafe bulk/resend controls that could duplicate active sends or lose original fields. Complete retry/edit/preview/delete flows are not yet implemented.
+- Added a proposed thread and attachment design; no schema migration, thread model, attachment extraction/sending, or reply-header transport was deployed or enabled.
+- Web UI is shared by Android WebView; no native code changed. Android device/download acceptance and authenticated production verification remain outstanding.
+
 ## 2026-11-16 — Customer product and developer guides (not deployed)
 
 - Added Help Center links to product features, email delivery, the developer API, webhooks and MCP availability.
