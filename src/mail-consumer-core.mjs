@@ -1,11 +1,11 @@
-/** Fail-closed queue consumer: the D1 claim is never automatically released. */
+/** Fail-closed queue consumer: the Turso claim is never automatically released. */
 export function createMailConsumer({send, deliverWebhook, sleep = ms => new Promise(r => setTimeout(r, ms)), clock = Date.now}) {
  const bestEffort = async fn => { try { await fn(); } catch {} };
  async function process(message, env) {
   const body=message.body||{}, id=String(body.id||''), source=body.source||'admin';
   if(!/^[0-9a-f-]{36}$/i.test(id) || !['admin','developer'].includes(source)){message.ack();return;}
   const db=env.AUTH_DB;
-  if(!db)throw Error('D1 unavailable');
+  if(!db)throw Error('Turso database unavailable');
   if(source==='admin' && body.batch===true){
    // Older deployments claimed and submitted the entire batch in one SMTP
    // operation. Never split or replay an already claimed legacy batch.
