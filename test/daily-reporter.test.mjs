@@ -107,7 +107,17 @@ function createEnv(options = {}) {
     },
     INBOUND_MAIL: { list: async () => ({ objects: [], truncated: false }) },
     MAIL_SEND_QUEUE: { send: async () => ({}) },
-    AI: {}
+    AI: {},
+    AUTO_HEAL_KV: {
+      list: async ({ prefix = "", limit = 100 } = {}) => ({
+        keys: (options.incidents || []).map(item => ({ name: prefix + item.errorHash })).slice(0, limit)
+      }),
+      get: async key => {
+        const item = (options.incidents || []).find(value => "error:" + value.errorHash === key);
+        return item ? JSON.stringify(item) : null;
+      },
+      put: async () => {}
+    }
   };
   return { env, db, sent, calls, restore: () => { globalThis.fetch = originalFetch; } };
 }
@@ -283,4 +293,25 @@ test("reporter reads Cloudflare Secret Store bindings and authenticates GitHub a
     globalThis.fetch = originalMockFetch;
     f.restore();
   }
+});
+
+
+test("daily report includes queued auto-heal incidents without a separate incident email", async () => {
+  const f = createEnv({ incidents: [{
+    errorHash: "incident-fixture-123",
+    status: "manual_action",
+    reason: "A strict patch could not be safely produced.",
+    issueUrl: "https://github.com/DevJel/LeadMASTER/issues/987"
+  }] });
+  try {
+    const result = await runDailyReporter(f.env, Date.UTC(2026, 10, 16, 9, 0, 0));
+    assert.equal(result.status, "sent");
+    assert.equal(f.sent.length, 1);
+    assert.match(f.sent[0].subject, /^REPORT OF THE DAY/);
+    const report = JSON.parse(f.db.state.run.report_json);
+    const incident = report.checks.find(item => item.area === "Incident" && item.name.startsWith("Auto-heal incident "));
+    assert.ok(incident);
+    assert.equal(incident.status, "Needs Manual Action");
+    assert.equal(incident.url, "https://github.com/DevJel/LeadMASTER/issues/987");
+  } finally { f.restore(); }
 });
