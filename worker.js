@@ -14,6 +14,7 @@ import { verifyTurnstile } from "./src/turnstile.mjs";
 import { sesSnsEvents } from "./src/ses-sns-events.mjs";
 import { receiveInboundEmail } from "./src/inbound-email-handler.mjs";
 import { leadmasterRecordsRoute } from "./src/leadmaster-records-api.mjs";
+import { sanitizeGeneratedEmailHtml } from "./src/email-html-sanitizer.mjs";
 import { runDailyReporter, reporterStatus } from "./src/daily-reporter.mjs";
 import { processAutoHealEvent, verifyActionsOidc } from "./src/auto-heal.mjs";
 export { EmailCoordinator } from "./src/email-coordinator.mjs";
@@ -80,15 +81,6 @@ async function readJson(request, maxBytes = 12000) {
   return body;
 }
 
-function sanitizeGeneratedEmailHtml(value) {
-  return String(value || "")
-    .replace(/<!--[\\s\\S]*?-->/g, "")
-    .replace(/<(script|iframe|object|embed|form|meta|link|base)\b[\s\S]*?<\/\1\s*>/gi, "")
-    .replace(/<(script|iframe|object|embed|form|meta|link|base)\b[^>]*\/?\s*>/gi, "")
-    .replace(/\s(?:on[a-z]+|srcdoc|formaction)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
-    .replace(/(href|src|xlink:href)\s*=\s*(["'])\s*javascript:[\s\S]*?\2/gi, '$1="#"')
-    .slice(0, 24000);
-}
 
 async function verifyLoginTurnstile(token, env, action) {
   return verifyTurnstile({
@@ -241,7 +233,7 @@ async function login(request, env) {
 }
 async function verifyOtp(request, env, ctx) {
   const adminEmail = await configuredAdminEmail(env);
-  if (!adminEmail) return json({ error: "Authentication service is not configured" }, 503);
+  if (!adminEmail) return json({ errorCode: "342322", error: "We couldn't complete this action due to a system issue (Error 342322). Please contact the LeadMASTER support team for further assistance at cs@leadmaster.jelvan.space." }, 503);
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405, { allow: "POST" });
   if (!sameOrigin(request)) return json({ error: "Invalid request" }, 403);
   let body;
