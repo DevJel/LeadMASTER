@@ -43,14 +43,17 @@ test('dashboard JavaScript and CSS are included in the authenticated asset gate'
  assert.match(worker, /if \(!session\) return Response\.redirect/);
 });
 
-test('design CSS retains the monochrome palette and responsive app layout', async () => {
+test('design CSS retains the monochrome palette and responsive workspace layout', async () => {
  const css = await read('../required-componets-design/index.css');
  assert.match(css, /--bg:#FFFFFF/);
  assert.match(css, /--text:#2B2B2B/);
  assert.match(css, /prefers-reduced-motion/);
+ assert.match(css, /--safe-area-inset-top/);
  const app = await read('../required-componets-design/App.tsx');
- assert.match(app, /bottom-bar/);
- assert.match(app, /app-sidebar/);
+ assert.match(app, /<aside/);
+ assert.match(app, /<main/);
+ assert.match(app, /md:hidden/);
+ assert.match(app, /rightPanel/);
 });
 
 test('Android companion keeps the authenticated responsive dashboard as its single source', async () => {
