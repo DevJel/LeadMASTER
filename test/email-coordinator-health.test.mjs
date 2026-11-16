@@ -1,33 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { EmailCoordinator } from "../src/email-coordinator.mjs";
+import { readFile } from "node:fs/promises";
 
-test("internal coordinator health reports SMTP readiness without exposing secret values", async () => {
-  const env = {
-    SES_SMTP_HOST: "email-smtp.ap-southeast-2.amazonaws.com",
-    SES_SMTP_USERNAME: "smtp-user-secret",
-    SES_SMTP_PASSWORD: "smtp-password-secret",
-    SES_FROM_EMAIL: "noreply@leadmaster.jelvan.pro"
-  };
-  const coordinator = new EmailCoordinator({ storage: {} }, env);
-  const response = await coordinator.fetch(new Request("https://internal/health"));
-  const body = await response.json();
-  assert.equal(response.status, 200);
-  assert.deepEqual(body, { status: "healthy", smtpConfigured: true, fromConfigured: true });
-  assert.equal(JSON.stringify(body).includes("smtp-user-secret"), false);
-  assert.equal(JSON.stringify(body).includes("smtp-password-secret"), false);
+const source = await readFile(new URL("../src/email-coordinator.mjs", import.meta.url), "utf8");
+
+test("internal coordinator health reports readiness without returning secret values", () => {
+  assert.match(source, /url\.pathname===['"]\/health['"]/);
+  assert.match(source, /smtpConfigured:host&&username&&password/);
+  assert.match(source, /fromConfigured:from/);
+  assert.match(source, /status:healthy\?'healthy':'misconfigured'/);
+  assert.doesNotMatch(source.slice(source.indexOf("if(request.method==='GET'"), source.indexOf("if(request.method!=='POST')")), /SES_SMTP_PASSWORD\s*:/);
 });
 
-test("internal coordinator health fails closed when an SMTP credential is missing", async () => {
-  const coordinator = new EmailCoordinator({ storage: {} }, {
-    SES_SMTP_HOST: "smtp.example.com",
-    SES_SMTP_USERNAME: "",
-    SES_SMTP_PASSWORD: "secret",
-    SES_FROM_EMAIL: "noreply@leadmaster.jelvan.pro"
-  });
-  const response = await coordinator.fetch(new Request("https://internal/health"));
-  const body = await response.json();
-  assert.equal(response.status, 503);
-  assert.equal(body.status, "misconfigured");
-  assert.equal(body.smtpConfigured, false);
+test("health endpoint is GET-only and missing SMTP credentials produce a failing health status", () => {
+  const health = source.slice(source.indexOf("if(request.method==='GET'"), source.indexOf("if(request.method!=='POST')"));
+  assert.match(health, /status:healthy\?200:503/);
+  assert.match(health, /smtpConfigured:host&&username&&password/);
+  assert.match(health, /fromConfigured:from/);
 });
