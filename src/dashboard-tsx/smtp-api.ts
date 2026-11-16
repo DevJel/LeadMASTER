@@ -17,7 +17,7 @@ export function smtpApi(fetcher:typeof fetch=fetch){
   create:(config:SmtpConfig)=>request<{id:string;revision:number;verification_status:string}>('/api/admin/smtp','POST',{config}),
   replace:(id:string,revision:number,config:SmtpConfig)=>request(path(id),'PUT',{revision,config}),
   revoke:(id:string,revision:number)=>request(path(id),'DELETE',{revision}),
-  testConnection:(id:string,revision:number)=>request<{status:'connected'}>(path(id)+'/test','POST',{revision}),
+  testConnection:async(id:string,revision:number)=>{const result=await request<unknown>(path(id)+'/test','POST',{revision});if(!result||typeof result!=='object'||!('status' in result)||result.status!=='connected')throw new SmtpApiError('The connection result could not be confirmed. Refresh before trying again.',true);return {status:'connected' as const}},
   activity:(id:string,cursor?:{createdAt:number;messageId:string})=>{const q=new URLSearchParams({limit:'50'});if(cursor){q.set('before_time',String(cursor.createdAt));q.set('before_id',cursor.messageId)}return request<Activity>(path(id)+'/activity?'+q)},
  };
 }

@@ -16,7 +16,7 @@ test('settings use same-origin, no-store requests and preserve the configuration
  assert.deepEqual(JSON.parse(calls[1].options.body),{config});
 });
 test('connection edits and monitoring encode the expected path and revision',async()=>{
- const calls=[];const api=smtpApi(async (url,options)=>{calls.push({url,options});return Response.json({});});
+ const calls=[];const api=smtpApi(async (url,options)=>{calls.push({url,options});return Response.json(String(url).endsWith('/test')?{status:'connected'}:{});});
  await api.replace(id,3,config);await api.revoke(id,4);await api.activity(id,{createdAt:123,messageId:id});await api.testConnection(id,4);
  assert.equal(calls[0].url,`/api/admin/smtp/${id}`);assert.deepEqual(JSON.parse(calls[0].options.body),{revision:3,config});
  assert.equal(calls[1].options.method,'DELETE');assert.deepEqual(JSON.parse(calls[1].options.body),{revision:4});
@@ -38,3 +38,5 @@ test('HTTP error distinguishes uncertain server failures from validation errors'
  await assert.rejects(fail(503).create(config),e=>e instanceof SmtpApiError&&e.uncertain);
  await assert.rejects(fail(400).create(config),e=>e instanceof SmtpApiError&&!e.uncertain);
 });
+
+test('connection test requires a real connected response',async()=>{const api=smtpApi(async()=>Response.json({}));await assert.rejects(api.testConnection(id,1),e=>e instanceof SmtpApiError&&e.uncertain)});

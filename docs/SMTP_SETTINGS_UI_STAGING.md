@@ -9,3 +9,5 @@ Before any release: integrate and test a real TSX build pipeline and the complet
 The component was strictly type-checked and previewed in an isolated local fixture using synthetic data; the fixture is not part of the product. It has not been exercised against the production backend or a real SMTP server.
 
 A pinned TypeScript/React/esbuild toolchain now checks the staged component in CI using `npm run check:dashboard`. This is a validation-only in-memory bundle, not a mounted dashboard or deployment artifact. API-client tests use synthetic responses and never send real mail.
+
+The staged panel now uses the shared TSX loading indicator for actual pending list, activity, save, removal, and verification requests. An unexpected successful verification response is treated as unconfirmed, not as a verified connection. The Inbox and live application do not yet use this component.
