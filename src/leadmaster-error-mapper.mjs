@@ -81,7 +81,12 @@ export function mapLeadMasterError(error, context = "") {
   else if (/batch size|too many messages.*one action|recipient count.*limit/.test(normalized)) code = "LM-USR-4005";
   const entry = errorByCode(code);
   if (entry) return { code: entry.code, title: entry.title, message: entry.code + " — " + entry.what + " " + entry.steps[0] };
-  return { code: "342322", title: "We couldn't complete this action", message: SYSTEM_FALLBACK };
+  const systemCode = raw.match(/\\b342\\d{3}\\b/)?.[0] || "342322";
+  return {
+    code: systemCode,
+    title: "We couldn't complete this action",
+    message: systemCode === "342322" ? SYSTEM_FALLBACK : "We couldn't complete this action due to a system issue (Error " + systemCode + "). Please contact the LeadMASTER support team for further assistance at " + SUPPORT_EMAIL + "."
+  };
 }
 
 export { SYSTEM_FALLBACK };
