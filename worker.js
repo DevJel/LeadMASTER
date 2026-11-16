@@ -13,6 +13,7 @@ import { webhookRoute, adminWebhookRoute } from "./src/developer-webhooks.mjs";
 import { verifyTurnstile } from "./src/turnstile.mjs";
 import { sesSnsEvents } from "./src/ses-sns-events.mjs";
 import { receiveInboundEmail } from "./src/inbound-email-handler.mjs";
+import { leadmasterRecordsRoute } from "./src/leadmaster-records-api.mjs";
 export { EmailCoordinator } from "./src/email-coordinator.mjs";
 
 const HOSTNAME = "leadmaster.jelvan.pro";
@@ -589,7 +590,7 @@ async function handle(request, env, ctx) {
   // Enforce the dashboard gate before API routing, static asset lookup or upstream proxying.
   // This also closes case, percent-encoding and trailing-slash variants of dashboard URLs.
   const dashboardRoute = routePath === "/dashboard" || routePath.startsWith("/dashboard/") || routePath.startsWith("/dashboard.");
-  const dashboardAssets = new Set(["/dashboard.js", "/dashboard.css", "/developer-api-keys.html", "/html-preview.js", "/html-preview.css", "/assets/vendor/dompurify.min.js"]);
+  const dashboardAssets = new Set(["/dashboard.js", "/dashboard.css", "/dashboard-app.js", "/dashboard-app.css", "/developer-api-keys.html", "/html-preview.js", "/html-preview.css", "/assets/vendor/dompurify.min.js"]);
   if (dashboardRoute || dashboardAssets.has(routePath)) {
     const session = await sessionFor(request, env);
     if (!session) return Response.redirect(new URL("/login.html", request.url), 302);
@@ -600,6 +601,7 @@ async function handle(request, env, ctx) {
   }
 
   if (url.pathname === "/api/aws/ses-events") return sesSnsEvents(request,env);
+  if (url.pathname === "/api/workspace/actions") return leadmasterRecordsRoute(request, env, await sessionFor(request, env));
   const adminSession=await sessionFor(request,env);
   const aiSuggest=url.pathname.match(/^\/api\/admin\/mail\/([0-9a-f-]{36})\/suggest$/i);
   if (aiSuggest) return adminAiSuggestRoute(request,env,adminSession,aiSuggest[1]);

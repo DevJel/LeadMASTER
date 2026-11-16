@@ -1,4 +1,18 @@
-import {test} from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';import {Script} from 'node:vm';
-const html=readFileSync(new URL('../src/Mandatory LeadMASTER Dashboard.html',import.meta.url),'utf8');
-test('composer uses persistent account group endpoints and shows unimplemented scope',()=>{assert.match(html,/id="lm-group-select"/);assert.match(html,/id="lm-group-create"/);assert.match(html,/id="lm-group-save-members"/);assert.match(html,/id="lm-group-insert"/);assert.match(html,/\/api\/admin\/audience\/groups/);assert.match(html,/Send only to people who have consented/);assert.match(html,/Scheduling and attachments are not available yet/);assert.match(html,/500-recipient limit; nothing was added/)});
-test('composer JavaScript parses and preserves in-dashboard integration',()=>{const a=html.indexOf('<section id="lm-compose-page"'),b=html.indexOf('</script>',a);assert.ok(a>=0&&b>a);const text=html.slice(a,b),script=text.slice(text.indexOf('<script>')+8);assert.doesNotThrow(()=>new Script(script));assert.match(script,/main\.appendChild\(page\)/);assert.match(script,/await loadGroups/)});
+import {test} from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';
+const read=p=>readFile(new URL(p,import.meta.url),'utf8');
+test('compose uses recipient chips, address validation and CC/BCC controls',async()=>{
+ const app=await read('../required-componets-design/App.tsx');
+ assert.match(app,/isValidRecipientChip/);
+ assert.match(app,/function addChip/);
+ assert.match(app,/function removeChip/);
+ assert.match(app,/aria-label="Add recipient chip"/);
+ assert.match(app,/Show Cc \/ Bcc/);
+ assert.match(app,/fetch\('\/api\/admin\/send'/);
+});
+test('compose draft and send state are persisted through authenticated APIs',async()=>{
+ const app=await read('../required-componets-design/App.tsx');
+ assert.match(app,/records\.create/);
+ assert.match(app,/kind:'draft'/);
+ assert.match(app,/fromEmail:profileEmail/);
+ assert.match(app,/credentials:'same-origin'/);
+});

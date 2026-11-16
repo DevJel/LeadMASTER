@@ -1,3 +1,13 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';
 const read=p=>readFile(new URL(p,import.meta.url),'utf8');
-test('sending tab reports persisted batch states and composer returns after queue acceptance',async()=>{const h=await read('../src/Mandatory LeadMASTER Dashboard.html');assert.match(h,/\/api\/admin\/send-batches/);assert.match(h,/"aria-label":"Sending progress"/);assert.match(h,/accepted by the sending service/);assert.match(h,/Accepted does not mean delivered/);assert.match(h,/unconfirmed results may need checking/);assert.match(h,/do not resend without reconciling/i);assert.match(h,/lm:batch-queued/);assert.match(h,/location\.hash=''/);assert.equal(h,await read('../public/dashboard.html'))});
+test('outbox and composer use persisted production send queue results',async()=>{
+ const app=await read('../required-componets-design/App.tsx');
+ assert.match(app,/api\/admin\/send/);
+ assert.match(app,/queue_status/);
+ assert.match(app,/delivery_status/);
+ assert.match(app,/Queued/);
+ assert.match(app,/Failed/);
+ assert.match(app,/Queue acceptance is not delivery confirmation/);
+ assert.match(app,/async function resendOutbox/);
+ assert.match(app,/async function sendAllNow/);
+});

@@ -1,15 +1,38 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+import { build } from "esbuild";
 
 const root = resolve(process.cwd());
 const publicDir = join(root, "public");
+const tailwind = spawnSync("npx", [
+  "--yes",
+  "tailwindcss@3.4.19",
+  "-i", join(root, "required-componets-design", "index.css"),
+  "-o", join(publicDir, "dashboard-app.css"),
+  "--config", join(root, "tailwind.config.cjs"),
+  "--minify"
+], { cwd: root, stdio: "inherit" });
+if (tailwind.status !== 0) throw new Error("Tailwind CSS compilation failed.");
+await build({
+  entryPoints: [join(root, "required-componets-design", "main.tsx")],
+  bundle: true,
+  outfile: join(publicDir, "dashboard-app.js"),
+  platform: "browser",
+  format: "iife",
+  target: ["es2022"],
+  jsx: "automatic",
+  minify: true,
+  legalComments: "none",
+  sourcemap: false
+});
 const mandatoryDashboard = await readFile(join(root, "src", "Mandatory LeadMASTER Dashboard.html"), "utf8");
 await writeFile(join(publicDir, "dashboard.html"), mandatoryDashboard, "utf8");
 const output = join(root, "src", "static-assets.mjs");
 const allowlist = [
   "index.html", "landing-halftone.css", "landing-halftone.js", "halftone.js",
   "login.html", "login.css", "login.js", "cover.css",
-  "dashboard.html", "dashboard.css", "dashboard.js",
+  "dashboard.html", "dashboard.css", "dashboard.js", "dashboard-app.js", "dashboard-app.css",
   "html-preview.css", "html-preview.js", "developer-api-keys.html",
   "docs.html", "mcp.html", "privacy.html", "terms.html", "legal.css", "docs.css", "llms.txt", "robots.txt",
   "assets/brand/leadmaster-full.svg", "assets/brand/favicon-gray.svg",

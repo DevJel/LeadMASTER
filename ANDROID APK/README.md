@@ -29,6 +29,7 @@ The Android application is intentionally a thin client. It does not implement a 
 | Authenticated workspace | Loads the production LeadMASTER HTTPS workspace in Android WebView | Requires a valid server-side account session |
 | Dashboard UI | Uses the canonical responsive web dashboard | No duplicated native dashboard or extra native navigation bar |
 | Mobile navigation | Supplied by the dashboard's own responsive navigation | Keep web and Android UI behavior aligned |
+| Pull-to-refresh | Uses the shared dashboard's verified refresh handler inside WebView | Touch pull-down, desktop drag/trackpad and manual refresh share one server-backed data path; no duplicate native refresh state |
 | Light/dark theme | Dashboard theme is observed and synchronized to Android system-bar icon contrast | Dashboard remains the theme source of truth |
 | Sign-in persistence | WebView persists the server-issued HttpOnly session cookie; cookie store is flushed on lifecycle transitions | Closing the app is not sign-out; server expiry and explicit logout still apply |
 | Back navigation | Android Back navigates WebView history; exits when no history remains | Does not create a separate native navigation stack |
@@ -208,8 +209,8 @@ The Android module currently declares:
 |---|---|
 | Application ID | `pro.leadmaster.app` |
 | Namespace | `pro.leadmaster.app` |
-| Version name | `1.6.0` |
-| Version code | `7` |
+| Version name | `1.7.0` |
+| Version code | `8` |
 | Minimum SDK | API 26 (Android 8.0) |
 | Compile SDK | API 35 |
 | Target SDK | API 35 |
