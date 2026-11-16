@@ -35,9 +35,9 @@ test("unknown internal errors never leak technical details",()=>{
 
 test("public Help Center lists every customer code and never includes internal mappings",async()=>{
   const html=await readFile(new URL("../public/help-center.html",import.meta.url),"utf8");
-  const listed=[...new Set(html.match(/LM-USR-\\d{4}/g)||[])].sort();
+  const listed=[...new Set(html.match(/LM-USR-\d{4}/g)||[])].sort();
   const source=CUSTOMER_ERROR_GUIDE.map(item=>item.code).sort();
   assert.deepEqual(listed,source);
-  assert.doesNotMatch(html,/342\\d{3}|SQL|SMTP credentials|database query|stack trace/i);
-  assert.match(html,/cs@leadmaster\\.jelvan\\.space/);
+  assert.doesNotMatch(html,/342\d{3}|SQL|SMTP credentials|database query|stack trace/i);
+  assert.match(html,/cs@leadmaster\.jelvan\.space/);
 });
