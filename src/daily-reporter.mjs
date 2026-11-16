@@ -436,6 +436,14 @@ async function persistRun(env, date, state) {
     state.error ? safeString(state.error, 1000) : null, date
   ).run();
 }
+// Stable RFC-compatible message identifier, while keeping the existing report
+// job ID so coordinator and ledger idempotency fences remain intact.
+async function reportMessageId(reportId) {
+  const bytes=new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(reportId))).slice(0,16);
+  bytes[6]=(bytes[6]&15)|128; bytes[8]=(bytes[8]&63)|128;
+  const hex=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+}
 export async function runDailyReporter(env, scheduledTime = Date.now(), options = {}) {
   const timeZone = String(env.REPORTER_TIME_ZONE || DEFAULT_TIME_ZONE);
   const reportDate = getLocalDate(Number(scheduledTime) || Date.now(), timeZone);
@@ -444,6 +452,7 @@ export async function runDailyReporter(env, scheduledTime = Date.now(), options 
     ? reportDate + "-incident-" + safeString(options.incidentId, 48).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 48)
     : options.sample ? reportDate + "-sample-" + safeString(options.sampleId || crypto.randomUUID(), 36).replace(/[^A-Za-z0-9_-]/g, "") : reportDate;
   const reportId = "leadmaster-" + (options.incidentId ? "incident-" : options.sample ? "sample-" : "daily-report-") + reportKey;
+  const messageId = await reportMessageId(reportId);
   const now = Date.now();
   const existing = await env.AUTH_DB.prepare("SELECT status,email_status,started_at FROM leadmaster_reporter_runs WHERE report_date=?").bind(reportKey).first();
   if (existing?.email_status === "accepted" || existing?.email_status === "unknown" || existing?.status === "running") {
@@ -487,16 +496,16 @@ export async function runDailyReporter(env, scheduledTime = Date.now(), options 
     }
     const summary = summarize(checks);
     const report = { reportDate, timeZone, generatedAt: new Date().toISOString(), overall: summary.overall, summary, checks };
-    await persistRun(env, reportKey, { status: "ready_to_send", completedAt: Date.now(), summary, report, emailStatus: "not_attempted", messageId: reportId });
+    await persistRun(env, reportKey, { status: "ready_to_send", completedAt: Date.now(), summary, report, emailStatus: "not_attempted", messageId });
     if (!admin) return { reportDate, status: "not_sent", summary };
     const html = renderHtml(dateLabel, checks, summary);
     const text = renderText(dateLabel, checks, summary);
     try {
       const sent = await sendThroughEmailCoordinator(env, {
         id: reportId,
-        messageId: reportId,
+        messageId,
         to: admin,
-        fromName: "LeadMASTER Reporter/Worker",
+        fromName: "LeadMASTER Reporter",
         subject: (options.incident ? "LEADMASTER INCIDENT REPORT — " : options.sample ? "LEADMASTER REPORT SAMPLE — " : "REPORT OF THE DAY — ") + dateLabel + " — " + summary.overall,
         text,
         html
@@ -506,14 +515,14 @@ export async function runDailyReporter(env, scheduledTime = Date.now(), options 
         status: accepted ? "sent" : "failed",
         completedAt: Date.now(), summary, report,
         emailStatus: accepted ? "accepted" : "unknown",
-        messageId: reportId
+        messageId
       });
       return { reportDate, status: accepted ? "sent" : "unknown", recipient: admin, summary };
     } catch (error) {
       const outcome = error?.deliveryOutcome === "not_accepted" ? "not_accepted" : "unknown";
       await persistRun(env, reportKey, {
         status: "failed", completedAt: Date.now(), summary, report,
-        emailStatus: outcome, messageId: reportId, error: safeString(error?.message || error, 500)
+        emailStatus: outcome, messageId, error: safeString(error?.message || error, 500)
       });
       return { reportDate, status: outcome, summary };
     }
@@ -522,7 +531,7 @@ export async function runDailyReporter(env, scheduledTime = Date.now(), options 
     const report = { reportDate, timeZone, generatedAt: new Date().toISOString(), overall: summary.overall, summary, checks };
     await persistRun(env, reportKey, {
       status: "failed", completedAt: Date.now(), summary, report,
-      emailStatus: "not_attempted", messageId: reportId, error: safeString(error?.message || error, 800)
+      emailStatus: "not_attempted", messageId, error: safeString(error?.message || error, 800)
     });
     throw error;
   }

@@ -1,3 +1,10 @@
+## 2026-11-16 — Daily report validation repair (not deployed)
+
+- Corrected report sender identity and the coordinator message ID while preserving the existing idempotency key.
+- Fixed a sender health check that rejected valid addresses; added reporter-to-coordinator-to-simulated-transport tests.
+- This does not prove live delivery or resolve missing read-only account-audit and repository monitoring access. Unknown past sends must be reconciled, not blindly repeated.
+- Backend-only change; the shared web dashboard and Android WebView are unaffected. No production deployment or live report was performed.
+
 ## 2026-11-16 — Safer message viewing and retry safeguards (not deployed)
 
 - Sent message details expose their stored HTML alternative, displayed through a sanitized opaque-origin sandbox that blocks scripts, links and remote content. Incoming HTML extraction is not implemented.
