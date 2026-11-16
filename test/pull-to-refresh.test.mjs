@@ -34,5 +34,6 @@ test('refresh failure preserves prior content and exposes retry feedback', () =>
   assert.match(app, /Your previously loaded content is still available/);
   assert.match(app, /Retry refresh/);
   assert.match(app, /role="alert"/);
-  assert.match(app, /role="status"/);
+  const loadingOverlay = await readFile(new URL('../src/dashboard-tsx/LoadingOverlay.tsx', import.meta.url), 'utf8');
+  assert.match(loadingOverlay, /role="status"/);
 });
