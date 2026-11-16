@@ -287,7 +287,7 @@ async function verifyOtp(request, env, ctx) {
     await env.AUTH_DB.prepare("UPDATE auth_challenges SET attempts = attempts + 1 WHERE id = ? AND attempts < 5").bind(row.id).run();
     return json({ error: "That code does not match the latest email. Check all six digits, or return to sign in to request a new code." }, 401);
   }
-  // Create the session and consume the OTP in one D1 transaction. If session
+  // Create the session and consume the OTP in one atomic Turso transaction. If session
   // persistence fails, the challenge remains usable instead of stranding the user.
   const token = randomToken(32);
   const tokenHash = await sha256(token);
@@ -302,7 +302,7 @@ async function verifyOtp(request, env, ctx) {
         .bind(row.id, row.code_hash, now)
     ]);
   } catch {
-    // Some production D1 runtime failures can reject batch() even when individual
+    // Some production database runtime failures can reject batch() even when individual
     // prepared statements remain available. Claim the OTP first so this fallback
     // still prevents concurrent replay, then create the session and remove it.
     console.error("OTP_SESSION_BATCH_FAILED");
@@ -585,7 +585,7 @@ async function adminSendRoute(request,env,session){
  const requestedName=String(b.fromName||"").trim();const name=requestedName&&/^[A-Za-z][A-Za-z .'-]{1,63}$/.test(requestedName)?requestedName:(domain==="operavaglobal.com"?"Operava":domain==="work.jelvan.pro"?"Jelvan Ricolcol":"LeadMASTER");
  const batchId=crypto.randomUUID(),now=Date.now(),ids=[];
  try{
-  // D1 batch() is limited to 100 statements. Insert in bounded groups.
+  // Turso batch operations are bounded to 100 statements by this application. Insert in bounded groups.
   for(let offset=0;offset<recipients.length;offset+=50){
    const group=recipients.slice(offset,offset+50);
    const marks=group.map(()=>"?").join(",");
