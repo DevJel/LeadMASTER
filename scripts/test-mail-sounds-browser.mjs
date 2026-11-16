@@ -35,7 +35,7 @@ try{
   window.AudioContext=class{constructor(){this.state='running';this.currentTime=0;this.destination={}} createOscillator(){return {frequency:{set value(v){window.__notes.push(v)}},connect(){},start(){},stop(){}}}createGain(){return {gain:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){}}}close(){return Promise.resolve()}};
  });
  await page.goto(`http://127.0.0.1:${server.address().port}/dashboard.html`);
- await page.getByText('Nothing in Primary').waitFor();
+ await page.getByText('Nothing in Inbox').waitFor();
  assert.deepEqual(await page.evaluate(()=>window.__notes),[],'initial snapshot silent');
  // User interaction unlocks browser audio; test server changes are synthetic.
  await page.getByRole('button',{name:'Refresh',exact:true}).click();
@@ -59,10 +59,11 @@ try{
  failDelete=false;await page.getByRole('alertdialog').getByRole('button',{name:'Move to Deleted'}).click();
  await page.waitForFunction(()=>window.__notes.length===7);
  assert.deepEqual(await page.evaluate(()=>window.__notes.slice(-2)),[520,390],'confirmed delete cue');
- await page.getByRole('button',{name:'Settings',exact:true}).first().click();
+ await page.getByRole('button',{name:'Open profile and settings'}).click();
+ await page.getByRole('button',{name:'Profile, settings & configurations'}).click();
  await page.getByRole('checkbox',{name:/Sounds/}).uncheck();
  await page.waitForTimeout(100);
- await page.getByRole('button',{name:'Inbox',exact:true}).first().click();
+ await page.getByRole('navigation',{name:'LeadMASTER navigation'}).getByRole('button',{name:'Inbox',exact:true}).click();
  inbox=[{id:'00000000-0000-4000-8000-000000000003',from_address:'sender@example.test',subject:'Muted incoming',received_at:Date.now()+10}];
  await page.getByRole('button',{name:'Refresh',exact:true}).click();
  await page.getByText('Muted incoming').first().waitFor();
