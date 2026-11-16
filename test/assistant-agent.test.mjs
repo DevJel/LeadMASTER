@@ -63,9 +63,11 @@ test("assistant uses a bounded tool loop and returns only mailbox facts supplied
 });
 
 test("assistant prepares an unsent email only when the user supplied the exact recipient", async () => {
-  const env = envFor(async (_model, input) => {
-    if (input.tool_choice === "none") return { response: "The draft is ready for your review in Compose." };
-    return { tool_calls: [{ name: "prepare_email", arguments: { to: "lead@example.test", subject: "Following up", text: "Thank you for your enquiry." } }] };
+  let calls = 0;
+  const env = envFor(async () => {
+    calls++;
+    if (calls === 1) return { tool_calls: [{ name: "prepare_email", arguments: { to: "lead@example.test", subject: "Following up", text: "Thank you for your enquiry." } }] };
+    return { response: "The draft is ready for your review in Compose." };
   });
   const response = await assistantAgentRoute(request([{ role: "user", content: "Prepare a follow-up to lead@example.test." }]), env, session, adminEmail);
   const result = await response.json();
@@ -75,9 +77,11 @@ test("assistant prepares an unsent email only when the user supplied the exact r
 });
 
 test("assistant refuses to invent an email recipient and never sends mail", async () => {
-  const env = envFor(async (_model, input) => {
-    if (input.tool_choice === "none") return { response: "I need the recipient address from you before preparing the draft." };
-    return { tool_calls: [{ name: "prepare_email", arguments: { to: "invented@example.test", subject: "Hello", text: "Message" } }] };
+  let calls = 0;
+  const env = envFor(async () => {
+    calls++;
+    if (calls === 1) return { tool_calls: [{ name: "prepare_email", arguments: { to: "invented@example.test", subject: "Hello", text: "Message" } }] };
+    return { response: "I need the recipient address from you before preparing the draft." };
   });
   const response = await assistantAgentRoute(request([{ role: "user", content: "Prepare a message to the lead." }]), env, session, adminEmail);
   const result = await response.json();
