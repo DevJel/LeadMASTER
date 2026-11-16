@@ -7,7 +7,7 @@
     "build:assets": "node scripts/build-static-assets.mjs",
     "check:dashboard": "tsc -p tsconfig.dashboard.json && node scripts/check-dashboard-bundle.mjs",
     "db:migrate:turso": "node scripts/migrate-turso.mjs",
-    "build:workers": "esbuild worker.js --bundle --format=esm --platform=browser --target=es2022 --outfile=dist/worker.js && esbuild workers/mail-queue-consumer.js --bundle --format=esm --platform=browser --target=es2022 --outfile=dist/mail-queue-consumer.js && esbuild workers/mail-failed-consumer.js --bundle --format=esm --platform=browser --target=es2022 --outfile=dist/mail-failed-consumer.js"
+    "build:workers": "esbuild worker.js --bundle --format=esm --platform=browser --external:cloudflare:* --target=es2022 --outfile=dist/worker.js && esbuild workers/mail-queue-consumer.js --bundle --format=esm --platform=browser --external:cloudflare:* --target=es2022 --outfile=dist/mail-queue-consumer.js && esbuild workers/mail-failed-consumer.js --bundle --format=esm --platform=browser --external:cloudflare:* --target=es2022 --outfile=dist/mail-failed-consumer.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",
