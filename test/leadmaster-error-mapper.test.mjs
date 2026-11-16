@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { CUSTOMER_ERROR_GUIDE, mapLeadMasterError, SYSTEM_FALLBACK } from "../src/leadmaster-error-mapper.mjs";
@@ -30,4 +31,13 @@ test("unknown internal errors never leak technical details",()=>{
   assert.equal(result.code,"342322");
   assert.equal(result.message,SYSTEM_FALLBACK);
   assert.doesNotMatch(result.message,/SQL|SELECT|worker\.js|SMTP|password|502|var\/task/i);
+});
+
+test("public Help Center lists every customer code and never includes internal mappings",async()=>{
+  const html=await readFile(new URL("../public/help-center.html",import.meta.url),"utf8");
+  const listed=[...new Set(html.match(/LM-USR-\\d{4}/g)||[])].sort();
+  const source=CUSTOMER_ERROR_GUIDE.map(item=>item.code).sort();
+  assert.deepEqual(listed,source);
+  assert.doesNotMatch(html,/342\\d{3}|SQL|SMTP credentials|database query|stack trace/i);
+  assert.match(html,/cs@leadmaster\\.jelvan\\.space/);
 });
