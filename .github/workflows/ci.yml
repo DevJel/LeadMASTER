@@ -21,8 +21,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build:assets
-      - run: npm test
-      - run: npm run check:dashboard
       - name: Commit generated asset bundle
         if: github.event_name == 'push' && github.actor != 'github-actions[bot]'
         run: |
@@ -33,6 +31,8 @@ jobs:
             git commit -m "chore: sync generated static assets"
             git push
           fi
+      - run: npm test
+      - run: npm run check:dashboard
       # PR builds validate asset generation. Push builds commit the generated bundle
       # to the same branch so the worker's static asset map is always in sync.
       - name: Verify generated asset bundle
