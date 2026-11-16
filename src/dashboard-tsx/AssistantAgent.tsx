@@ -29,7 +29,8 @@ export function AssistantAgent({onPrepareEmail}:Props){
     const next=[...messages,{role:"user" as const,content}];
     setMessages(next);setInput("");setBusy(true);setError("");setActions([]);setPrepared(null);
     try{
-      const response=await fetch("/api/admin/assistant",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"content-type":"application/json"},body:JSON.stringify({messages:next})});
+      const bounded:ChatMessage[]=[];let bytes=0;for(const item of [...next].reverse()){const size=new TextEncoder().encode(item.content).length;if(bounded.length>=12||bytes+size>14000)break;bounded.unshift(item);bytes+=size;}
+      const response=await fetch("/api/admin/assistant",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"content-type":"application/json"},body:JSON.stringify({messages:bounded})});
       const data=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(typeof data?.error==="string"?data.error:"The assistant request failed.");
       const reply=typeof data?.reply==="string"&&data.reply.trim()?data.reply:"The assistant returned no response.";
