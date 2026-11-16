@@ -187,11 +187,11 @@ async function checkDatabase(env, checks) {
     if (missing.length) {
       checks.push(makeCheck("Cloudflare Runtime", "Turso schema integrity", "Needs Attention", "Missing required tables: " + missing.join(", "), "Review the matching repository migrations and apply the missing additive migrations before app features are used."));
     } else {
-      checks.push(makeCheck("Cloudflare Runtime", "D1 schema integrity", "Healthy", EXPECTED_TABLES.length + " required application and reporter tables are present and queryable."));
+      checks.push(makeCheck("Cloudflare Runtime", "Turso schema integrity", "Healthy", EXPECTED_TABLES.length + " required application and reporter tables are present and queryable."));
     }
     checks.push(makeCheck("Cloudflare Runtime", "Turso query connectivity", "Healthy", "A read-only sqlite_master query completed successfully; no mailbox contents were read."));
   } catch (error) {
-    checks.push(makeCheck("Cloudflare Runtime", "D1 database", "Needs Attention", safeString(error?.message || error, 500), "Check the Turso URL, Secret Store token binding and migration state."));
+    checks.push(makeCheck("Cloudflare Runtime", "Turso database", "Needs Attention", safeString(error?.message || error, 500), "Check the Turso URL, Secret Store token binding and migration state."));
   }
 }
 async function checkEmailCoordinator(env, checks) {
@@ -330,7 +330,7 @@ async function checkCloudflareControlPlane(env, checks) {
   const token = (await secretValue(env.CF_API_TOKEN)) || "";
   if (!token) {
     checks.push(makeCheck("Cloudflare", "Account-level resource audit", "Needs Manual Action",
-      "Runtime checks can verify the live Worker, D1, R2, Queue binding and SES coordinator, but account-wide Worker deployments, cron schedules, Queue consumer wiring and resource inventory cannot be queried without a scoped Cloudflare API token.",
+      "Runtime checks can verify the live Worker, Turso, R2, Queue binding and SES coordinator, but account-wide Worker deployments, cron schedules, Queue consumer wiring and resource inventory cannot be queried without a scoped Cloudflare API token.",
       "Verify the existing CF_API_TOKEN Secret Store binding has read-only Workers Scripts, Queues and R2 permissions on the Lead Master Web App account. Never use a Global API Key."));
     return;
   }
@@ -376,7 +376,7 @@ async function checkCloudflareControlPlane(env, checks) {
       latest ? "" : "Review Worker deployment history in Cloudflare."));
   } catch (error) {
     checks.push(makeCheck("Cloudflare", "Account-level resource audit", "Needs Manual Action", safeString(error?.message || error, 600),
-      "Confirm CF_API_TOKEN is valid and has the required read-only permissions for Workers, D1, Queues and R2."));
+      "Confirm CF_API_TOKEN is valid and has read-only Workers Scripts, Queues and R2 permissions for this account."));
   }
 }
 function summarize(checks) {
