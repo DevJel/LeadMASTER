@@ -58,14 +58,13 @@ try{
  failDelete=true;await page.getByRole('alertdialog').getByRole('button',{name:'Move to Deleted'}).click();
  await page.waitForTimeout(200);assert.equal((await page.evaluate(()=>window.__notes)).length,5,'failed delete silent');
   await waitForLoadingOverlayToFinish();
-  inbox=[{id:'00000000-0000-4000-8000-000000000004',from_address:'sender@example.test',subject:'Synthetic confirmed delete',received_at:Date.now()+20}];
-  await page.getByRole('button',{name:'Refresh',exact:true}).click();
-  await page.getByText('Synthetic confirmed delete').first().waitFor();
+  await page.reload();
+  await page.getByText('Synthetic incoming').first().waitFor();
   await waitForLoadingOverlayToFinish();
-  await page.getByRole('checkbox',{name:'Select Synthetic confirmed delete'}).check();
+  await page.getByRole('checkbox',{name:'Select Synthetic incoming'}).check();
  await page.getByRole('button',{name:'Delete selected'}).click();
  failDelete=false;await page.getByRole('alertdialog').getByRole('button',{name:'Move to Deleted'}).click();
- await page.waitForFunction(()=>window.__notes.length===7);
+ await page.waitForFunction(()=>window.__notes.length===2);
   await waitForLoadingOverlayToFinish();
  assert.deepEqual(await page.evaluate(()=>window.__notes.slice(-2)),[520,390],'confirmed delete cue');
  await page.getByRole('button',{name:'Open profile and settings'}).click();
@@ -76,6 +75,6 @@ try{
  inbox=[{id:'00000000-0000-4000-8000-000000000003',from_address:'sender@example.test',subject:'Muted incoming',received_at:Date.now()+10}];
  await page.getByRole('button',{name:'Refresh',exact:true}).click();
  await page.getByText('Muted incoming').first().waitFor();
- assert.equal((await page.evaluate(()=>window.__notes)).length,7,'muted setting suppresses sound');
+ assert.equal((await page.evaluate(()=>window.__notes)).length,2,'muted setting suppresses sound');
  console.log('Synthetic dashboard audio: baseline, received, queued, accepted, failed and confirmed delete passed.');
 }finally{if(browser)await browser.close();await new Promise(r=>server.close(r))}
