@@ -468,9 +468,9 @@ export default function App(){
   function emptyTrash(){ if(!confirmEmpty){ setConfirmEmpty(true); setStatus('Tap Empty Trash again to confirm — this cannot be undone.'); return; } const nextForever=new Set(deletedForever); deleted.forEach(id=>nextForever.add(id)); setDeletedForever(nextForever); setDeleted(new Set()); setConfirmEmpty(false); savePrefs({deleted:new Set(), deletedForever:nextForever}); setStatus('Trash emptied'); }
 
   const filtered = useMemo(()=>{
-    let list = allEmails.filter(e=>!deleted.has(e.id));
-    if(view==='inbox') list = list.filter(e=> e.folder==='inbox' && !archived.has(e.id) && !snoozed.has(e.id) && e.category===activeTab);
-    else if(view==='sent') list = list.filter(e=> e.folder==='sent');
+    let list = [...allEmails];
+    if(view==='inbox') list = list.filter(e=> e.folder==='inbox' && !deleted.has(e.id) && !archived.has(e.id) && !snoozed.has(e.id) && e.category===activeTab);
+    else if(view==='sent') list = list.filter(e=> e.folder==='sent' && !deleted.has(e.id));
     else if(view==='deleted') list = list.filter(e=> deleted.has(e.id));
     else list = list.filter(()=>false);
     if(search.trim()){ const q=search.toLowerCase(); list = list.filter(e=> (e.sender+' '+e.subject+' '+e.snippet+' '+e.body+' '+e.email).toLowerCase().includes(q)); }
