@@ -12,7 +12,7 @@ test('workspace loading and error states precede dashboard content', async () =>
 
 test('inbox is a single unified mailbox without category tabs or category filtering', async () => {
   const app = await readFile(new URL('../required-componets-design/App.tsx', import.meta.url), 'utf8');
-  for (const removed of ['Important mail first','Deals and offers','People and updates','Receipts and alerts','Groups and threads','TABS.map','activeTab','tabUnread']) {
+  for (const removed of ['Primary','Promotions','Social','Updates','Forums','Important mail first','Deals and offers','People and updates','Receipts and alerts','Groups and threads','TABS.map','activeTab','tabUnread']) {
     assert.ok(!app.includes(removed), `Removed inbox category UI remains: ${removed}`);
   }
   assert.match(app, /e\.folder==='inbox' && !deleted\.has\(e\.id\) && !archived\.has\(e\.id\) && !snoozed\.has\(e\.id\)/);
