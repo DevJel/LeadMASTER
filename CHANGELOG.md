@@ -1,3 +1,11 @@
+## 2026-11-17 — Persistent dashboard shell and non-blocking content loading
+
+- Kept the shared dashboard header, navigation, profile controls and scroll frame mounted across tab changes; only the active content region changes.
+- Reused the last successful workspace snapshot when returning to tabs, avoiding unnecessary full-workspace refetches.
+- Replaced the null loading view with an active-view skeleton for the first snapshot. Manual refreshes keep prior content visible; failures show a retry notice instead of replacing the content.
+- Added a shared, subtle blurred loading veil with an accessible dismiss control. Dismissing it does not cancel requests; it unmounts automatically when the request completes.
+- Aligned utility pages with the same overlay component. Updated synthetic browser and source regression tests. No backend or native Android code changed; production deployment remains unverified.
+
 ## 2026-11-17 — Gravatar avatar integration
 
 - Updated the Data Privacy Notice to explain Gravatar's hash-based image requests and the standard connection metadata the image provider may receive; privacy/legal review is required before production release.

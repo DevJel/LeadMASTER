@@ -2,12 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-test('workspace loading and error states precede dashboard content', async () => {
+test('dashboard shell persists while workspace content loads and refreshes', async () => {
   const app = await readFile(new URL('../required-componets-design/App.tsx', import.meta.url), 'utf8');
-  assert.match(app, /isLoading \|\| viewLoading \? LoadingState : loadError \|\| viewError \? ErrorState : mainContent/);
-  assert.match(app, /onClick=\{\(\)=>\{ void retryCurrentView\(\); \}\}/);
-  assert.doesNotMatch(app, /Workspace refreshed from the server\.|LeadMASTER refreshed/);
-  assert.match(app, /src="\/assets\/brand\/leadmaster-full\.svg"/);
+  assert.ok(app.includes('hasWorkspaceSnapshot ? mainContent : (loadError || viewError) ? ErrorState : LoadingState'));
+  assert.ok(app.includes('setHasWorkspaceSnapshot(true)'));
+  assert.ok(!app.includes('const LoadingState = null'));
+  assert.ok(!app.includes('disabled={viewLoading && view!==item.k}'));
+  assert.ok(app.includes('Retry content'));
+  assert.ok(app.includes('leadmaster-full.svg'));
 });
 
 test('inbox is a single unified mailbox without category tabs or category filtering', async () => {
@@ -32,17 +34,18 @@ test('premium shell keeps centered search, transparent product logo and bottom p
 });
 
 
-test('all loading and sending states use one dismissible, viewport-centered blurred overlay', async () => {
-  const app = await readFile(new URL('../required-componets-design/App.tsx', import.meta.url), 'utf8');
-  assert.match(app, /loadingOverlayActive = isLoading \|\| viewLoading \|\| isRefreshing \|\| busy \|\| Boolean\(sendingPhase\)/);
-  assert.match(app, /fixed inset-0 z-\[120\] grid place-items-center/);
-  assert.match(app, /backdrop-blur-md/);
-  assert.match(app, /aria-label="Dismiss loading overlay"/);
-  assert.match(app, /setLoadingOverlayDismissed\(true\)/);
-  assert.match(app, /sendingPhase \? <SendingIndicator phase=\{sendingPhase\}\/>/);
-  assert.doesNotMatch(app, /fixed bottom-4 right-4 z-\[80\]/);
-  assert.doesNotMatch(app, /isRefreshing && <div role="status"/);
-  assert.match(app, /const LoadingState = null/);
+test('reusable loading veil is subtle, dismissible and automatically closes when idle', async () => {
+  const [app, overlay] = await Promise.all([
+    readFile(new URL('../required-componets-design/App.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/dashboard-tsx/LoadingOverlay.tsx', import.meta.url), 'utf8')
+  ]);
+  assert.ok(app.includes('<LoadingOverlay active={loadingOverlayActive}'));
+  assert.ok(overlay.includes('backdrop-blur-sm'));
+  assert.ok(overlay.includes('bg-black/10'));
+  assert.ok(overlay.includes('aria-label="Dismiss loading overlay"'));
+  assert.ok(overlay.includes('if (!active || dismissed) return null;'));
+  assert.ok(overlay.includes('onClick={onDismiss}'));
+  assert.ok(!overlay.includes('setTimeout') && !overlay.includes('setInterval'));
 });
 
 test('send outcomes remain truthful and uncertain sends are never labelled delivered', async () => {
@@ -53,20 +56,16 @@ test('send outcomes remain truthful and uncertain sends are never labelled deliv
 });
 
 
-test('message detail and utility app loading are viewport overlays, not panel indicators', async () => {
+test('utility pages retain navigation and use a first-load skeleton with the shared veil', async () => {
   const [app, utilities] = await Promise.all([
     readFile(new URL('../required-componets-design/App.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../required-componets-design/UtilityApps.tsx', import.meta.url), 'utf8')
   ]);
-  assert.match(app, /detailState\?\.status === 'loading'/);
-  assert.doesNotMatch(app, /<LoadingIndicator compact/);
-  assert.match(utilities, /loadingOverlayActive=loading\|\|saving\|\|currencyBusy\|\|aiBusy/);
-  assert.match(utilities, /fixed inset-0 z-\[120\] grid place-items-center/);
-  assert.match(utilities, /backdrop-blur-md/);
-  assert.match(utilities, /aria-label="Dismiss loading overlay"/);
-  assert.doesNotMatch(utilities, /<LoadingIndicator[^>]*compact/);
+  assert.ok(app.includes("detailState?.status === 'loading'"));
+  assert.ok(utilities.includes('<header className="sticky'));
+  assert.ok(utilities.includes('<LoadingOverlay active={loadingOverlayActive}'));
+  assert.ok(utilities.includes('loading && lastLoaded===null'));
 });
-
 
 test('all retained inbox and SMTP component loading indicators use dismissible viewport overlays', async () => {
   const [inbox, smtp] = await Promise.all([
@@ -79,4 +78,12 @@ test('all retained inbox and SMTP component loading indicators use dismissible v
     assert.match(source, /backdrop-blur-md/);
     assert.match(source, /aria-label="Dismiss loading overlay"/);
   }
+});
+
+
+test('shared overlay hides only its visual layer and never aborts an active request', async () => {
+  const overlay = await readFile(new URL('../src/dashboard-tsx/LoadingOverlay.tsx', import.meta.url), 'utf8');
+  assert.ok(overlay.includes('if (!active || dismissed) return null;'));
+  assert.ok(overlay.includes('onClick={onDismiss}'));
+  assert.ok(!overlay.includes('AbortController'));
 });

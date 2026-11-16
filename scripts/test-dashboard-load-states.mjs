@@ -59,11 +59,18 @@ try {
   const before = requestCount;
   await page.getByRole('button', { name: 'Refresh', exact: true }).click();
   await page.getByText('Loading inbox', { exact: false }).first().waitFor({ timeout: 5000 });
+  assert.equal(await page.getByText('Nothing in Inbox').isVisible(), true, 'last successful content stays visible during refresh');
   await page.getByText('Nothing in Inbox').waitFor({ timeout: 5000 });
   assert.equal(requestCount - before, 11, 'refresh must request one workspace snapshot');
   assert.equal(await page.getByText('LeadMASTER refreshed', { exact: true }).count(), 0);
   assert.equal(await page.getByText('Workspace refreshed from the server.', { exact: true }).count(), 0);
   assert.equal(await page.locator('header img[src="/assets/brand/leadmaster-full.svg"]').count(), 1, 'transparent LeadMASTER brand mark remains visible');
+  const requestCountBeforeTabSwitch = requestCount;
+  const navigation = page.locator('nav[aria-label="LeadMASTER navigation"]');
+  await navigation.getByRole('button', { name: 'Sent', exact: true }).click();
+  await navigation.getByRole('button', { name: 'Inbox', exact: true }).click();
+  await page.getByText('Nothing in Inbox', { exact: true }).waitFor({ timeout: 5000 });
+  assert.equal(requestCount, requestCountBeforeTabSwitch, 'switching tabs and returning reuses the workspace snapshot');
 
   const utilityPage = await browser.newPage();
   const utilityStart = requestCount;

@@ -465,3 +465,12 @@ The verification endpoint retries only read-only identity, challenge and verific
 - Tests: `test/gravatar.test.mjs`.
 
 - Updated the Data Privacy Notice to explain Gravatar's hash-based image requests and the standard connection metadata the image provider may receive; privacy/legal review is required before production release.
+
+
+## Persistent dashboard frame and content loading — branch change
+
+- Keep the authenticated header, sidebar/navigation, profile controls and scroll frame mounted across all tab changes. The active view is the only content region that changes.
+- Use one authenticated in-memory workspace snapshot across tabs; do not refetch all workspace collections simply because the user switches tabs or returns to a tab.
+- During the first load, render an active-view skeleton in the content region instead of rendering a null loading view. While refreshing after a successful load, preserve the last good content and display a retry notice if the refresh fails.
+- Use the shared LoadingOverlay component for viewport-centered blur/status behavior across the dashboard and utilities. X dismissal hides only the veil; the request continues. The veil disappears automatically when its owning operation returns to idle.
+- Browser regression covers initial loading, failure/retry, retained content during refresh and tab switching without duplicate snapshot fetches. Tests use synthetic local responses. No backend, database, authentication or API contract change is required; the Android companion shares this responsive WebView surface, so no native source change is needed. Deployment and authenticated device acceptance remain separate.
