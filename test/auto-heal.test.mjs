@@ -69,7 +69,7 @@ test("strict patch rejects unrelated file, duplicate block, imports and over-15-
   assert.throws(() => validateSurgicalPatch({ ...base, target_file: "src/auth/login.ts" }, frame, snippet, source), /target/);
   assert.throws(() => validateSurgicalPatch({ ...base, replace_code: "import x from 'x';" }, frame, snippet, source), /Import/);
   assert.throws(() => validateSurgicalPatch({ ...base, replace_code: Array(16).fill("x").join("\n") }, frame, snippet, source), /15-line/);
-  assert.throws(() => validateSurgicalPatch({ ...base, search_code: "return" }, frame, snippet, source), /verbatim/);
+  assert.throws(() => validateSurgicalPatch({ ...base, search_code: "return other;" }, frame, snippet, source), /verbatim/);
 });
 
 test("OIDC verification fails closed for missing, malformed or wrong-audience tokens", async () => {
