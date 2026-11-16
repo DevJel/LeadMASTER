@@ -242,7 +242,7 @@ function avatarLabelForEmail(email:string){ return avatarKindForEmail(email)==='
 function AvatarIcon({email, size=18}:{email:string; size?:number}){ return <UniformIcon name={avatarKindForEmail(email)} size={size} />; }
 
 async function api(action:string, args:any){
-  const res = await fetch("actions", {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({action, args})});
+  const res = await fetch("/api/workspace/actions", {method:'POST', credentials:'same-origin', headers:{'content-type':'application/json'}, body: JSON.stringify({action, args})});
   const json = await res.json().catch(()=>({}));
   if(!res.ok || json.error) throw new Error(typeof json.error==='string'? json.error : (json.error?.message || `Request failed (${res.status})`));
   return json.data;
