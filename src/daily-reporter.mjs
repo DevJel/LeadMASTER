@@ -214,8 +214,11 @@ async function checkR2AndBindings(env, checks) {
   checks.push(makeCheck("Cloudflare Runtime", "Email send Queue binding", env.MAIL_SEND_QUEUE && typeof env.MAIL_SEND_QUEUE.send === "function" ? "Healthy" : "Unable to Fix",
     env.MAIL_SEND_QUEUE && typeof env.MAIL_SEND_QUEUE.send === "function" ? "The production send-queue producer binding is available. Queue consumer wiring and backlog are checked through the Cloudflare API audit." : "MAIL_SEND_QUEUE binding is missing.",
     env.MAIL_SEND_QUEUE ? "" : "Restore the leadmaster-mail-send producer binding."));
-  checks.push(makeCheck("Cloudflare Runtime", "Workers AI binding", env.AI ? "Healthy" : "Moderate",
-    env.AI ? "Workers AI binding is configured. No billable model inference was executed during this health check." : "AI binding is not available in the Worker runtime.",
+  checks.push(makeCheck("Cloudflare Runtime", "Auto-Heal KV binding", env.AUTO_HEAL_KV && typeof env.AUTO_HEAL_KV.get === "function" && typeof env.AUTO_HEAL_KV.put === "function" ? "Healthy" : "Unable to Fix",
+    env.AUTO_HEAL_KV && typeof env.AUTO_HEAL_KV.get === "function" && typeof env.AUTO_HEAL_KV.put === "function" ? "The error-hash deduplication and rejected-fix KV namespace is bound." : "AUTO_HEAL_KV binding is missing.",
+    env.AUTO_HEAL_KV ? "" : "Restore the leadmaster-auto-heal KV namespace binding."));
+  checks.push(makeCheck("Cloudflare Runtime", "Workers AI binding", env.AI && typeof env.AI.run === "function" ? "Healthy" : "Moderate",
+    env.AI && typeof env.AI.run === "function" ? "Workers AI binding is configured. No model inference is executed by the scheduled health check." : "AI binding is not available in the Worker runtime.",
     env.AI ? "" : "If AI reply suggestions are expected to be active, restore the existing AI binding."));
 }
 function githubHeaders(env) {
@@ -350,9 +353,9 @@ async function checkCloudflareControlPlane(env, checks) {
       bucket ? "leadmaster-inbound-mail bucket exists." : "The expected inbound-mail bucket was not found.",
       bucket ? "" : "Restore the inbound-mail bucket and its binding."));
     const cronList = schedules?.schedules || [];
-    const cronOk = cronList.some(item => item.cron === "0 0 * * *");
+    const cronOk = cronList.some(item => item.cron === "0 9 * * *");
     checks.push(makeCheck("Cloudflare", "Daily Reporter Cron Trigger", cronOk ? "Healthy" : "Needs Attention",
-      cronOk ? "Daily report trigger is configured for 00:00 UTC (08:00 Asia/Kuala_Lumpur)." : "The expected daily 00:00 UTC cron trigger is missing.",
+      cronOk ? "Mandatory daily report is configured for 09:00 UTC (17:00 Asia/Manila)." : "The expected daily 09:00 UTC / 17:00 Asia/Manila cron trigger is missing.",
       cronOk ? "" : "Deploy the latest main branch configuration with the daily reporter cron."));
     const latest = deployments?.deployments?.[0];
     checks.push(makeCheck("Cloudflare", "Latest Worker deployment", latest ? "Healthy" : "Moderate",
