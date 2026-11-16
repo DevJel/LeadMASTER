@@ -1070,7 +1070,7 @@ export default function App(){
       </div>}
 
       {!mobileSidebar && <button onClick={()=>setMobileSidebar(true)} className="md:hidden fixed bottom-4 left-4 z-[60] w-11 h-11 grid place-items-center rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] shadow-lg" aria-label="Open navigation" title="Open navigation"><UniformIcon name="panel" size={19}/></button>}
-      <div className="flex flex-1 min-h-0 items-start lg:overflow-hidden">
+      <div className="flex flex-1 min-h-0 items-stretch lg:overflow-hidden">
         <aside className={`hidden md:block shrink-0 sticky top-[72px] h-[calc(100vh-72px)] lg:top-0 lg:h-full ${sidebarOpen?'w-[256px]':'w-[72px]'} transition-all overflow-hidden`}>
           {sidebarOpen ? sidebar : <div className="h-full flex flex-col items-center py-3 gap-1">
             <nav className="flex-1 flex flex-col items-center gap-1" aria-label="Collapsed LeadMASTER navigation">{NAV.map(k=><button key={k.k} onClick={()=>goView(k.k)} className={`w-11 h-11 grid place-items-center rounded-xl ${view===k.k?'bg-[var(--text)] text-[var(--surface)]':'hover:bg-[var(--surface-2)]'}`} aria-label={k.label} title={k.label}><UniformIcon name={k.icon} size={20}/></button>)}</nav>
