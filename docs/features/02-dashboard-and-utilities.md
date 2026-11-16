@@ -4,7 +4,7 @@
 
 ## Dashboard shell
 
-The dashboard is built as a single React workspace. Desktop layout keeps the application frame fixed to the viewport while the active workspace region scrolls independently. Mobile navigation adapts to a smaller viewport. The header profile control provides account identity and logout; the Apps launcher opens utility modules in their dedicated dashboard context.
+The dashboard is built as a single React workspace. The inbox is one unified message list; it does not split mail into Primary, Promotions, Social, Updates or Forums categories. The header places the transparent full LeadMASTER logo at the left, a centered search field in the middle and utility actions at the far right. The profile control is anchored at the bottom of the sidebar and opens Profile, Settings and configurations. Settings is no longer a primary navigation item. The sidebar can collapse to an icon rail and expand again; on mobile, a bottom-edge navigation control opens the drawer. Desktop layout keeps the application frame fixed to the viewport while the active workspace region scrolls independently. The Apps launcher opens utility modules in their dedicated dashboard context.
 
 ~~~mermaid
 flowchart TD
