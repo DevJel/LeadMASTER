@@ -254,3 +254,8 @@ Unit tests do not prove live Turnstile, SES inbox delivery or webhook callback r
 
 - The deletion-claim code was observed in the live Worker, and migration `0008_inbound_deletion_claim.sql` was applied and verified in D1. The exact deployed Git commit was not independently verified.
 - No live deletion or restoration was performed; staging rehearsal and end-to-end acceptance remain outstanding. A D1 time-travel rollback affects the whole database and does not restore R2 objects.
+
+### Sign-in verification resilience (unreleased)
+- Allow verification of an already-delivered code and existing-session access when unrelated mail or login-check settings are absent, while retaining required authentication checks.
+- Keep an OTP claimed when a fallback session write has an uncertain outcome; do not reset incorrect-attempt counts.
+- Add synthetic full-path code generation, email validation and verification, plus negative and fallback regression tests. Live sign-in and production rollout remain unverified.
