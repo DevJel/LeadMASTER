@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const app = await readFile(new URL('../required-componets-design/App.tsx', import.meta.url), 'utf8');
+const loadingOverlay = await readFile(new URL('../src/dashboard-tsx/LoadingOverlay.tsx', import.meta.url), 'utf8');
 
 test('workspace refresh is single-flight and verifies a complete server snapshot', () => {
   assert.match(app, /const refreshLock = useRef\(false\)/);
@@ -34,6 +35,5 @@ test('refresh failure preserves prior content and exposes retry feedback', () =>
   assert.match(app, /Your previously loaded content is still available/);
   assert.match(app, /Retry refresh/);
   assert.match(app, /role="alert"/);
-  const loadingOverlay = await readFile(new URL('../src/dashboard-tsx/LoadingOverlay.tsx', import.meta.url), 'utf8');
   assert.match(loadingOverlay, /role="status"/);
 });
