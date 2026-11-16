@@ -1,3 +1,12 @@
+## 2026-11-16 — Feature architecture documentation and dashboard CI corrections (not deployed)
+
+- Added a central feature index and 14 feature guides under `docs/features/`, with Mermaid flows, source references, API/data connections, authorization boundaries and explicit availability limits.
+- Updated README and maintainer handover to point to the feature guide set and extensionless browser URL contract.
+- Rebuilt the dashboard feature map around the current React dashboard, UtilityApps module, account-scoped record API and real production capability boundaries.
+- Removed an unused contact-filter calculation left over after the old right-hand panel was removed; it referenced an undefined variable during dashboard initialization.
+- Updated the dashboard bundle checker to validate SendingIndicator styles in the shared dashboard stylesheet instead of expecting a nonexistent component-local CSS output.
+- Automated tests, browser screenshots, static asset verification and production deployment remain pending for this change.
+
 ## 2026-11-16 — Clean extensionless page URLs (not deployed)
 
 - Added canonical browser routes for the landing page, login, dashboard, Help Center, documentation, privacy, terms and developer API-key console while continuing to serve the existing HTML assets internally.
