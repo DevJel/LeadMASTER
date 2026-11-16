@@ -63,6 +63,7 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
+      - run: npm run build:assets
       - run: npm install --no-save --package-lock=false playwright
       - run: npx playwright install --with-deps chromium
       - run: node scripts/capture-screenshots.mjs
