@@ -168,8 +168,8 @@ async function createManualIssue(token, repo, title, body, sourceIssue) {
   return { url: issue.html_url, created: true };
 }
 
-async function analyzeAndPropose(env, frame, stacktrace, sourceIssue) {
-  const token = String(env.GITHUB_TOKEN || "");
+async function analyzeAndPropose(env, frame, stacktrace, sourceIssue, tokenValue) {
+  const token = String(tokenValue || env.GITHUB_TOKEN || "");
   if (!token) throw new Error("The Worker GITHUB_TOKEN secret is not configured; safe source inspection and PR creation require a least-privilege GitHub token.");
   const repo = String(env.REPORTER_GITHUB_REPOSITORY || "DevJel/LeadMASTER");
   const branch = await githubRequest(token, "/repos/" + repo + "/branches/main");
@@ -241,7 +241,8 @@ export async function processAutoHealEvent(env, event) {
   const repo = String(env.REPORTER_GITHUB_REPOSITORY || "DevJel/LeadMASTER");
   const stacktrace = safe(event.stacktrace || event.issue_body || "", 8000);
   const frames = parseStackFrames(stacktrace);
-  const errorHash = await sha256((frames[0]?.file || "unknown") + ":" + (frames[0]?.line || 0) + ":" + stacktrace);
+  const token = String(event.github_token || env.GITHUB_TOKEN || "");
+  const errorHash = await sha256((frames[0]?.file || "unknown") + ":" + (frames[0]?.line || 0) + ":" + (stacktrace || safe(event.event_id || event.issue_url || event.event_type, 1000)));
   const kv = env.AUTO_HEAL_KV;
   if (kv?.get) {
     const prior = await kv.get("error:" + errorHash);
@@ -256,10 +257,25 @@ export async function processAutoHealEvent(env, event) {
     } else if (!frames.length) {
       result = { status: "manual_action", errorHash, reason: "No exact application stack-trace file and line could be extracted; no source changes were attempted." };
     } else {
-      result = await analyzeAndPropose(env, frames[0], stacktrace, sourceIssue);
+      result = await analyzeAndPropose(env, frames[0], stacktrace, sourceIssue, token);
     }
   } catch (error) {
     result = { status: "manual_action", errorHash, reason: safe(error?.message || error, 1000), target: frames[0] ? frames[0].file + ":" + frames[0].line : "" };
+  }
+  if (result.status === "manual_action" && token && !sourceIssue) {
+    try {
+      const issue = await createManualIssue(token, repo,
+        "[Auto-heal manual review] " + safe(event.title || event.event_type || "Production failure", 100),
+        "## Automated investigation requires manual action\n\n" +
+        "- Error hash: `" + errorHash + "`\n" +
+        "- Target: `" + safe(result.target || "No exact source line", 200) + "`\n" +
+        "- Reason: " + safe(result.reason, 1000) + "\n\n" +
+        "The automated worker did not modify source because the strict scope, access or patch checks could not be satisfied.\n",
+        "");
+      result.issueUrl = issue.url;
+    } catch (issueError) {
+      result.issueCreationError = safe(issueError?.message || issueError, 300);
+    }
   }
   if (kv?.put) await kv.put("error:" + errorHash, JSON.stringify({ ...result, at: new Date().toISOString() }), { expirationTtl: 60 * 60 * 24 * 30 });
   return result;
