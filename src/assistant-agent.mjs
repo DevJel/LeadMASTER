@@ -208,7 +208,7 @@ export async function assistantAgentRoute(request, env, session, adminEmail) {
         messages.push({ role: "assistant", content: JSON.stringify({ name: call.name, arguments: call.args }) });
         const outcome = await executeTool(call.name, call.args, env, history, prepared);
         actions.push({ name: call.name, status: outcome?.error ? "needs_attention" : call.name === "prepare_email" ? "needs_review" : "completed" });
-        messages.push({ role: "tool", name: call.name, content: JSON.stringify(outcome) });
+        messages.push({ role: "tool", content: JSON.stringify(outcome) });
       }
     }
     if (!finalResponse) {
