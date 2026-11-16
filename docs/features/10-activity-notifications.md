@@ -13,7 +13,7 @@ flowchart TD
   Poll --> ActivityDB
   Poll --> NotificationDB
   NotificationDB --> UI[Notification list / unread state]
-  UI --> Sound[User-enabled browser audio]
+  Poll --> Sound[User-enabled foreground sound cues]
   UI --> Device[Browser notification permission]
 ~~~
 
@@ -35,7 +35,8 @@ Activity history is an audit/readback surface. Do not add ordinary delete contro
 
 - Polling and refresh must be silent during routine background refresh; do not replace the full page with a blocking loading screen.
 - Poll while the dashboard is visible; pause work when the page is hidden and clean up timers/listeners on unmount.
-- Browser sound begins only after browser user interaction and only when the user has not disabled it.
+- The Settings → Sounds preference enables distinct foreground cues after user interaction: new inbound mail, a message accepted by the sending service, or a confirmed deletion. Queueing, failure and uncertain results do not trigger a success sound. Acceptance is not proof of inbox delivery. The first snapshot establishes a silent baseline; duplicate and restored old messages do not replay. Sound is off by default.
+- Android uses the same dashboard audio; its foreground native notification cards are silent to avoid duplicate and premature cues. Sound requires an open, visible workspace, device volume, and browser/WebView audio permission. No background push is provided.
 - Device notifications require permission and an open supported browser context.
 - No Web Push service worker subscription is configured for guaranteed notifications while the dashboard is closed.
 

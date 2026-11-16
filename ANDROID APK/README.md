@@ -7,7 +7,7 @@ LeadMASTER for Android is the official Android companion to the LeadMASTER web w
 - **Production workspace:** https://leadmaster.jelvan.space
 - **Source repository:** https://github.com/DevJel/LeadMASTER
 - **Android build workflow:** https://github.com/DevJel/LeadMASTER/actions/workflows/android-apk.yml
-- **Current app version in source:** `1.7.0` (`versionCode 8`)
+- **Current app version in source:** `1.8.0` (`versionCode 9`)
 - **Android application ID:** `pro.leadmaster.app`
 
 > **APK availability:** CI publishes an installable debug APK as a GitHub Actions artifact. Open the Android build workflow, select the latest successful run, and download the `leadmaster-android-debug-apk` artifact. Artifacts are retained for 90 days. A public GitHub Release APK is not currently published. Debug builds are for testing and are not signed with the owner's production release key.
@@ -36,7 +36,7 @@ The Android application is intentionally a thin client. It does not implement a 
 | File selection | WebView file chooser launches Android's multi-document picker | The web app remains responsible for file validation and upload behavior |
 | Email download | Android DownloadManager saves supported same-origin downloads to Downloads | The current native filename is `LeadMASTER-message.eml` |
 | External links | HTTP(S), mailto and tel links outside the trusted app origin are handed to Android | Only the exact trusted HTTPS app origin stays in the WebView |
-| Local notifications | Native notification channels for sent, deleted, received and general events | Requires notification permission on Android 13+ |
+| Local notifications | Foreground notification cards for sent, deleted, received and general events | Requires notification permission on Android 13+; cards are silent to avoid duplicate sounds |
 | Foreground activity monitoring | Polls authenticated activity and inbox read endpoints while the workspace is visible | Not a background push service; no guaranteed alerts while closed or force-stopped |
 
 ### Notification behavior
@@ -50,7 +50,9 @@ The app defines four Android notification channels:
 
 When the authenticated workspace page is loaded, the notification monitor establishes an initial baseline of existing activity and inbox items. This avoids treating the entire existing mailbox as new. It then checks the authenticated activity and inbox endpoints after an initial delay and every 30 seconds while the document is visible.
 
-Android notification permission, channel sound, vibration, Do Not Disturb and device volume remain under the device owner's control. The app does not register a push token or run a dedicated background notification worker. Monitoring pauses when the document is hidden and is not guaranteed after the app is closed, force-stopped or its WebView is no longer active.
+The shared dashboard plays distinct send, delete and receive sounds while visible when **Settings → Sounds** is enabled and the user has interacted with the page. A send sound means the sending service accepted the message, not inbox delivery. Notification cards are silent so the native monitor cannot play a second delayed cue or signal a queued/failed send as successful. Android device volume and Do Not Disturb still apply. The setting is shared with the web workspace.
+
+Android notification permission, channel settings, vibration, Do Not Disturb and device volume remain under the device owner's control. The app does not register a push token or run a dedicated background notification worker. Monitoring pauses when the document is hidden and is not guaranteed after the app is closed, force-stopped or its WebView is no longer active.
 
 ## 3. Architecture
 

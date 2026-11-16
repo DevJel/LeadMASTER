@@ -300,7 +300,9 @@ class MainActivity : ComponentActivity() {
             .setContentText((message ?: "You have a new update.").take(180))
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            // The shared dashboard plays mail sounds once while visible. Keep
+            // native cards silent to avoid a second delayed sound from polling.
+            .setSilent(true)
             .build()
         getSystemService(NotificationManager::class.java).notify(
             (System.currentTimeMillis() % Int.MAX_VALUE).toInt(), notification

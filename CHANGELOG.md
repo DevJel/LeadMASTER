@@ -259,3 +259,7 @@ Unit tests do not prove live Turnstile, SES inbox delivery or webhook callback r
 - Allow verification of an already-delivered code and existing-session access when unrelated mail or login-check settings are absent, while retaining required authentication checks.
 - Keep an OTP claimed when a fallback session write has an uncertain outcome; do not reset incorrect-attempt counts.
 - Add synthetic full-path code generation, email validation and verification, plus negative and fallback regression tests. Live sign-in and production rollout remain unverified.
+
+### Foreground mail sounds (unreleased)
+- Added opt-in, distinct foreground audio for received mail, accepted sends and confirmed deletions in the shared web/Android workspace.
+- Suppressed duplicate Android foreground notification-card audio; no background push or inbox-delivery guarantee is implied.
