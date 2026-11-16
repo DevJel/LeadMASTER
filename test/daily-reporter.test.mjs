@@ -224,3 +224,63 @@ test("real report payload passes coordinator and mock SMTP, with stable idempote
     const second=await runDailyReporter(f.env,Date.UTC(2026,10,16,9));assert.equal(second.skipped,true);assert.equal(smtpConnections,1);
   } finally {f.restore()}
 });
+
+
+test("reporter reads Cloudflare Secret Store bindings and authenticates GitHub and Cloudflare audits", async () => {
+  const f = createEnv();
+  const originalMockFetch = globalThis.fetch;
+  const observed = { github: false, cloudflare: false };
+  const githubSecret = "gh-test-secret-never-report";
+  const cloudflareSecret = "cf-test-secret-never-report";
+  f.env.GITHUB_TOKEN = { get: async () => githubSecret };
+  f.env.CF_API_TOKEN = { get: async () => cloudflareSecret };
+  globalThis.fetch = async (input, init = {}) => {
+    const url = new URL(String(input));
+    const headers = new Headers(init.headers || {});
+    if (url.hostname === "api.github.com") {
+      observed.github = headers.get("authorization") === "Bearer " + githubSecret;
+      return originalMockFetch(input, init);
+    }
+    if (url.hostname === "api.cloudflare.com") {
+      observed.cloudflare = headers.get("authorization") === "Bearer " + cloudflareSecret;
+      const path = url.pathname;
+      let result = [];
+      if (path.endsWith("/workers/scripts")) result = [{
+        id: "leadmaster",
+        bindings: [
+          { name: "TURSO_AUTH_TOKEN", type: "secrets_store_secret" },
+          { name: "TURSO_URL", type: "plain_text" }
+        ]
+      }];
+      else if (path.endsWith("/workers/scripts/leadmaster/settings")) result = { bindings: [
+        { name: "TURSO_AUTH_TOKEN", type: "secrets_store_secret" },
+        { name: "TURSO_URL", type: "plain_text" }
+      ] };
+      else if (path.endsWith("/queues")) result = [{
+        queue_name: "leadmaster-mail-send",
+        producers: [{ script: "leadmaster" }],
+        consumers: [{ script: "leadmaster-mail-queue-consumer" }]
+      }];
+      else if (path.endsWith("/r2/buckets")) result = { buckets: [{ name: "leadmaster-inbound-mail" }] };
+      else if (path.endsWith("/schedules")) result = { schedules: [{ cron: "0 9 * * *" }] };
+      else if (path.endsWith("/deployments")) result = { deployments: [{ id: "test-deployment", created_on: "2026-11-16T00:00:00Z" }] };
+      else throw new Error("Unexpected Cloudflare audit path: " + path);
+      return responseJson({ success: true, errors: [], messages: [], result });
+    }
+    return originalMockFetch(input, init);
+  };
+  try {
+    const result = await runDailyReporter(f.env, Date.UTC(2026, 10, 16, 9, 0, 0));
+    assert.equal(result.status, "sent");
+    assert.equal(observed.github, true, "GitHub Secret Store binding must be read and sent as a bearer token");
+    assert.equal(observed.cloudflare, true, "Cloudflare Secret Store binding must be read and sent as a bearer token");
+    const serialized = JSON.stringify(JSON.parse(f.db.state.run.report_json));
+    assert.equal(serialized.includes(githubSecret), false);
+    assert.equal(serialized.includes(cloudflareSecret), false);
+    assert.match(serialized, /Turso production database configuration/);
+    assert.doesNotMatch(serialized, /D1 resource inventory/);
+  } finally {
+    globalThis.fetch = originalMockFetch;
+    f.restore();
+  }
+});
