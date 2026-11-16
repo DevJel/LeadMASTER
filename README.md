@@ -5,14 +5,16 @@ LeadMASTER is an email workspace and developer integration service.
 - **Production:** https://leadmaster.jelvan.space
 - **Public documentation:** https://leadmaster.jelvan.space/#documentation
 - **AI-agent instructions:** https://leadmaster.jelvan.space/llms.txt
+- **Customer Help Center:** https://leadmaster.jelvan.space/help-center.html
 - **Crawler policy:** https://leadmaster.jelvan.space/robots.txt
 - **Detailed API reference:** [docs/API.md](docs/API.md)
 - **Engineering handover:** [HANDOVER.md](HANDOVER.md)
 - **Production mail workflow:** [docs/MAIL_WORKFLOW.md](docs/MAIL_WORKFLOW.md)
 - **Daily operational reporting:** [docs/DAILY_REPORTER.md](docs/DAILY_REPORTER.md)
 - **Strict incident auto-heal:** [docs/REPORTER_AUTO_HEAL.md](docs/REPORTER_AUTO_HEAL.md)
+- **Internal backend error-code map (repository maintainers only):** [docs/BACKEND_ERROR_CODES.md](docs/BACKEND_ERROR_CODES.md)
 
-> **Production integration:** The authenticated workspace, account-scoped records and migrations 0015–0019 are merged into `main` and deployed. The daily Reporter/Worker is scheduled for 08:00 Asia/Kuala_Lumpur after this change is deployed. See `docs/DAILY_REPORTER.md` for its checks, status colors and remediation boundaries.
+> **Production integration:** The authenticated workspace, account-scoped records and migrations 0015–0019 are merged into `main` and deployed. The daily Reporter/Worker is scheduled for 17:00 Asia/Manila (09:00 UTC). See `docs/DAILY_REPORTER.md` for its checks, status colors and remediation boundaries.
 
 ## Product status
 
