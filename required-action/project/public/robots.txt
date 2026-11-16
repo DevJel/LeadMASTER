@@ -1,0 +1,88 @@
+# LeadMASTER crawler and AI-agent discovery policy
+# Public product information and llms.txt may be indexed.
+# Private app surfaces and API routes must not be crawled.
+
+User-agent: *
+Allow: /
+Allow: /llms.txt
+Allow: /robots.txt
+Disallow: /api/
+Disallow: /login
+Disallow: /login.html
+Disallow: /logout
+Disallow: /dashboard
+Disallow: /dashboard.html
+Disallow: /dashboard.js
+Disallow: /dashboard.css
+Disallow: /developer-api-keys.html
+Disallow: /html-preview.js
+Disallow: /html-preview.css
+Disallow: /assets/vendor/
+Disallow: /mcp
+Disallow: /mcp/\nDisallow: /mcp.html
+
+User-agent: GPTBot
+Allow: /
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /login
+Disallow: /dashboard
+Disallow: /developer-api-keys.html
+Disallow: /mcp
+
+User-agent: OAI-SearchBot
+Allow: /
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /login
+Disallow: /dashboard
+Disallow: /developer-api-keys.html
+Disallow: /mcp
+
+User-agent: ChatGPT-User
+Allow: /
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /login
+Disallow: /dashboard
+Disallow: /developer-api-keys.html
+Disallow: /mcp
+
+User-agent: ClaudeBot
+Allow: /
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /login
+Disallow: /dashboard
+Disallow: /developer-api-keys.html
+Disallow: /mcp
+
+User-agent: Claude-SearchBot
+Allow: /
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /login
+Disallow: /dashboard
+Disallow: /developer-api-keys.html
+Disallow: /mcp
+
+User-agent: PerplexityBot
+Allow: /
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /login
+Disallow: /dashboard
+Disallow: /developer-api-keys.html
+Disallow: /mcp
+
+User-agent: Google-Extended
+Allow: /
+Allow: /llms.txt
+Disallow: /api/
+Disallow: /login
+Disallow: /dashboard
+Disallow: /developer-api-keys.html
+Disallow: /mcp
+
+# Robots directives are crawler preferences, not access controls.
+# LeadMASTER enforces authentication and authorization at the application/API layer.

@@ -1,0 +1,39 @@
+# Email queue and rate-control implementation
+
+> **Public documentation hub:** [LeadMASTER landing page → Documentation](https://leadmaster.jelvan.pro/#documentation). This file is the repository's detailed engineering reference; the public product guide is maintained in the landing page, not on a separate public documentation site.
+
+
+**Status: implementation in progress; not deployed or production-ready.** The repository contains a Queue consumer adapter, a Durable Object coordinator and a trusted enqueue helper. An experimental, single-key HTTP producer exists behind a disabled-by-default flag, but there is no production-ready producer, Cloudflare binding configuration, operator recovery interface, runtime integration test or deployed queue. Do not use these modules for production until the gates below pass.
+
+## Requested behavior
+
+LeadMASTER should use Cloudflare Queues and send no more than **10 messages per second globally** for the intended SES account and region. Set `SES_MAX_MESSAGES_PER_SECOND` to an explicitly verified integer between 1 and 10, no higher than the account's SES quota. The requested rolling 24-hour cap is 50,000 attempted sends; set `SES_MAX_MESSAGES_PER_DAY` to an explicitly verified integer between 1 and 50,000. These limits are user-provided and have not been verified with AWS. Other senders in the same account and region consume the same quota; all LeadMASTER send paths must use the same coordinator and operators must account for external senders.
+
+## Current code
+
+- `enqueueEmail(queue, job)` in `src/email-queue-core.mjs` is a server-side helper. The caller must authenticate and authorize the request, choose a stable unique idempotency ID, validate the verified sender and enforce policy before enqueueing. It sends one message containing `{id, to, subject, text, html?}` to the Cloudflare Queue. It does not implement a public API. Queue messages contain recipient and message content; apply retention, access and privacy controls.
+- `src/email-queue-worker.mjs` exports a Queue consumer and a Durable Object class named `EmailCoordinator`. The consumer routes each item to one fixed Durable Object identity (`ses-global`) using the internal `EMAIL_COORDINATOR` binding. `src/queue-batch.mjs` acknowledges terminal states and delays retries for unavailable or blocked processing.
+- The coordinator serializes sends, persists a sending marker before the SMTP operation, and spaces a new attempt by at least `floor(1000 / SES_MAX_MESSAGES_PER_SECOND) + 1` milliseconds after the previous attempt completes. At the requested setting of 10 this is 101 ms; slower SES responses reduce throughput. The sender uses implicit TLS via the existing SES SMTP helper.
+- The coordinator reserves one unit per attempt in persistent minute buckets before contacting SES, including attempts that subsequently fail. Buckets expire conservatively after the end of their minute plus 24 hours. When the cap is reached, the consumer requests a delayed queue retry without disclosing rate information to the end user. The counter only observes this coordinator; it does not read the SES account quota or include external senders.
+- A repeated ID with identical content is not resent after an accepted or failed outcome. Reuse with different content is an `id_conflict`. A definitively failed pre-DATA attempt is recorded and acknowledged without automatic retry; an operator-visible retry workflow is still required. This favors avoiding accidental duplicates over automatic delivery.
+- An uncertain SMTP outcome or crash after the persistent sending marker leaves the coordinator blocked. The system does not automatically resend or continue sending other messages. **There is currently no authorized reconciliation or recovery interface**, so operator intervention requires additional implementation and review. No claim of exactly-once SMTP delivery is made.
+- Persisted coordinator state contains message IDs and content hashes but not plaintext email content; it currently has no retention or cleanup policy. Queue retention, dead-letter handling, monitoring and alerts are not configured in the Worker. Cloudflare queue retries and retention are finite: a delayed message can reach the dead-letter queue or expire, so this prototype does not guarantee eventual delivery. Unknown outcomes are acknowledged without a recoverable copy in coordinator state; a durable outbox and reconciliation are required before enabling sending.
+
+## Deployment and integration requirements
+
+1. Complete and review the experimental authenticated producer and its durable enqueue/idempotency workflow. Prevent anonymous users and untrusted AI/MCP tools from sending mail. If database state and queue publication are separate, design a durable outbox and reconciliation so neither silent loss nor unsafe duplication occurs.
+2. Bind the existing empty `leadmaster-email` and `leadmaster-email-dlq` queues as producer, consumer and dead-letter queue, configure the single `EMAIL_COORDINATOR` Durable Object binding and its migration, and SES environment settings. Secrets belong in Cloudflare secret storage. Do not expose the Durable Object fetch handler as a public endpoint.
+3. Provision an isolated staging environment with a verified SES sender, permitted recipient, known account/region, verified per-second and daily quota, and appropriate sender permissions. Confirm whether other applications share the SES account.
+4. Add explicit status, alerting and an authorized reconciliation flow for unknown outcomes, rejected messages, id conflicts, blocked clocks, backlog and dead-letter entries. Implement data retention and deletion. Review secret handling, abuse limits, sender identity, consent, unsubscribe requirements and bounce/complaint handling before marketing use.
+5. Test on Cloudflare's actual Workers/Durable Objects/Queues runtime with concurrent consumers, duplicate queue deliveries, restarts, failed storage, clock shifts, SMTP network failures, SES throttling, retry exhaustion, queue retention and operator recovery. Confirm the effective rate in every rolling one-second window and under all other sending paths before calling it a hard production guarantee.
+6. Obtain security review and release approval. Record rollback, monitoring and operational ownership. Do not send test email without an approved recipient.
+
+## Local verification
+
+`node --test` exercises the scheduler, idempotency, crash/unknown fail-closed behavior, input validation, acknowledgements and mock SMTP/Turnstile behavior using in-memory and mocked boundaries. It does not exercise Cloudflare or AWS and cannot prove production rate guarantees or live delivery.
+
+References: [Cloudflare queue configuration](https://developers.cloudflare.com/workers/wrangler/configuration/), [Durable Objects storage](https://developers.cloudflare.com/durable-objects/best-practices/access-durable-objects-storage/), [SES quotas](https://docs.aws.amazon.com/ses/latest/dg/manage-sending-quotas.html), [SES quota errors](https://docs.aws.amazon.com/ses/latest/dg/manage-sending-quotas-errors.html).
+
+## User-facing behavior
+
+The intended send endpoint should acknowledge successful durable queue acceptance without disclosing the internal send-rate limit. The Worker handles spacing in the background; a queued acknowledgement is not a delivery confirmation. Do not report success if a message was not safely persisted or queued. Real failures require safe operator visibility and a truthful generic user-facing result where appropriate. The producer, durable outbox, delivery status and recovery remain unimplemented.

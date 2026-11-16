@@ -1,0 +1,9 @@
+# External SMTP activity ledger — staging only
+
+This is an unmounted, additive building block for LeadMASTER-originated external SMTP submissions. It is not a working monitoring feature, does not read provider-wide activity, and is not deployed or wired to a transport, API, or dashboard. The migration has not been applied by this change.
+
+`external_smtp_activity` stores only account ID, connection ID, LeadMASTER message ID, observable submission state and timestamps. It does not store message contents, recipient addresses, SMTP credentials, or provider statistics. An SMTP `accepted` state means acceptance by the SMTP server, not delivery to a recipient. Queue recording is idempotent per account and message. Compare-and-set transitions prevent a stale or duplicate update from overwriting an outcome. Account and connection predicates constrain every query and update. Cursor pagination is bounded; counts cover the whole selected account and sender.
+
+**Integration gates:** Enforce sender ownership before calling these internal helpers. Only the authoritative dispatcher may record queue submissions and observed outcomes. Reconcile uncertain outcomes using evidence; never blindly retry. Add connection storage, credential lifecycle, SSRF/DNS safeguards, transport, account-authenticated APIs, UI, retention/cleanup policy, rollback and full integration tests before any production migration. Validate migration numbering against the current main branch before applying. A DB read/write error must not be displayed as empty activity or success.
+
+This isolated storage change does not alter existing UI, API routes, sending behavior, Android code, generated static assets, or public documentation. Android parity and device testing are required when the UI is actually connected. The suite exercises only synthetic local SQLite fixtures, not Cloudflare D1 or real SMTP.

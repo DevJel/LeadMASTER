@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
+    "skipLibCheck": false,
+    "types": [
+      "react",
+      "react-dom"
+    ]
+  },
+  "include": [
+    "src/dashboard-tsx/**/*.ts",
+    "src/dashboard-tsx/**/*.tsx"
+  ]
+}

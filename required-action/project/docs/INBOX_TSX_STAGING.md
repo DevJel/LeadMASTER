@@ -1,0 +1,7 @@
+# TSX Inbox — staged, not release-ready
+
+The staged `Inbox` component reads the existing same-origin `/api/admin/mail?folder=inbox` and `/api/admin/mail/:id` endpoints. It maps only server-provided fields, supports server-side search, uses the shared loading indicator while requests are pending, and presents empty and failure states. Message content is rendered as plain text, not executable HTML. A source download is offered only when the server returns the exact expected same-origin path. In the existing backend, opening an inbound message marks it read and logs the open.
+
+This component is not mounted, is not the complete supplied dashboard, and must not replace the live UI as-is. It does not yet provide archive/delete/restore, replies, full attachment and HTML viewing, bulk operations, the other mailbox folders or the surrounding dashboard features. The requested WebP empty illustration and sender-domain icons are not wired. The existing endpoint caps Inbox results at 100 and has no client pagination here. Integrate the remaining existing workflows and the requested TSX design without removing features, then review authorization, account isolation, race conditions, safe email rendering, accessibility and responsive behavior using an authorized staging account before any release.
+
+The unit and isolated preview tests use synthetic responses only; no live data, SMTP sending, Android release or production deployment has been validated by this work.
