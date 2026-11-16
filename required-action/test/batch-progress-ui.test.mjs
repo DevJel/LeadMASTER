@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';
+const read=p=>readFile(new URL(p,import.meta.url),'utf8');
+test('sending tab reports persisted batch states and composer returns after queue acceptance',async()=>{const h=await read('../src/Mandatory LeadMASTER Dashboard.html');assert.match(h,/\/api\/admin\/send-batches/);assert.match(h,/"aria-label":"Sending progress"/);assert.match(h,/accepted by the sending service/);assert.match(h,/Accepted does not mean delivered/);assert.match(h,/unconfirmed results may need checking/);assert.match(h,/do not resend without reconciling/i);assert.match(h,/lm:batch-queued/);assert.match(h,/location\.hash=''/);assert.equal(h,await read('../public/dashboard.html'))});
