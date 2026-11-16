@@ -146,7 +146,7 @@ export async function verifyActionsOidc(token, fetcher = fetch) {
     const audienceValid = claims.aud === "leadmaster-auto-heal" || (Array.isArray(claims.aud) && claims.aud.includes("leadmaster-auto-heal"));
     if (header.alg !== "RS256" || claims.iss !== "https://token.actions.githubusercontent.com" ||
         !audienceValid || claims.repository !== "DevJel/LeadMASTER" ||
-        !["incident-trigger.yml", "auto-heal-guard.yml"].some(name => String(claims.workflow_ref || "").startsWith("DevJel/LeadMASTER/.github/workflows/" + name + "@refs/heads/"))) return false;
+        !["incident-trigger.yml", "auto-heal-guard.yml"].some(name => String(claims.workflow_ref || "").startsWith("DevJel/LeadMASTER/.github/workflows/" + name + "@refs/"))) return false;
     const keysResponse = await fetcher("https://token.actions.githubusercontent.com/.well-known/jwks");
     if (!keysResponse.ok) return false;
     const keys = await keysResponse.json();
@@ -200,7 +200,7 @@ async function analyzeAndPropose(env, frame, stacktrace, sourceIssue, tokenValue
     throw new Error("Pre-branch gatekeeper rejected the candidate before any Git branch was created.");
   }
   const errorHash = await sha256(frame.file + ":" + frame.line + ":" + safe(stacktrace, 8000));
-  const branchName = "fix/auto-heal-" + errorHash.slice(0, 12);
+  const branchName = "fix/auto-heal-" + errorHash;
   const ref = await githubRequest(token, "/repos/" + repo + "/git/ref/heads/main");
   await githubRequest(token, "/repos/" + repo + "/git/refs", {
     method: "POST", headers: { "content-type": "application/json" },
