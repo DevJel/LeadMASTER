@@ -449,7 +449,7 @@ async function adminAiSuggestRoute(request,env,session,id){
 async function adminMailboxRoute(request,env,session){
  if(!session)return json({error:"Unauthorized"},401);
  if(session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
- if(!env.INBOUND_MAIL||!env.AUTH_DB)return json({error:"Mailbox storage unavailable"},503);
+ if(!env.INBOUND_MAIL||!env.AUTH_DB)return systemIssue("342400");
  const url=new URL(request.url),parts=url.pathname.split("/").filter(Boolean),folder=url.searchParams.get("folder")||"inbox",q=(url.searchParams.get("q")||"").trim().slice(0,100),domain=(url.searchParams.get("domain")||"").toLowerCase();
  const counts={};
  for(const [k,sql] of Object.entries({inbox:"SELECT COUNT(*) n FROM inbound_mail WHERE archived_at IS NULL AND deleted_at IS NULL",archived:"SELECT COUNT(*) n FROM inbound_mail WHERE archived_at IS NOT NULL AND deleted_at IS NULL",sent:"SELECT (SELECT COUNT(*) FROM admin_sent_mail WHERE deleted_at IS NULL AND status='accepted' AND COALESCE(delivery_status,'') NOT IN ('bounced','rejected','failed'))+(SELECT COUNT(*) FROM developer_email_requests WHERE deleted_at IS NULL AND status='accepted' AND COALESCE(delivery_status,'') NOT IN ('bounced','rejected','failed')) n",queued:"SELECT (SELECT COUNT(*) FROM admin_sent_mail WHERE queue_status IN ('queued','processing','retrying'))+(SELECT COUNT(*) FROM developer_email_requests WHERE status='sending') n",deleted:"SELECT (SELECT COUNT(*) FROM inbound_mail WHERE deleted_at IS NOT NULL)+(SELECT COUNT(*) FROM admin_sent_mail WHERE deleted_at IS NOT NULL)+(SELECT COUNT(*) FROM developer_email_requests WHERE deleted_at IS NOT NULL) n",bounced:"SELECT COUNT(*) n FROM email_delivery_events WHERE status IN ('bounced','complaint')",unsuccessful:"SELECT (SELECT COUNT(*) FROM admin_sent_mail WHERE status IN ('failed','unknown') OR delivery_status IN ('bounced','rejected','failed'))+(SELECT COUNT(*) FROM developer_email_requests WHERE status IN ('failed','unknown') OR delivery_status IN ('bounced','rejected','failed')) n",unsubscribed:"SELECT COUNT(*) n FROM email_unsubscribes"})){const r=await env.AUTH_DB.prepare(sql).first();counts[k]=Number(r?.n||0);}
@@ -683,7 +683,7 @@ async function handle(request, env, ctx) {
       return json({ subject: generatedSubject, html: generatedHtml, notes: String(result?.notes || "").slice(0, 1200) });
     } catch (error) {
       console.error("LEADMASTER_EMAIL_HTML_ASSISTANT_FAILED", JSON.stringify({ requestId, reason: String(error?.message || "unknown").slice(0, 240) }));
-      return json({ errorCode: "342322", error: "We couldn't complete this action due to a system issue (Error 342322). Please contact the LeadMASTER support team for further assistance at cs@leadmaster.jelvan.space." }, 503);
+      return systemIssue("342301");
     }
   }
 
@@ -797,7 +797,7 @@ export default {
       if (!env.AUTH_DB || !env.ADMIN_EMAIL || !env.ADMIN_PASSWORD || !env.SESSION_SECRET || !env.TURNSTILE_SITE_KEY || !env.TURNSTILE_SECRET || !env.SES_SMTP_HOST || !env.SES_SMTP_USERNAME || !env.SES_SMTP_PASSWORD || !env.SES_FROM_EMAIL) {
         // Public pages remain available while auth fails closed.
         const p = new URL(request.url).pathname.toLowerCase();
-        if (p.startsWith("/api/auth/") || p.startsWith("/dashboard")) return json({ error: "Authentication service is not configured" }, 503);
+        if (p.startsWith("/api/auth/") || p.startsWith("/dashboard")) return systemIssue("342100");
       }
       return await handle(request, env, ctx);
     } catch (error) {
