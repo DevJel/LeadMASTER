@@ -79,7 +79,20 @@ try {
   assert.ok(requestCount > utilityStart, 'utility overlay dismissal does not cancel its request');
   await utilityPage.close();
 
-  console.log('Synthetic local dashboard: centered dismissible workspace and utility loading, error, retry, empty and single refresh passed.');
+  const mobilePage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await mobilePage.addInitScript(() => Object.defineProperty(document, 'visibilityState', { get: () => 'hidden' }));
+  await mobilePage.goto(`http://127.0.0.1:${server.address().port}/dashboard.html`, { waitUntil: 'domcontentloaded' });
+  const mobileCard = mobilePage.locator('section[aria-label="Loading status"]');
+  await mobilePage.getByRole('button', { name: 'Dismiss loading overlay' }).waitFor({ timeout: 5000 });
+  const mobileBox = await mobileCard.boundingBox();
+  const mobileViewport = mobilePage.viewportSize();
+  assert.ok(mobileBox && mobileViewport && Math.abs((mobileBox.x + mobileBox.width / 2) - mobileViewport.width / 2) < 4, 'mobile loading card horizontally centered');
+  assert.ok(mobileBox && mobileViewport && Math.abs((mobileBox.y + mobileBox.height / 2) - mobileViewport.height / 2) < 4, 'mobile loading card vertically centered');
+  await mobilePage.getByRole('button', { name: 'Dismiss loading overlay' }).click();
+  await mobilePage.getByText('Nothing in Inbox', { exact: true }).waitFor({ timeout: 5000 });
+  await mobilePage.close();
+
+  console.log('Synthetic local dashboard: centered dismissible workspace and utility loading on desktop and mobile, error, retry, empty and single refresh passed.');
 } finally {
   if (browser) await browser.close();
   await new Promise(resolveClose => server.close(resolveClose));
