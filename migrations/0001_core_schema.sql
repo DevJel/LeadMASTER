@@ -40,4 +40,4 @@ CREATE TABLE inbound_mail (
   read_at INTEGER
 );
 CREATE INDEX idx_inbound_mail_received ON inbound_mail(received_at DESC);
-CREATE INDEX idx_inbound_mail_archived ON inbound_mail(archived_at, deleted_at);
+CREATE INDEX idx_inbound_mail_archived ON inbound_mail(archived_at);
