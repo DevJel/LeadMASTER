@@ -8,11 +8,18 @@ const output = resolve("docs/screenshots/generated");
 const port = 4179;
 const accountId = "acct_preview_account_00000001";
 const apiBase = "https://leadmaster.jelvan.pro/api/v1/accounts/" + accountId;
-const types = { ".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",".js":"text/javascript; charset=utf-8",".svg":"image/svg+xml",".txt":"text/plain; charset=utf-8" };
+const types = { ".html":"text/html; charset=utf-8",".css":"text/css; charset=utf-8",".js":"text/javascript; charset=utf-8",".svg":"image/svg+xml",".txt":"text/plain; charset=utf-8",".webp":"image/webp" };
 const watermarkCss = "body::after{content:'LOCAL UI PREVIEW · SYNTHETIC ACCOUNT';position:fixed;z-index:999999;right:18px;bottom:16px;padding:7px 10px;border-radius:6px;background:rgba(20,20,20,.86);color:#fff;font:600 10px/1.2 Arial,sans-serif;letter-spacing:.08em;pointer-events:none}";
 
 const server = createServer(async (req,res) => {
   const url = new URL(req.url || "/", "http://127.0.0.1:"+port);
+  if (url.pathname === "/api/workspace/actions" && req.method === "POST") {
+    let raw="";for await (const chunk of req) raw+=chunk;
+    let payload={};try{payload=JSON.parse(raw)}catch{}
+    const data=payload.action==="records.create"?{id:"preview-record-"+Date.now()}:{records:[]};
+    res.writeHead(200,{"content-type":"application/json","cache-control":"no-store"});
+    return res.end(JSON.stringify({data}));
+  }
   if (url.pathname === "/api/auth/session") {
     res.writeHead(200,{"content-type":"application/json","cache-control":"no-store"});
     return res.end(JSON.stringify({authenticated:true,email:"preview-user@example.test",account:{id:accountId,name:"Preview workspace",api_base_url:apiBase,endpoints:{account:"/api/v1/accounts/"+accountId,emails:apiBase+"/emails",webhooks:apiBase+"/webhooks"}}}));
@@ -32,6 +39,12 @@ const server = createServer(async (req,res) => {
   if (url.pathname === "/api/account/profile") {
     res.writeHead(200,{"content-type":"application/json","cache-control":"no-store"});
     return res.end(JSON.stringify({fullName:"Preview User"}));
+  }
+  if (url.pathname.startsWith("/api/admin/mail/")) {
+    res.writeHead(200,{"content-type":"application/json","cache-control":"no-store"});
+    if (url.pathname.endsWith("/suggest")) return res.end(JSON.stringify({suggestion:"Thanks for your message. I will review the details and get back to you shortly."}));
+    if (req.method==="PATCH") return res.end(JSON.stringify({ok:true}));
+    return res.end(JSON.stringify({id:"preview-message",text_body:"Synthetic preview message body.",from_address:"preview@example.test",from_name:"Preview Contact",recipient:"preview-user@example.test",subject:"Preview message",status:"accepted",delivery_status:"delivered"}));
   }
   if (url.pathname === "/api/admin/mail" && req.method === "GET") {
     const folder = url.searchParams.get("folder") || "inbox";
@@ -89,55 +102,38 @@ try {
   await page.screenshot({path:output+"/login.png",fullPage:true});
 
   await page.goto("http://127.0.0.1:"+port+"/dashboard.html",{waitUntil:"domcontentloaded"});
-  await page.waitForSelector("#root .app-shell",{timeout:15000});
+  await page.waitForSelector("#root main",{timeout:15000});
+  await page.waitForFunction(()=>!document.querySelector("#root")?.textContent?.includes("Loading workspace"),null,{timeout:10000}).catch(()=>{});
   await mark();
-  const sections = [
-    ["Homepage","home"],["Emails","emails"],["Templates","templates"],["Audience","audience"],
-    ["Inboxes","inboxes"],["Campaigns","campaigns"],["Automations","automations"],["Metrics","metrics"],
-    ["Domains","domains"],["Logs","logs"],["API keys","api"],["Webhooks","webhooks"],
-    ["Settings","settings"],["Help","help"],["Appearance","appearance"],["Onboarding","onboarding"],["Profile","profile"]
+  const views = [
+    ["Inbox","inbox"],["Assistant","assistant"],["Automation","automation"],
+    ["Templates","templates"],["Scheduled","scheduled"],["Sent","sent"],
+    ["Outbox","outbox"],["Deleted","deleted"],["Settings","settings"]
   ];
-  for (const [label,slug] of sections) {
-    const tab = page.locator(".tab-link").filter({hasText:label}).first();
-    await tab.click();
-    await page.waitForFunction(value => document.querySelector(".tab-link.active")?.textContent?.trim().startsWith(value),label,{timeout:10000});
+  for (const [label,slug] of views) {
+    const button=page.getByRole("button",{name:label,exact:true}).first();
+    await button.click();
+    await page.waitForTimeout(180);
     await page.screenshot({path:output+"/dashboard-"+slug+".png",fullPage:true});
   }
-  await page.locator(".tab-link").filter({hasText:"Emails"}).first().click();
-  const emailPreview = page.getByRole("button",{name:"HTML preview"}).first();
-  if (await emailPreview.count()) {
-    await emailPreview.click();
-    await page.waitForFunction(()=>document.getElementById("html-preview") && !document.getElementById("html-preview").hidden,null,{timeout:5000});
-    await page.screenshot({path:output+"/dashboard-email-html-preview.png",fullPage:true});
-    await page.locator("#preview-close").click();
-  }
-  await page.locator(".tab-link").filter({hasText:"Templates"}).first().click();
-  const templatePreview = page.getByRole("button",{name:"HTML preview"}).first();
-  if (await templatePreview.count()) {
-    await templatePreview.click();
-    await page.waitForFunction(()=>document.getElementById("html-preview") && !document.getElementById("html-preview").hidden,null,{timeout:5000});
-    await page.screenshot({path:output+"/dashboard-template-html-preview.png",fullPage:true});
-    await page.locator("#preview-close").click();
-  }
-  await page.locator(".tab-link").filter({hasText:"Emails"}).first().click();
+
+  await page.getByRole("button",{name:"Templates",exact:true}).first().click();
+  await page.getByRole("button",{name:/New Template/}).first().click();
+  await page.getByLabel("Name").fill("Preview template");
+  await page.getByLabel("Subject").fill("A sample subject");
+  await page.getByLabel("Body").fill("This is a synthetic template preview.");
+  await page.getByRole("button",{name:"Save template"}).click();
+  await page.getByRole("button",{name:"Preview",exact:true}).first().click();
+  await page.screenshot({path:output+"/dashboard-template-preview.png",fullPage:true});
+
   await page.getByRole("button",{name:"Compose",exact:true}).first().click();
-  await page.waitForSelector("#lm-compose-page:not([hidden])");
+  await page.waitForSelector('textarea[aria-label="Message body"]');
   await page.screenshot({path:output+"/dashboard-compose.png",fullPage:true});
   await page.setViewportSize({width:390,height:844});
   await page.screenshot({path:output+"/dashboard-compose-mobile.png",fullPage:true});
-  await page.locator("#lm-compose-close").click();
-  await page.screenshot({path:output+"/dashboard-mobile-home.png",fullPage:true});
-  for (const [label,slug] of [["Audience","audience"],["Profile","profile"]]) {
-    await page.locator(".bottom-tab").filter({hasText:label}).first().click();
-    await page.waitForTimeout(300);
-    await page.screenshot({path:output+"/dashboard-mobile-"+slug+".png",fullPage:true});
-  }
-  await page.setViewportSize({width:1440,height:1000});
-  await page.goto("http://127.0.0.1:"+port+"/developer-api-keys.html",{waitUntil:"domcontentloaded"});
-  await mark();
-  await page.waitForFunction(()=>document.querySelector("#account-api-base")?.textContent?.startsWith("https://"),null,{timeout:5000});
-  await page.screenshot({path:output+"/dashboard-api-keys.png",fullPage:true});
-  console.log("Captured landing, login, all dashboard sections, email/template HTML previews, mobile views and API Keys UI into "+output);
+  await page.getByRole("button",{name:"Inbox",exact:true}).first().click();
+  await page.screenshot({path:output+"/dashboard-mobile-inbox.png",fullPage:true});
+  console.log("Captured landing, login, production React workspace views, template preview and mobile layouts into "+output);
 } finally {
   await browser.close();
   await new Promise(resolveClose=>server.close(resolveClose));
