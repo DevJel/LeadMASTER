@@ -30,7 +30,7 @@ const PROTECTED_ASSETS = new Set([
 ]);
 
 export function resolvePageRoute(pathname) {
-  const normalizedPath = String(pathname || "/").toLowerCase().replace(/\\/+$/, "") || "/";
+  const normalizedPath = String(pathname || "/").toLowerCase().replace(/\/+$/, "") || "/";
   const cleanRoute = CLEAN_PAGE_ROUTES[normalizedPath];
   if (cleanRoute) {
     return {
