@@ -145,7 +145,7 @@ export async function verifyActionsOidc(token, fetcher = fetch) {
     const header = decode(headerPart), claims = decode(payloadPart);
     if (header.alg !== "RS256" || claims.iss !== "https://token.actions.githubusercontent.com" ||
         claims.aud !== "leadmaster-auto-heal" || claims.repository !== "DevJel/LeadMASTER" ||
-        !String(claims.workflow_ref || "").startsWith("DevJel/LeadMASTER/.github/workflows/incident-trigger.yml@refs/heads/")) return false;
+        !["incident-trigger.yml", "auto-heal-guard.yml"].some(name => String(claims.workflow_ref || "").startsWith("DevJel/LeadMASTER/.github/workflows/" + name + "@refs/heads/"))) return false;
     const keysResponse = await fetcher("https://token.actions.githubusercontent.com/.well-known/jwks");
     if (!keysResponse.ok) return false;
     const keys = await keysResponse.json();
@@ -252,8 +252,9 @@ export async function processAutoHealEvent(env, event) {
   let sourceIssue = typeof event.issue_url === "string" ? event.issue_url : "";
   try {
     if (event.event_type === "rejected") {
-      await recordRejectedFix(env, event.error_hash || errorHash, event.detail || "Auto-heal CI rejected the proposed patch.");
-      result = { status: "rejected", errorHash: event.error_hash || errorHash };
+      const rejectedHash = String(event.error_hash || errorHash);
+      await recordRejectedFix(env, rejectedHash, event.detail || "Auto-heal CI rejected the proposed patch.");
+      result = { status: "rejected", errorHash: rejectedHash, reason: safe(event.detail || "The strict auto-heal CI gate rejected this patch.") };
     } else if (!frames.length) {
       result = { status: "manual_action", errorHash, reason: "No exact application stack-trace file and line could be extracted; no source changes were attempted." };
     } else {
