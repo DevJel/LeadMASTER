@@ -112,6 +112,9 @@ export async function bindTursoDatabase(env) {
 
 /** Provide the legacy database property as a compatibility facade, not a D1 binding. */
 export async function withTursoDatabase(env) {
+  // Preserve explicit test/local database injection; deployed Wrangler configs
+  // no longer provide AUTH_DB, so production always resolves to Turso.
+  if (env && env.AUTH_DB) return env;
   const database = await bindTursoDatabase(env);
   return new Proxy(env, {
     get(target, property, receiver) {
