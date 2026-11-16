@@ -5,7 +5,7 @@
   "compatibility_date": "2026-11-04",
   "compatibility_flags": [],
   "triggers": {
-    "crons": ["0 0 * * *"]
+    "crons": ["0 9 * * *"]
   },
   "vars": {
     "SES_FROM_EMAIL": "noreply@leadmaster.jelvan.pro",
@@ -18,7 +18,7 @@
     "REPORTER_APP_URL": "https://leadmaster.jelvan.space",
     "REPORTER_GITHUB_REPOSITORY": "DevJel/LeadMASTER",
     "REPORTER_CF_ACCOUNT_ID": "967aa086112f862ba9f50ccf7aa09246",
-    "REPORTER_TIME_ZONE": "Asia/Kuala_Lumpur"
+    "REPORTER_TIME_ZONE": "Asia/Manila"
   },
   "d1_databases": [
     {
@@ -78,7 +78,7 @@
       "persist": true
     }
   },
-  "r2_buckets": [
+  "kv_namespaces": [\n    {\n      "binding": "AUTO_HEAL_KV",\n      "id": "504506b1b6b3406d89325f17a8a3cf17"\n    }\n  ],\n  "r2_buckets": [
     {
       "binding": "INBOUND_MAIL",
       "bucket_name": "leadmaster-inbound-mail"
