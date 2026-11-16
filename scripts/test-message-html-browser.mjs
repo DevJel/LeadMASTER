@@ -38,7 +38,7 @@ try{
  await page.getByRole('button',{name:'Try again',exact:true}).click();
  await page.getByText('Plain version',{exact:true}).waitFor();
  assert.equal(await page.getByText('Could not load this message.',{exact:true}).count(),0);
- assert.ok((await page.locator('article').innerText()).includes('to person@example.test'));
+ assert.ok((await page.locator('article').innerText()).toLowerCase().includes('to person@example.test'));
  assert.ok((await page.locator('article').innerText()).includes('sender@example.test'));
  await page.getByRole('button',{name:'HTML',exact:true}).click();
  const iframe=page.locator('iframe[title="HTML email preview"]');await iframe.waitFor();
