@@ -315,3 +315,18 @@ test("daily report includes queued auto-heal incidents without a separate incide
     assert.equal(incident.url, "https://github.com/DevJel/LeadMASTER/issues/987");
   } finally { f.restore(); }
 });
+
+
+test("legacy incident arguments cannot generate a separate incident email", async () => {
+  const f = createEnv();
+  try {
+    const result = await runDailyReporter(f.env, Date.UTC(2026, 10, 16, 9, 0, 0), {
+      incidentId: "legacy-event-1",
+      incident: { status: "manual_action", reason: "A separate alert must not be sent." }
+    });
+    assert.equal(result.status, "sent");
+    assert.equal(f.sent.length, 1);
+    assert.match(f.sent[0].subject, /^REPORT OF THE DAY/);
+    assert.doesNotMatch(f.sent[0].subject, /INCIDENT REPORT/);
+  } finally { f.restore(); }
+});
