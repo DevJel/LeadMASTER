@@ -12,7 +12,7 @@ test('mail search and refresh operate on the connected mailbox',()=>{
 
 test('mail actions report failures and reload authoritative state',()=>{
  assert.match(app,/Could not archive this message/);
- assert.match(app,/Could not move this message to Deleted/);
+ assert.match(app,/The message could not be moved/);
  assert.match(app,/Could not restore this message/);
  assert.match(app,/await reloadRecords\(\)/);
 });
