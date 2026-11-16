@@ -233,6 +233,46 @@ async function checkR2AndBindings(env, checks) {
     env.AI && typeof env.AI.run === "function" ? "Workers AI binding is configured. No model inference is executed by the scheduled health check." : "AI binding is not available in the Worker runtime.",
     env.AI ? "" : "If AI reply suggestions are expected to be active, restore the existing AI binding."));
 }
+async function checkIncidentEvents(env, checks) {
+  const kv = env.AUTO_HEAL_KV;
+  if (!kv || typeof kv.list !== "function" || typeof kv.get !== "function") {
+    checks.push(makeCheck("Incident", "Incident event collection", "Needs Attention",
+      "The auto-heal incident queue is not available to the daily reporter.",
+      "Restore the existing leadmaster-auto-heal KV namespace binding."));
+    return;
+  }
+  try {
+    const listing = await kv.list({ prefix: "error:", limit: 100 });
+    const keys = Array.isArray(listing?.keys) ? listing.keys : [];
+    let recorded = 0;
+    for (const item of keys) {
+      if (!item?.name) continue;
+      const raw = await kv.get(item.name);
+      if (!raw) continue;
+      let incident;
+      try { incident = JSON.parse(raw); } catch { continue; }
+      const state = safeString(incident.status || "unknown", 80);
+      const status = ["pr_opened", "manual_action", "rejected"].includes(state) ? "Needs Manual Action"
+        : state === "already_processed" ? "Moderate" : "Needs Attention";
+      const reason = safeString(incident.reason || incident.detail || "An incident event was recorded.", 450);
+      const target = safeString(incident.target || "", 180);
+      const detail = "Status: " + state + ". " + reason + (target ? " Target: " + target + "." : "");
+      const action = state === "pr_opened"
+        ? "Review the draft pull request; it cannot merge or deploy itself."
+        : "Review the incident and apply or approve the required fix.";
+      checks.push(makeCheck("Incident", "Auto-heal incident " + safeString(item.name.slice(6, 18), 20),
+        status, detail, action, incident.prUrl || incident.issueUrl || ""));
+      recorded++;
+    }
+    if (!recorded) checks.push(makeCheck("Incident", "Incident event collection", "Healthy",
+      "No outstanding auto-heal incident findings are queued for this daily review."));
+  } catch (error) {
+    checks.push(makeCheck("Incident", "Incident event collection", "Needs Attention",
+      safeString(error?.message || error, 400),
+      "Check read access to the existing leadmaster-auto-heal KV namespace."));
+  }
+}
+
 async function githubHeaders(env) {
   const headers = { accept: "application/vnd.github+json", "user-agent": "LeadMASTER-Reporter/1.0", "x-github-api-version": "2022-11-28" };
   const token = await secretValue(env.GITHUB_TOKEN);
@@ -485,6 +525,7 @@ export async function runDailyReporter(env, scheduledTime = Date.now(), options 
       checkGitHub(env, checks),
       checkCloudflareControlPlane(env, checks)
     ]);
+    await checkIncidentEvents(env, checks);
     const smtpCheck = checks.find(item => item.name === "SES SMTP transport");
     const loginAlertStatus = smtpCheck?.status === "Healthy" || smtpCheck?.status === "Fixed" ? "Healthy" : "Needs Attention";
     checks.push(makeCheck("App Functions", "Admin login security alert", loginAlertStatus,
