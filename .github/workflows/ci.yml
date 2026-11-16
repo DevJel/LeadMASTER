@@ -25,7 +25,7 @@ jobs:
       - name: Generate and commit dependency lockfile
         run: |
           npm install --package-lock-only --ignore-scripts
-          if ! git diff --quiet -- package-lock.json && github_actor != 'github-actions[bot]'; then
+          if ! git diff --quiet -- package-lock.json && [ "$GITHUB_ACTOR" != "github-actions[bot]" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add package-lock.json
@@ -33,7 +33,7 @@ jobs:
             git push
           fi
         env:
-          github_actor: ${{ github.actor }}
+          GITHUB_ACTOR: ${{ github.actor }}
       - run: npm ci
       - run: npm run build:assets
       - name: Commit generated asset bundle
