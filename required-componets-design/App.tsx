@@ -9,7 +9,7 @@ import { mapLeadMasterError } from '../src/leadmaster-error-mapper.mjs';
 
 type Folder = 'inbox' | 'sent' | 'drafts';
 type View = 'compose' | 'inbox' | 'sent' | 'outbox' | 'deleted' | 'assistant' | 'automation' | 'templates' | 'scheduled' | 'settings';
-type Email = { id:string; sender:string; email:string; initials:string; color:string; subject:string; snippet:string; body:string; htmlBody?:string; fromAddress?:string; sourceUrl?:string; detailLoaded?:boolean; category:string; label:string|null; date:string; time:string; unread:boolean; attachment:boolean; folder:Folder; isUser?:boolean; company?:string; value?:string; deliveryStatus?:string };
+type Email = { id:string; sender:string; email:string; initials:string; color:string; subject:string; snippet:string; body:string; htmlBody?:string; fromAddress?:string; sourceUrl?:string; detailLoaded?:boolean; label:string|null; date:string; time:string; unread:boolean; attachment:boolean; folder:Folder; isUser?:boolean; company?:string; value?:string; deliveryStatus?:string };
 type Template = { id:string; name:string; subject:string; body:string; category:string; recordId?:string };
 type Rule = { id:string; name:string; triggerType:'sender'|'subject'; contains:string; action:'label'|'star'|'archive'|'move'; actionValue:string; enabled:boolean; recordId?:string };
 type ScheduledItem = { id:string; to:string; subject:string; body:string; when:string; recordId?:string };
@@ -367,10 +367,10 @@ export default function App(){
       }else setPrefsId(null);
       const formatMailDate=(value:any)=>{const d=new Date(typeof value==='number'?value:(value||Date.now()));return Number.isNaN(d.getTime())?'':d.toLocaleDateString([], {month:'short',day:'numeric'});};
       const formatMailTime=(value:any)=>{const d=new Date(typeof value==='number'?value:(value||Date.now()));return Number.isNaN(d.getTime())?'':d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});};
-      const inboxRows=(inboxData?.items||[]).map((m:any)=>({id:m.id,sender:m.from_name||m.from_address||'Unknown sender',email:m.from_address||'',initials:initialsFor(m.from_name||m.from_address||'?'),color:'#333333',subject:m.subject||'(no subject)',snippet:'Open message to load its contents.',body:'',category:'Primary' as Category,label:null,date:formatMailDate(m.received_at),time:formatMailTime(m.received_at),unread:!m.read_at,attachment:false,folder:'inbox' as Folder,isUser:false} as Email));
-      const sentRows=(sentData?.items||[]).map((m:any)=>({id:m.id,sender:'Me',email:m.recipient||'',initials:'Me',color:'#111111',subject:m.subject||'(no subject)',snippet:`${m.delivery_status||m.queue_status||m.status||'Status unavailable'}`,body:m.text_body||'',category:'Primary' as Category,label:null,date:formatMailDate(m.created_at),time:formatMailTime(m.created_at),unread:false,attachment:false,folder:'sent' as Folder,isUser:true,deliveryStatus:String(m.delivery_status||m.status||m.queue_status||'unknown').toLowerCase()} as Email));
-      const deletedRows=(deletedData?.items||[]).map((m:any)=>({id:m.id,sender:m.from_address||m.from_email||'Deleted message',email:m.from_address||m.recipient||'',initials:'DL',color:'#555555',subject:m.subject||'(no subject)',snippet:'Deleted message',body:'',category:'Primary' as Category,label:null,date:formatMailDate(m.received_at),time:formatMailTime(m.received_at),unread:false,attachment:false,folder:(m.kind==='sent'?'sent':'inbox') as Folder,isUser:m.kind==='sent'} as Email));
-      const draftRows=(msgsData?.records||[]).filter((r:any)=>r.value?.kind==='draft').map((r:any)=>{const v=r.value||{};return {id:r.id,sender:'Draft',email:v.to||'',initials:'DR',color:'#555555',subject:v.subject||'(no subject)',snippet:(v.body||'').slice(0,110),body:v.body||'',category:'Primary' as Category,label:null,date:'Saved',time:'',unread:false,attachment:false,folder:'drafts' as Folder,isUser:true} as Email;});
+      const inboxRows=(inboxData?.items||[]).map((m:any)=>({id:m.id,sender:m.from_name||m.from_address||'Unknown sender',email:m.from_address||'',initials:initialsFor(m.from_name||m.from_address||'?'),color:'#333333',subject:m.subject||'(no subject)',snippet:'Open message to load its contents.',body:'',label:null,date:formatMailDate(m.received_at),time:formatMailTime(m.received_at),unread:!m.read_at,attachment:false,folder:'inbox' as Folder,isUser:false} as Email));
+      const sentRows=(sentData?.items||[]).map((m:any)=>({id:m.id,sender:'Me',email:m.recipient||'',initials:'Me',color:'#111111',subject:m.subject||'(no subject)',snippet:`${m.delivery_status||m.queue_status||m.status||'Status unavailable'}`,body:m.text_body||'',label:null,date:formatMailDate(m.created_at),time:formatMailTime(m.created_at),unread:false,attachment:false,folder:'sent' as Folder,isUser:true,deliveryStatus:String(m.delivery_status||m.status||m.queue_status||'unknown').toLowerCase()} as Email));
+      const deletedRows=(deletedData?.items||[]).map((m:any)=>({id:m.id,sender:m.from_address||m.from_email||'Deleted message',email:m.from_address||m.recipient||'',initials:'DL',color:'#555555',subject:m.subject||'(no subject)',snippet:'Deleted message',body:'',label:null,date:formatMailDate(m.received_at),time:formatMailTime(m.received_at),unread:false,attachment:false,folder:(m.kind==='sent'?'sent':'inbox') as Folder,isUser:m.kind==='sent'} as Email));
+      const draftRows=(msgsData?.records||[]).filter((r:any)=>r.value?.kind==='draft').map((r:any)=>{const v=r.value||{};return {id:r.id,sender:'Draft',email:v.to||'',initials:'DR',color:'#555555',subject:v.subject||'(no subject)',snippet:(v.body||'').slice(0,110),body:v.body||'',label:null,date:'Saved',time:'',unread:false,attachment:false,folder:'drafts' as Folder,isUser:true} as Email;});
       setUserEmails([...inboxRows,...sentRows,...deletedRows,...draftRows]);
       setReadIds(new Set([...inboxRows.filter((m:any)=>!m.unread).map((m:any)=>m.id), ...((prefsRec?.value?.read||[]) as string[])]));
       setDeleted(new Set(deletedRows.map((m:any)=>m.id)));
@@ -609,7 +609,6 @@ export default function App(){
     setCleanupApplied(true);await reloadRecords();setAssistantResult(`Processed archive requests for ${ids.length} read, unstarred message(s). Review Inbox and Archived after refresh.`);setStatus(`Archive requests processed: ${ids.length}.`);
   }
   async function archiveNewsletters(){await applyCleanup();}
-  function deleteOldPromos(){setAssistantResult('Automatic Promotions classification is not provided by the connected mailbox API. No messages were deleted. Use Inbox row actions to review and delete specific messages.');setStatus('No messages changed.');}
   function saveSettings(){ savePrefs({}); setSettingsSaved(true); setStatus('Settings saved — profile, theme, and signature are stored.'); }
 
   // ——— Components Organizer (Settings only): reorder + persist ———
@@ -619,7 +618,7 @@ export default function App(){
   function toggleComponentVisibility(k:View){ const n=new Set(hiddenComponents); n.has(k)?n.delete(k):n.add(k); setHiddenComponents(n); setOrganizerSaved(false); setStatus(n.has(k)?`${componentLabel(k)} hidden from the sidebar — press Save organizer to save.`:`${componentLabel(k)} shown in the sidebar — press Save organizer to save.`); }
   function saveComponentOrder(){ savePrefs({componentOrder, componentHidden:[...hiddenComponents]}); setOrganizerSaved(true); setStatus('Components organizer saved — sidebar order updated.'); }
   function componentSummary(k:View):string{
-    if(k==='inbox') return `${counts.inboxUnread} unread · ${counts.inboxTotal} in Inbox · Primary, Promotions, Social, Updates, Forums`;
+    if(k==='inbox') return `${counts.inboxUnread} unread · ${counts.inboxTotal} messages in your Inbox`;
     if(k==='compose') return 'Full compose tab — chips, templates, schedule send.';
     if(k==='assistant') return 'Summaries, draft replies, cleanup, priority leads.';
     if(k==='automation') return `${rules.filter(r=>r.enabled).length} of ${rules.length} rules on.`;
@@ -996,7 +995,7 @@ export default function App(){
       )}
 
       {view==='inbox' && !openEmail && <div className="grid sm:grid-cols-3 gap-3 mx-1 sm:mx-2 mt-4">
-        {[{t:'Focus first', d:'Primary holds the leads that need a reply. Promotions and Social wait quietly underneath.', i:'spark' as IconName}, {t:'Triage in seconds', d:'Hover any row to archive, delete, or snooze. Star what you need to find again.', i:'zap' as IconName}, {t:'Assistant does the busywork', d:'Summaries, draft replies, cleanup, and priority leads — in one panel.', i:'assistant' as IconName}].map(x=><div key={x.t} className="bg-[var(--surface)] rounded-2xl p-4 gmail-shadow border border-[var(--border)]"><UniformIcon name={x.i} size={18}/><p className="font-medium mt-2">{x.t}</p><p className="text-[13px] text-[var(--text-3)] leading-relaxed mt-1">{x.d}</p></div>)}
+        {[{t:'One inbox', d:'All incoming messages appear together. Search and use message actions to focus on what matters.', i:'spark' as IconName}, {t:'Triage in seconds', d:'Hover any row to archive, delete, or snooze. Star what you need to find again.', i:'zap' as IconName}, {t:'Assistant does the busywork', d:'Summaries, draft replies, cleanup, and priority leads — in one panel.', i:'assistant' as IconName}].map(x=><div key={x.t} className="bg-[var(--surface)] rounded-2xl p-4 gmail-shadow border border-[var(--border)]"><UniformIcon name={x.i} size={18}/><p className="font-medium mt-2">{x.t}</p><p className="text-[13px] text-[var(--text-3)] leading-relaxed mt-1">{x.d}</p></div>)}
       </div>}
     </>
   );
