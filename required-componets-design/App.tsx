@@ -403,12 +403,22 @@ export default function App(){
   // Dashboard data is kept in React memory between views. Avoid timer/visibility polling;
   // the user refresh gesture below is the explicit source of a fresh workspace snapshot.
   async function refreshWorkspace(){
-    if(refreshLock.current || pollLock.current || busyRef.current) return;
+    if(refreshLock.current) return;
+    if(pollLock.current || busyRef.current) return;
     refreshLock.current = true;
     setIsRefreshing(true);
     setRefreshError('');
+    const startedAt = Date.now();
+    let verified = false;
     try{
-      const verified = await reloadRecords({silent:true,timeoutMs:12000});
+      while(Date.now() - startedAt < 12000){
+        const remainingAtStart = Math.max(1, 12000 - (Date.now() - startedAt));
+        verified = await reloadRecords({silent:true,background:true,timeoutMs:remainingAtStart});
+        if(verified) break;
+        const remaining = 12000 - (Date.now() - startedAt);
+        if(remaining <= 0) break;
+        await new Promise(resolve => window.setTimeout(resolve, Math.min(1500,remaining)));
+      }
       if(!verified) setRefreshError('Could not refresh the workspace. Your previously loaded content is still available. Try again.');
     }finally{
       setIsRefreshing(false);
