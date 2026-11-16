@@ -119,6 +119,7 @@ test("daily reporter creates a branded report and sends only to the configured a
     assert.equal(Object.hasOwn(message, "cc"), false);
     assert.equal(Object.hasOwn(message, "bcc"), false);
     assert.match(message.subject, /REPORT OF THE DAY/);
+    assert.match(message.subject, /Monday, Nov\\. 16, 2026/);
     assert.match(message.html, /REPORT OF THE DAY/);
     assert.match(message.html, /GITHUB — REPOSITORY AND ACTIONS/);
     assert.match(message.html, /CLOUDFLARE — ACCOUNT AND RUNTIME/);
