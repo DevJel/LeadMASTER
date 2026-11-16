@@ -400,36 +400,16 @@ export default function App(){
     }finally{ if(requestTimeout!==null) window.clearTimeout(requestTimeout); if(!silent) setIsLoading(false); }
   }
   useEffect(()=>{ reloadRecords(); },[]);
-  useEffect(()=>{
-    let active = true;
-    const poll = async()=>{
-      if(!active || document.visibilityState==='hidden' || pollLock.current || refreshLock.current || busyRef.current) return;
-      pollLock.current = true;
-      try{ await reloadRecords({silent:true, timeoutMs:10000, background:true}); }
-      finally{ pollLock.current = false; }
-    };
-    const interval = window.setInterval(()=>{ void poll(); },3000);
-    const onVisibility = ()=>{ if(document.visibilityState==='visible') void poll(); };
-    document.addEventListener('visibilitychange',onVisibility);
-    return ()=>{ active=false; window.clearInterval(interval); document.removeEventListener('visibilitychange',onVisibility); };
-  },[]);
+  // Dashboard data is kept in React memory between views. Avoid timer/visibility polling;
+  // the user refresh gesture below is the explicit source of a fresh workspace snapshot.
   async function refreshWorkspace(){
-    if(refreshLock.current) return;
+    if(refreshLock.current || pollLock.current || busyRef.current) return;
     refreshLock.current = true;
     setIsRefreshing(true);
     setRefreshError('');
-    const startedAt = Date.now();
     try{
-      while(Date.now() - startedAt < 12000){
-        const remainingAtStart = 12000 - (Date.now() - startedAt);
-        if(remainingAtStart <= 0) break;
-        const verified = await reloadRecords({silent:true,timeoutMs:remainingAtStart});
-        if(verified){ setRefreshError(''); return; }
-        const remaining = 12000 - (Date.now() - startedAt);
-        if(remaining <= 0) break;
-        await new Promise(resolve=>setTimeout(resolve,Math.min(1500,remaining)));
-      }
-      setRefreshError('The server did not confirm a complete workspace snapshot within 12 seconds. Your previously loaded content is still available. Try again.');
+      const verified = await reloadRecords({silent:true,timeoutMs:12000});
+      if(!verified) setRefreshError('Could not refresh the workspace. Your previously loaded content is still available. Try again.');
     }finally{
       setIsRefreshing(false);
       refreshLock.current = false;

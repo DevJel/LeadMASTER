@@ -96,14 +96,8 @@ export default function UtilityApps({route}:{route:string|null}){
   },[selected]);
 
   useEffect(()=>{void load(false);},[load]);
-  useEffect(()=>{
-    let active=true;
-    const refresh=async()=>{if(!active||document.visibilityState==='hidden')return;await load(true);};
-    const interval=window.setInterval(()=>{void refresh();},3000);
-    const onVisibility=()=>{if(document.visibilityState==='visible')void refresh();};
-    document.addEventListener('visibilitychange',onVisibility);
-    return ()=>{active=false;window.clearInterval(interval);document.removeEventListener('visibilitychange',onVisibility);};
-  },[load]);
+  // Keep the last loaded records in component memory. Refresh only on initial entry,
+  // after a successful mutation, or when the user explicitly requests it.
 
   const filteredNotes=useMemo(()=>notes.filter(row=>(row.value.title+' '+row.value.body).toLowerCase().includes(search.toLowerCase())),[notes,search]);
   const filteredContacts=useMemo(()=>contacts.filter(row=>(row.value.name+' '+row.value.email+' '+(row.value.company||'')).toLowerCase().includes(search.toLowerCase())),[contacts,search]);
@@ -201,7 +195,7 @@ export default function UtilityApps({route}:{route:string|null}){
       <div className="mx-auto max-w-6xl px-4 pb-3">{nav}</div>
     </header>
     <main className="mx-auto max-w-6xl space-y-4 px-4 py-6">
-      <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-[#777]">Workspace utility</p><h1 className="mt-1 text-2xl font-semibold">{labels[selected]}</h1></div>{lastLoaded&&<p className="text-xs text-[#888]">Updated {new Date(lastLoaded).toLocaleTimeString()}</p>}</div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-[#777]">Workspace utility</p><h1 className="mt-1 text-2xl font-semibold">{labels[selected]}</h1>{lastLoaded&&<p className="mt-1 text-xs text-[#888]">Updated {new Date(lastLoaded).toLocaleTimeString()}</p>}</div><button type="button" className={secondary} disabled={loading||saving} onClick={()=>void load(false)}>{loading?'Refreshing…':'Refresh'}</button></div>
       {error&&<div role="alert" className="rounded-xl border border-[#e6caca] bg-[#fff8f8] p-3 text-sm">{error}</div>}
       {notice&&<div role="status" className="rounded-xl border border-[#ddd] bg-white p-3 text-sm">{notice}</div>}
       {loading&&['notes','contacts','calendar'].includes(selected)?<div className={panel}><LoadingIndicator label={'Loading '+labels[selected].toLowerCase()} compact/></div>:null}
