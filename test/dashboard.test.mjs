@@ -65,8 +65,8 @@ test('design CSS retains the monochrome palette and responsive workspace layout'
  assert.match(app, /<main/);
  assert.match(app, /md:hidden/);
  assert.doesNotMatch(app, /rightPanel/);
- assert.match(css, /html,body,#root\\{height:100%;min-height:0;overflow:hidden\\}/);
- assert.match(css, /\\.lm-main-scroll\\{height:100%;min-height:0;overflow-y:auto/);
+ assert.ok(css.includes('html,body,#root{height:100%;min-height:0;overflow:hidden}'));
+ assert.ok(css.includes('.lm-main-scroll{height:100%;min-height:0;overflow-y:auto'));
 });
 
 test('Android companion keeps the authenticated responsive dashboard as its single source', async () => {
