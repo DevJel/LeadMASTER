@@ -143,8 +143,9 @@ export async function verifyActionsOidc(token, fetcher = fetch) {
     const [headerPart, payloadPart, signaturePart] = token.split(".");
     const decode = value => JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - value.length % 4) % 4)), c => c.charCodeAt(0))));
     const header = decode(headerPart), claims = decode(payloadPart);
+    const audienceValid = claims.aud === "leadmaster-auto-heal" || (Array.isArray(claims.aud) && claims.aud.includes("leadmaster-auto-heal"));
     if (header.alg !== "RS256" || claims.iss !== "https://token.actions.githubusercontent.com" ||
-        claims.aud !== "leadmaster-auto-heal" || claims.repository !== "DevJel/LeadMASTER" ||
+        !audienceValid || claims.repository !== "DevJel/LeadMASTER" ||
         !["incident-trigger.yml", "auto-heal-guard.yml"].some(name => String(claims.workflow_ref || "").startsWith("DevJel/LeadMASTER/.github/workflows/" + name + "@refs/heads/"))) return false;
     const keysResponse = await fetcher("https://token.actions.githubusercontent.com/.well-known/jwks");
     if (!keysResponse.ok) return false;
@@ -155,7 +156,7 @@ export async function verifyActionsOidc(token, fetcher = fetch) {
     const signature = Uint8Array.from(atob(signaturePart.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - signaturePart.length % 4) % 4)), c => c.charCodeAt(0));
     const valid = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, signature, enc.encode(headerPart + "." + payloadPart));
     const now = Math.floor(Date.now() / 1000);
-    return valid && claims.exp > now && claims.iat <= now + 60 && claims.nbf <= now + 60;
+    return valid && Number(claims.exp) > now && Number(claims.iat) <= now + 60 && Number(claims.nbf || 0) <= now + 60;
   } catch { return false; }
 }
 
