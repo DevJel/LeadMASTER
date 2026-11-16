@@ -166,7 +166,9 @@ try {
       await page.getByLabel("Subject").fill("A sample subject");
       await page.getByLabel("Body").fill("This is a synthetic template preview.");
       await page.getByRole("button",{name:"Save template"}).click();
-      await page.getByRole("button",{name:"Preview",exact:true}).first().click();
+      const templateCard = page.locator("article").filter({hasText:"Preview template"});
+      await templateCard.waitFor({state:"visible",timeout:10000});
+      await templateCard.getByRole("button",{name:"Preview",exact:true}).click();
       await snap("dashboard-template-preview");
     }
     if (device === "mobile") await page.getByRole("button",{name:"Show or hide navigation"}).click();
