@@ -52,6 +52,26 @@ const server = createServer(async (req,res) => {
     res.writeHead(200,{"content-type":"application/json","cache-control":"no-store"});
     return res.end(JSON.stringify(folder === "counts" ? {counts,storage:true} : {items:[],counts,storage:true}));
   }
+  if (url.pathname === "/api/admin/templates" && req.method === "GET") {
+    res.writeHead(200,{"content-type":"application/json","cache-control":"no-store"});
+    return res.end(JSON.stringify({templates:[]}));
+  }
+  if (url.pathname === "/api/admin/templates" && req.method === "POST") {
+    let raw="";for await (const chunk of req) raw+=chunk;
+    let payload={};try{payload=JSON.parse(raw)}catch{}
+    res.writeHead(201,{"content-type":"application/json","cache-control":"no-store"});
+    return res.end(JSON.stringify({id:"preview-template",name:payload.name||"Preview template",updated_at:Date.now()}));
+  }
+  if (url.pathname === "/api/admin/templates/preview-template") {
+    if (req.method === "GET") {
+      res.writeHead(200,{"content-type":"application/json","cache-control":"no-store"});
+      return res.end(JSON.stringify({template:{id:"preview-template",name:"Preview template",subject:"A sample subject",text_body:"This is a synthetic template preview.",html_body:null,updated_at:Date.now()}}));
+    }
+    if (req.method === "PUT" || req.method === "DELETE") {
+      res.writeHead(200,{"content-type":"application/json","cache-control":"no-store"});
+      return res.end(JSON.stringify({ok:true}));
+    }
+  }
   if (url.pathname === "/api/admin/activity" || url.pathname === "/api/admin/unsubscribes" || url.pathname === "/api/admin/webhooks") {
     res.writeHead(200,{"content-type":"application/json","cache-control":"no-store"});
     return res.end(JSON.stringify(url.pathname.endsWith("/webhooks") ? {webhooks:[]} : {items:[],counts:{unsubscribed:0}}));
@@ -121,40 +141,33 @@ try {
     await page.waitForSelector("#root main",{timeout:15000});
     await page.waitForFunction(()=>!document.querySelector("#root")?.textContent?.includes("Loading workspace"),null,{timeout:10000});
     await mark();
-    const views = [["Inbox","inbox"],["Compose","compose"],["Sent","sent"],["Outbox","outbox"],["Deleted","deleted"],["Assistant","assistant"],["Automation","automation"],["Templates","templates"],["Scheduled","scheduled"]];
+    const views = [["Inbox","inbox"],["Compose","compose"],["Sent","sent"],["Outbox","outbox"],["Deleted","deleted"],["Assistant","assistant"],["Automation","automation"],["Templates","templates"],["Scheduled","scheduled"],["Settings","settings"]];
     for (const [label,slug] of views) {
-      if (device === "mobile") await page.getByRole("button",{name:"Open navigation"}).click();
-      await page.getByRole("navigation",{name:"LeadMASTER navigation"}).getByRole("button",{name:label,exact:true}).click();
+      if (device === "mobile") await page.getByRole("button",{name:"Show or hide navigation"}).click();
+      await page.getByRole("navigation",{name:"LeadMaster navigation"}).getByRole("button",{name:label,exact:true}).click();
       await page.waitForTimeout(200);
       await snap(`dashboard-${slug}`);
-    }
-    if (device === "mobile") await page.getByRole("button",{name:"Open navigation"}).click();
-    await page.getByRole("button",{name:"Open profile and settings"}).click();
-    await page.getByRole("button",{name:"Profile, settings & configurations"}).click();
-    await page.waitForTimeout(200);
-    await snap("dashboard-settings");
-    if (device === "desktop") {
-      await page.getByRole("button",{name:"Collapse sidebar"}).click();
-      await page.getByRole("button",{name:"Expand sidebar"}).click();
     }
     // Retain the existing refresh and template-preview smoke checks.
     if (device === "desktop") {
       await page.getByRole("button",{name:"Refresh workspace"}).click();
       await page.getByText("Refreshing and verifying workspace data…",{exact:true}).waitFor({state:"hidden",timeout:5000});
       await snap("dashboard-refresh-verified");
-      await page.getByRole("navigation",{name:"LeadMASTER navigation"}).getByRole("button",{name:"Templates",exact:true}).click();
+      await page.getByRole("navigation",{name:"LeadMaster navigation"}).getByRole("button",{name:"Templates",exact:true}).click();
       await page.getByRole("button",{name:/New Template/}).first().click();
       await page.getByLabel("Name").fill("Preview template");
       await page.getByLabel("Subject").fill("A sample subject");
       await page.getByLabel("Body").fill("This is a synthetic template preview.");
       await page.getByRole("button",{name:"Save template"}).click();
-      await page.getByRole("button",{name:/Preview/}).first().click();
+      await page.getByRole("button",{name:"Preview",exact:true}).first().click();
       await snap("dashboard-template-preview");
     }
-    if (device === "mobile") await page.getByRole("button",{name:"Open navigation"}).click();
-    await page.getByRole("navigation",{name:"LeadMASTER navigation"}).getByRole("button",{name:"Inbox",exact:true}).click();
-    await page.waitForTimeout(200);
-    await snap("dashboard-inbox-unified");
+    if (device === "mobile") await page.getByRole("button",{name:"Show or hide navigation"}).click();
+    await page.getByRole("navigation",{name:"LeadMaster navigation"}).getByRole("button",{name:"Inbox",exact:true}).click();
+    for (const tab of ["Primary","Promotions","Social","Updates","Forums"]) {
+      await page.getByRole("button",{name:new RegExp(`^${tab}`)}).first().click();
+      await snap(`inbox-${tab.toLowerCase()}`);
+    }
     for (const app of ["notes","contacts","calendar","calculator","currency","email-html-playground"]) {
       await page.goto(`http://127.0.0.1:${port}/dashboard.html?app=${app}`,{waitUntil:"domcontentloaded"});
       await page.waitForSelector("#root",{timeout:15000});
