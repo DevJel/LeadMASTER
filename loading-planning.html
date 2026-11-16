@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LeadMaster — Loading</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:#fff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  .lm-loader{display:flex;flex-direction:column;align-items:center;gap:10px;padding:28px 0;text-align:center}
+  .lm-loader-svg{overflow:visible;display:block}
+  .lm-envelope{transform-origin:60px 65px;animation:lm-scale 1.6s ease-in-out infinite}
+  @keyframes lm-scale{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+  .lm-flap{animation:lm-flap 1.6s ease-in-out infinite}
+  @keyframes lm-flap{0%,100%{opacity:1}50%{opacity:.6}}
+  .lm-dash{animation:lm-dash 1s linear infinite}
+  .lm-dash-2{animation-delay:.5s}
+  @keyframes lm-dash{to{stroke-dashoffset:-14}}
+  .lm-building{animation:lm-pulse 1.6s ease-in-out infinite}
+  .lm-person{animation:lm-pulse 1.6s ease-in-out .8s infinite}
+  @keyframes lm-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  .lm-loader-dots{display:flex;gap:6px}
+  .lm-loader-dots span{width:6px;height:6px;border-radius:50%;background:#000;animation:lm-dot 1.2s ease-in-out infinite}
+  .lm-loader-dots span:nth-child(2){animation-delay:.15s}
+  .lm-loader-dots span:nth-child(3){animation-delay:.3s}
+  @keyframes lm-dot{0%,100%{transform:translateY(0);opacity:.35}50%{transform:translateY(-4px);opacity:1}}
+  .lm-loader-bar{width:120px;height:3px;background:#e5e5e5;border-radius:99px;overflow:hidden}
+  .lm-loader-fill{height:100%;width:40%;background:#000;border-radius:99px;animation:lm-bar 1.4s ease-in-out infinite}
+  @keyframes lm-bar{0%{transform:translateX(-110%)}100%{transform:translateX(310%)}}
+  .lm-loader-title{margin:0;font:600 14px/1.4 system-ui;color:#000}
+  .lm-loader-sub{margin:0;font:400 12px/1.4 system-ui;color:#6b7280}
+  @media (prefers-reduced-motion:reduce){.lm-envelope,.lm-flap,.lm-dash,.lm-building,.lm-person,.lm-loader-dots span,.lm-loader-fill{animation:none}}
+</style>
+</head>
+<body>
+<div class="lm-loader" role="status" aria-label="Loading">
+  <svg class="lm-loader-svg" viewBox="0 0 120 120" width="120" height="120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <g class="lm-building">
+      <rect x="50" y="14" width="20" height="16" rx="1.5" stroke="#000" stroke-width="1.8"/>
+      <path d="M54 20h3M63 20h3M54 24h3M63 24h3M58 18v4M58 26v4" stroke="#000" stroke-width="1.8" stroke-linecap="round"/>
+    </g>
+    <line class="lm-dash" x1="60" y1="32" x2="60" y2="46" stroke="#000" stroke-width="1.8" stroke-dasharray="3 4" stroke-linecap="round"/>
+    <g class="lm-envelope">
+      <rect x="30" y="48" width="60" height="34" rx="3" fill="#fff" stroke="#000" stroke-width="1.8"/>
+      <polyline class="lm-flap" points="30,48 60,70 90,48" fill="none" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <line class="lm-dash lm-dash-2" x1="60" y1="84" x2="60" y2="90" stroke="#000" stroke-width="1.8" stroke-dasharray="3 4" stroke-linecap="round"/>
+    <g class="lm-person">
+      <circle cx="60" cy="96" r="4" stroke="#000" stroke-width="1.8"/>
+      <path d="M52 108a8 8 0 0 1 16 0" stroke="#000" stroke-width="1.8" stroke-linecap="round"/>
+    </g>
+  </svg>
+  <div class="lm-loader-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+  <div class="lm-loader-bar"><div class="lm-loader-fill"></div></div>
+  <p class="lm-loader-title">Loading LeadMaster...</p>
+  <p class="lm-loader-sub">Loading Inbox...</p>
+</div>
+</body>
+</html>
