@@ -9,8 +9,9 @@ LeadMASTER is an email workspace and developer integration service.
 - **Detailed API reference:** [docs/API.md](docs/API.md)
 - **Engineering handover:** [HANDOVER.md](HANDOVER.md)
 - **Production mail workflow:** [docs/MAIL_WORKFLOW.md](docs/MAIL_WORKFLOW.md)
+- **Daily operational reporting:** [docs/DAILY_REPORTER.md](docs/DAILY_REPORTER.md)
 
-> **Feature branch only:** A draft persistence module and migration 0015 are in development; they are not routed, connected to the dashboard, or deployed. See `docs/API.md` and `src/dashboard-feature-map.md`.
+> **Production integration:** The authenticated workspace, account-scoped records and migrations 0015–0019 are merged into `main` and deployed. The daily Reporter/Worker is scheduled for 08:00 Asia/Kuala_Lumpur after this change is deployed. See `docs/DAILY_REPORTER.md` for its checks, status colors and remediation boundaries.
 
 ## Product status
 
@@ -18,11 +19,11 @@ LeadMASTER is an email workspace and developer integration service.
 |---|---|---|
 | Landing page and integrated documentation | Deployed | Main landing page is the public documentation hub |
 | Human administrator authentication | Deployed | Password, human security verification and email OTP |
-| Account identity and ownership model | Account-scoped schema and route enforcement implemented in this branch | Current sign-in rollout is one configured administrator identity; self-service registration, team invitations and organization switching are not available |
+| Account identity and ownership model | Deployed account-scoped schema and route enforcement | Current sign-in rollout is one configured administrator identity; self-service registration, team invitations and organization switching are not available |
 | Developer API keys | Deployed | Account-owned; shown once; scoped by permission |
-| Account-specific email API | Implemented in this branch | Requires a key from the same account and its exact account ID |
-| Account-specific webhooks | Implemented in this branch | Owned by the account and creating API key; one synchronous delivery attempt |
-| Email sending | Deployed through AWS SES SMTP and a dedicated sending queue | Dashboard bulk sends are processed per recipient; a shared coordinator caps LeadMASTER submissions at 10 recipients per second. This branch is not deployed until release checks pass |
+| Account-specific email API | Deployed | Requires a key from the same account and its exact account ID |
+| Account-specific webhooks | Deployed | Owned by the account and creating API key; one synchronous delivery attempt |
+| Email sending | Deployed through AWS SES SMTP and a dedicated sending queue | Dashboard bulk sends are processed per recipient; a shared coordinator caps LeadMASTER submissions at 10 recipients per second |
 | Dedicated inbox | Deployed for `app@leadmaster.jelvan.space` | Only this new address is captured. Existing `jelvan.pro` and `operavaglobal.com` forwarding rules are unchanged |
 | SES delivery updates | Deployed through a separate LeadMASTER configuration set and SNS event destination | Tracks sent, delivered, bounced, complaints, delays, rejects and sending failures; delivery is not the same as inbox placement |
 | Dashboard | Deployed for the configured superadmin | Inbox, Sent, Archived, Bounced, Unsuccessful, Deleted, Unsubscribed, Activity, sender settings and notifications |
