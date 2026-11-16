@@ -1932,7 +1932,7 @@ async function leadmasterRecordsRoute(request, env, session) {
 var DEFAULT_APP_URL = "https://leadmaster.jelvan.space";
 var DEFAULT_REPOSITORY = "DevJel/LeadMASTER";
 var DEFAULT_CF_ACCOUNT = "967aa086112f862ba9f50ccf7aa09246";
-var DEFAULT_TIME_ZONE = "Asia/Manila";
+var DEFAULT_TIME_ZONE = "Asia/Kuala_Lumpur";
 var EXPECTED_TABLES = [
   "accounts",
   "account_members",
@@ -2137,13 +2137,13 @@ async function checkDatabase(env, checks) {
     const names = new Set((rows.results || []).map((row) => String(row.name)));
     const missing = EXPECTED_TABLES.filter((name) => !names.has(name));
     if (missing.length) {
-      checks.push(makeCheck("Cloudflare Runtime", "D1 schema integrity", "Needs Attention", "Missing required tables: " + missing.join(", "), "Review the matching repository migrations and apply the missing additive migrations before app features are used."));
+      checks.push(makeCheck("Cloudflare Runtime", "Turso schema integrity", "Needs Attention", "Missing required tables: " + missing.join(", "), "Review the matching repository migrations and apply the missing additive migrations before app features are used."));
     } else {
-      checks.push(makeCheck("Cloudflare Runtime", "D1 schema integrity", "Healthy", EXPECTED_TABLES.length + " required application and reporter tables are present and queryable."));
+      checks.push(makeCheck("Cloudflare Runtime", "Turso schema integrity", "Healthy", EXPECTED_TABLES.length + " required application and reporter tables are present and queryable."));
     }
-    checks.push(makeCheck("Cloudflare Runtime", "D1 query connectivity", "Healthy", "A read-only sqlite_master query completed successfully; no mailbox contents were read."));
+    checks.push(makeCheck("Cloudflare Runtime", "Turso query connectivity", "Healthy", "A read-only sqlite_master query completed successfully; no mailbox contents were read."));
   } catch (error) {
-    checks.push(makeCheck("Cloudflare Runtime", "D1 database", "Needs Attention", safeString(error?.message || error, 500), "Check D1 availability, binding configuration and migration state."));
+    checks.push(makeCheck("Cloudflare Runtime", "Turso database", "Needs Attention", safeString(error?.message || error, 500), "Check the Turso URL, Secret Store token binding and migration state."));
   }
 }
 async function checkEmailCoordinator(env, checks) {
@@ -2200,13 +2200,14 @@ async function checkR2AndBindings(env, checks) {
     env.AI ? "" : "If AI reply suggestions are expected to be active, restore the existing AI binding."
   ));
 }
-function githubHeaders(env) {
+async function githubHeaders(env) {
   const headers = { accept: "application/vnd.github+json", "user-agent": "LeadMASTER-Reporter/1.0", "x-github-api-version": "2022-11-28" };
-  if (typeof env.GITHUB_TOKEN === "string" && env.GITHUB_TOKEN.trim()) headers.authorization = "Bearer " + env.GITHUB_TOKEN.trim();
+  const token2 = await secretValue(env.GITHUB_TOKEN);
+  if (token2) headers.authorization = "Bearer " + token2;
   return headers;
 }
 async function githubJson(url, env) {
-  const { response, body } = await fetchJson(url, { headers: githubHeaders(env) });
+  const { response, body } = await fetchJson(url, { headers: await githubHeaders(env) });
   if (!response.ok) throw new Error("GitHub API returned HTTP " + response.status + (body?.message ? ": " + safeString(body.message, 160) : ""));
   return body;
 }
@@ -2330,22 +2331,22 @@ async function cloudflareApi(path, token2) {
   return body.result;
 }
 async function checkCloudflareControlPlane(env, checks) {
-  const token2 = typeof env.CF_API_TOKEN === "string" ? env.CF_API_TOKEN.trim() : "";
+  const token2 = await secretValue(env.CF_API_TOKEN) || "";
   if (!token2) {
     checks.push(makeCheck(
       "Cloudflare",
       "Account-level resource audit",
       "Needs Manual Action",
-      "Runtime checks can verify the live Worker, D1, R2, Queue binding and SES coordinator, but account-wide Worker deployments, cron schedules, Queue consumer wiring and resource inventory cannot be queried without a scoped Cloudflare API token.",
-      "Create a read-only API token scoped only to the Lead Master Web App account with Workers Scripts Read, D1 Read, Queues Read and Workers R2 Storage Read permissions. Add it as the LeadMASTER Worker secret CF_API_TOKEN. Never use a Global API Key."
+      "Runtime checks can verify the live Worker, Turso, R2, Queue binding and SES coordinator, but account-wide Worker deployments, cron schedules, Queue consumer wiring and resource inventory cannot be queried without a scoped Cloudflare API token.",
+      "Verify the existing CF_API_TOKEN Secret Store binding has read-only Workers Scripts, Queues and R2 permissions on the Lead Master Web App account. Never use a Global API Key."
     ));
     return;
   }
   const account = String(env.REPORTER_CF_ACCOUNT_ID || DEFAULT_CF_ACCOUNT);
   try {
-    const [scripts, databases, queues, buckets, schedules, deployments] = await Promise.all([
+    const [scripts, workerSettings, queues, buckets, schedules, deployments] = await Promise.all([
       cloudflareApi("/accounts/" + account + "/workers/scripts", token2),
-      cloudflareApi("/accounts/" + account + "/d1/database", token2),
+      cloudflareApi("/accounts/" + account + "/workers/scripts/leadmaster/settings", token2),
       cloudflareApi("/accounts/" + account + "/queues", token2),
       cloudflareApi("/accounts/" + account + "/r2/buckets", token2),
       cloudflareApi("/accounts/" + account + "/workers/scripts/leadmaster/schedules", token2),
@@ -2359,14 +2360,15 @@ async function checkCloudflareControlPlane(env, checks) {
       worker ? "Worker exists; deployed tag " + safeString(worker.tag || "unknown", 80) + "; handlers: " + (worker.handlers || []).join(", ") + "." : "The leadmaster Worker script is missing.",
       worker ? "" : "Restore the LeadMASTER Worker from the main branch after reviewing deployment history."
     ));
-    const dbList = Array.isArray(databases) ? databases : [];
-    const db = dbList.find((item) => item.name === "leadmaster-auth");
+    const workerBindings = Array.isArray(workerSettings?.bindings) ? workerSettings.bindings : [];
+    const d1Bindings = workerBindings.filter((binding) => binding.type === "d1");
+    const tursoConfigured = workerBindings.some((binding) => binding.name === "TURSO_AUTH_TOKEN" && binding.type === "secrets_store_secret") && workerBindings.some((binding) => binding.name === "TURSO_URL" && binding.type === "plain_text");
     checks.push(makeCheck(
       "Cloudflare",
-      "D1 resource inventory",
-      db ? "Healthy" : "Needs Attention",
-      db ? "leadmaster-auth exists (" + safeString(db.uuid, 60) + ")." : "The expected leadmaster-auth D1 database was not found.",
-      db ? "" : "Restore the expected D1 binding/database; do not create a replacement without checking backups."
+      "Turso production database configuration",
+      tursoConfigured && d1Bindings.length === 0 ? "Healthy" : "Needs Attention",
+      tursoConfigured && d1Bindings.length === 0 ? "Production LeadMASTER uses the existing Turso URL and Secret Store token binding; no D1 binding is configured." : "Turso configuration is incomplete or an unexpected D1 binding is present.",
+      tursoConfigured && d1Bindings.length === 0 ? "" : "Preserve the existing Turso database and align only its URL/token bindings."
     ));
     const queueList = Array.isArray(queues) ? queues : [];
     const sendQueue = queueList.find((item) => item.queue_name === "leadmaster-mail-send");
@@ -2394,7 +2396,7 @@ async function checkCloudflareControlPlane(env, checks) {
       "Cloudflare",
       "Daily Reporter Cron Trigger",
       cronOk ? "Healthy" : "Needs Attention",
-      cronOk ? "Mandatory daily report is configured for 09:00 UTC (17:00 Asia/Manila)." : "The expected daily 09:00 UTC / 17:00 Asia/Manila cron trigger is missing.",
+      cronOk ? "Mandatory daily report is configured for 09:00 UTC (17:00 Asia/Kuala_Lumpur)." : "The expected daily 09:00 UTC / 17:00 Asia/Kuala_Lumpur cron trigger is missing.",
       cronOk ? "" : "Deploy the latest main branch configuration with the daily reporter cron."
     ));
     const latest = deployments?.deployments?.[0];
@@ -2411,7 +2413,7 @@ async function checkCloudflareControlPlane(env, checks) {
       "Account-level resource audit",
       "Needs Manual Action",
       safeString(error?.message || error, 600),
-      "Confirm CF_API_TOKEN is valid and has the required read-only permissions for Workers, D1, Queues and R2."
+      "Confirm CF_API_TOKEN is valid and has read-only Workers Scripts, Queues and R2 permissions for this account."
     ));
   }
 }
