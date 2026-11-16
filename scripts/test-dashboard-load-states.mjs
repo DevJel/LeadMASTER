@@ -64,7 +64,22 @@ try {
   assert.equal(await page.getByText('LeadMASTER refreshed', { exact: true }).count(), 0);
   assert.equal(await page.getByText('Workspace refreshed from the server.', { exact: true }).count(), 0);
   assert.equal(await page.locator('header img[src="/assets/brand/leadmaster-full.svg"]').count(), 1, 'transparent LeadMASTER brand mark remains visible');
-  console.log('Synthetic local dashboard: loading, error, retry, empty and single refresh passed.');
+
+  const utilityPage = await browser.newPage();
+  const utilityStart = requestCount;
+  await utilityPage.goto(`http://127.0.0.1:${server.address().port}/dashboard.html?app=notes`, { waitUntil: 'domcontentloaded' });
+  const utilityCard = utilityPage.locator('section[aria-label="Utility loading status"]');
+  await utilityPage.getByRole('button', { name: 'Dismiss loading overlay' }).waitFor({ timeout: 5000 });
+  const utilityBox = await utilityCard.boundingBox();
+  const utilityViewport = utilityPage.viewportSize();
+  assert.ok(utilityBox && utilityViewport && Math.abs((utilityBox.x + utilityBox.width / 2) - utilityViewport.width / 2) < 4, 'utility loading card horizontally centered');
+  assert.ok(utilityBox && utilityViewport && Math.abs((utilityBox.y + utilityBox.height / 2) - utilityViewport.height / 2) < 4, 'utility loading card vertically centered');
+  await utilityPage.getByRole('button', { name: 'Dismiss loading overlay' }).click();
+  await utilityPage.getByRole('alert').waitFor({ timeout: 5000 });
+  assert.ok(requestCount > utilityStart, 'utility overlay dismissal does not cancel its request');
+  await utilityPage.close();
+
+  console.log('Synthetic local dashboard: centered dismissible workspace and utility loading, error, retry, empty and single refresh passed.');
 } finally {
   if (browser) await browser.close();
   await new Promise(resolveClose => server.close(resolveClose));
