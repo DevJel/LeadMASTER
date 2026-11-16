@@ -4,6 +4,7 @@
   "main": "worker.js",
   "compatibility_date": "2026-11-04",
   "compatibility_flags": [],
+  "triggers": { "crons": ["0 9 * * *"] },
   "workers_dev": true,
   "preview_urls": false,
   "vars": {
@@ -56,6 +57,16 @@
       "binding": "TURSO_AUTH_TOKEN",
       "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
       "secret_name": "TURSO_AUTH_TOKEN"
+    },
+    {
+      "binding": "GITHUB_TOKEN",
+      "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
+      "secret_name": "GITHUB_TOKEN"
+    },
+    {
+      "binding": "CF_API_TOKEN",
+      "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
+      "secret_name": "CF_API_TOKEN"
     }
   ],
   "observability": {
@@ -71,6 +82,12 @@
       "persist": true
     }
   },
+  "kv_namespaces": [
+    {
+      "binding": "AUTO_HEAL_KV",
+      "id": "504506b1b6b3406d89325f17a8a3cf17"
+    }
+  ],
   "r2_buckets": [
     {
       "binding": "INBOUND_MAIL",
