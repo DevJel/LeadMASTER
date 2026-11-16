@@ -173,8 +173,10 @@ The response includes a `signing_secret` exactly once. Copy it into your server'
 
 Supported events:
 - `email.accepted` — the downstream email provider accepted the submission.
-- `email.failed` — the email provider did not accept the submission.
-- `email.unknown` — the submission outcome could not be determined.
+- `email.failed` — the submission was definitely not accepted, or was skipped because the recipient was suppressed at dispatch.
+- `email.unknown` — the submission outcome could not be determined; reconcile it before retrying.
+
+The `data` object includes an `error_code` for failed and unknown outcomes. Event dispatch happens after the terminal status is recorded and is best-effort: a process failure or callback failure can prevent notification. Check the request status; a missing webhook does not prove the email was not sent. A request rejected before queueing may not generate a webhook.
 
 Webhook payload:
 

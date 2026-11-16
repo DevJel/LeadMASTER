@@ -438,3 +438,9 @@ No provider configuration, account records, live queue, credentials, migrations,
 ## Dashboard foreground loading verification — branch only
 
 Foreground workspace loading and retry must reflect real snapshot results, never a fabricated empty state or success. `scripts/test-dashboard-load-states.mjs` exercises synthetic local loading, failure, retry and refresh; it does not validate authenticated production or Android device behavior. Follow the release checklist before deployment.
+
+## Developer terminal-event correction — branch only
+
+The mail queue consumer now attempts `email.failed` and `email.unknown` callbacks as well as `email.accepted` after committing the corresponding developer request state. Suppression at dispatch is a failed outcome. The callback remains best-effort and does not trigger a resend; a crash or callback failure can lose the event. Pre-queue failures may not produce callbacks. Synthetic tests cover the terminal states, redelivery, transaction failure, HMAC signing and account/key isolation.
+
+This does not resolve webhook DNS rebinding/private-address egress, durable webhook retries, producer outbox/reconciliation, or the unfinished mail-threading and attachment work. Before release, test the actual queue consumer and callbacks in isolated staging, verify the deployed consumer version and its bindings, and follow the existing quiesce/reconciliation procedure. No live message or production deployment was performed for this change.
