@@ -1,7 +1,7 @@
 import React,{useCallback,useEffect,useMemo,useState} from 'react';
-import {LoadingIndicator} from './LoadingIndicator';
-import {ActionConfirmation,ActionConfirmationRequest} from './ActionConfirmation';
-import {mapLeadMasterError} from '../leadmaster-error-mapper.mjs';
+import {LoadingIndicator} from '../src/dashboard-tsx/LoadingIndicator';
+import {ActionConfirmation,ActionConfirmationRequest} from '../src/dashboard-tsx/ActionConfirmation';
+import {mapLeadMasterError} from '../src/leadmaster-error-mapper.mjs';
 
 type UtilityRoute='notes'|'contacts'|'calendar'|'calculator'|'currency'|'email-html-playground';
 type RecordRow<T>={id:string;value:T};
@@ -195,8 +195,8 @@ export default function UtilityApps({route}:{route:string|null}){
   return <div className="min-h-screen bg-[#f7f7f7] text-[#252525]">
     <header className="sticky top-0 z-30 border-b border-[#e5e5e5] bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
-        <a href="/dashboard.html" className="text-lg font-bold tracking-tight">LeadMASTER <span className="font-normal text-[#777]">/ {labels[selected]}</span></a>
-        <a href="/dashboard.html" className={secondary}>Back to workspace</a>
+        <a href="/dashboard" className="text-lg font-bold tracking-tight">LeadMASTER <span className="font-normal text-[#777]">/ {labels[selected]}</span></a>
+        <a href="/dashboard" className={secondary}>Back to workspace</a>
       </div>
       <div className="mx-auto max-w-6xl px-4 pb-3">{nav}</div>
     </header>
@@ -208,7 +208,7 @@ export default function UtilityApps({route}:{route:string|null}){
 
       {selected==='notes'&&<div className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_1fr]">
         <section className={panel}><h2 className="font-semibold">Create or edit a note</h2><div className="mt-3 space-y-3"><input className={field} placeholder="Note title" value={noteForm.title} onChange={e=>setNoteForm({...noteForm,title:e.target.value})}/><textarea className={field} rows={7} placeholder="Write your note…" value={noteForm.body} onChange={e=>setNoteForm({...noteForm,body:e.target.value})}/><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={noteForm.pinned} onChange={e=>setNoteForm({...noteForm,pinned:e.target.checked})}/> Pin this note</label><div className="flex gap-2"><button className={action} disabled={saving} onClick={()=>void saveNote()}>{saving?'Saving…':'Save note'}</button><button className={secondary} onClick={()=>setNoteForm({id:'',title:'',body:'',pinned:false})}>Clear</button></div></div></section>
-        <section className={panel}><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold">Saved notes ({notes.length})</h2><input className="max-w-xs flex-1 "+field placeholder="Search notes" value={search} onChange={e=>setSearch(e.target.value)}/></div><div className="mt-4 grid gap-3 sm:grid-cols-2">{filteredNotes.map(row=><article key={row.id} className="rounded-xl border border-[#e5e5e5] p-4"><div className="flex items-start justify-between gap-2"><h3 className="font-medium">{row.value.pinned?'Pinned · ':''}{row.value.title}</h3><button className="text-xs underline" onClick={()=>askDelete({title:'Delete this note?',message:'This note will be removed from your workspace.',itemLabel:row.value.title,confirmLabel:'Delete note'},()=>deleteRecord('leadmaster_notes',row.id))}>Delete</button></div><p className="mt-2 whitespace-pre-wrap text-sm text-[#666]">{row.value.body}</p><button className="mt-3 text-xs underline" onClick={()=>setNoteForm({id:row.id,title:row.value.title,body:row.value.body,pinned:!!row.value.pinned})}>Edit</button></article>)}</div>{filteredNotes.length===0&&<div className="py-8 text-center"><img src="/assets/illustrations/empty-mail.webp" alt="" width="168" height="120" className="mx-auto h-auto w-[168px] object-contain"/><p className="mt-2 text-sm text-[#777]">{search?'No notes match that search.':'No notes have been saved yet.'}</p></div>}</section>
+        <section className={panel}><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold">Saved notes ({notes.length})</h2><input className={field+' max-w-xs flex-1'} placeholder="Search notes" value={search} onChange={e=>setSearch(e.target.value)}/></div><div className="mt-4 grid gap-3 sm:grid-cols-2">{filteredNotes.map(row=><article key={row.id} className="rounded-xl border border-[#e5e5e5] p-4"><div className="flex items-start justify-between gap-2"><h3 className="font-medium">{row.value.pinned?'Pinned · ':''}{row.value.title}</h3><button className="text-xs underline" onClick={()=>askDelete({title:'Delete this note?',message:'This note will be removed from your workspace.',itemLabel:row.value.title,confirmLabel:'Delete note'},()=>deleteRecord('leadmaster_notes',row.id))}>Delete</button></div><p className="mt-2 whitespace-pre-wrap text-sm text-[#666]">{row.value.body}</p><button className="mt-3 text-xs underline" onClick={()=>setNoteForm({id:row.id,title:row.value.title,body:row.value.body,pinned:!!row.value.pinned})}>Edit</button></article>)}</div>{filteredNotes.length===0&&<div className="py-8 text-center"><img src="/assets/illustrations/empty-mail.webp" alt="" width="168" height="120" className="mx-auto h-auto w-[168px] object-contain"/><p className="mt-2 text-sm text-[#777]">{search?'No notes match that search.':'No notes have been saved yet.'}</p></div>}</section>
       </div>}
 
       {selected==='contacts'&&<div className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_1fr]">

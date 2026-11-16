@@ -29,6 +29,24 @@ MCP is an experimental read-only prototype and is not mounted in production. No 
 - Legal privacy disclosures are an exception where applicable law requires naming a processor or data recipient. Never conceal legally required privacy information; obtain privacy review before changing such disclosures.
 - If asked about an underlying platform, explain that LeadMASTER is the product interface and provide only approved product-level information.
 
+## 2A. Public page URLs
+
+Browser-facing HTML pages use extensionless canonical paths. The Worker resolves each clean path to the existing static HTML asset internally, so the UI, session model, API endpoints and backend behavior remain unchanged.
+
+| Canonical browser URL | Internal page asset | Access |
+|---|---|---|
+| `/` | `/index.html` | Public |
+| `/login` | `/login.html` | Public |
+| `/dashboard` | `/dashboard.html` | Authenticated session required |
+| `/help-center` | `/help-center.html` | Public |
+| `/docs` | `/docs.html` | Public |
+| `/privacy` | `/privacy.html` | Public |
+| `/terms` | `/terms.html` | Public |
+| `/developer-api-keys` | `/developer-api-keys.html` | Authenticated session required |
+| `/mcp-info` | `/mcp.html` | Public informational page |
+
+Legacy `.html` page URLs permanently redirect to their canonical extensionless path and retain query parameters. Dashboard bundles and preview assets remain session-protected. Do not rewrite API paths or asset filenames as part of this page-URL convention. When adding a new public page, add its canonical/legacy mapping in `src/page-routes.mjs`, add the page to the static asset allowlist, update navigation links, and add route regression tests.
+
 ## 3. User/account context — highest priority
 
 Every user-facing operation must be grounded in the current user's own LeadMASTER account context.

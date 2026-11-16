@@ -1,3 +1,14 @@
+## 2026-11-16 — Clean extensionless page URLs (not deployed)
+
+- Added canonical browser routes for the landing page, login, dashboard, Help Center, documentation, privacy, terms and developer API-key console while continuing to serve the existing HTML assets internally.
+- Added permanent redirects from legacy `.html` page URLs to extensionless paths, preserving query strings and dashboard app deep links.
+- Kept dashboard pages, dashboard JavaScript/CSS bundles and developer API-key pages behind the existing authenticated session check.
+- Fixed the dashboard asset route classification so the dashboard's own JavaScript/CSS bundles are not mistaken for invalid dashboard sub-pages.
+- Updated landing, login, Help Center and utility links to use clean paths; no API endpoints, data models, email workflows or authentication semantics changed.
+- Corrected pre-existing Notes JSX and utility component import paths that prevented the dashboard asset build from completing.
+- Added route regression tests for clean paths, legacy redirects, protected assets, casing and trailing slashes.
+- Asset rebuild, complete CI, production deployment and live browser verification are pending.
+
 ## 2026-11-16 — Supplied dashboard integration staging (not deployed)
 
 - Preserved the supplied TSX and CSS as unserved design references and documented source-level API mapping and integration blockers.
