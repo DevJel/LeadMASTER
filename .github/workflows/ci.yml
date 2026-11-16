@@ -44,7 +44,7 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add src/static-assets.mjs public/dashboard.html
-            git add -f dist/worker.js dist/mail-queue-consumer.js dist/mail-failed-consumer.js
+            git add -f dist/worker.js dist/mail-queue-consumer.js dist/mail-failed-consumer.js dist/inbound-mail.js
             git commit -m "chore: sync generated assets and Worker bundles"
             git push
           fi
