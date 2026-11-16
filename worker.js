@@ -8,6 +8,7 @@ import { readBoundedJson } from "./src/bounded-json.mjs";
 import { sendThroughEmailCoordinator } from "./src/email-coordinator-client.mjs";
 import { emailOtpTemplate, emailSecurityAlertTemplate } from "./src/email-templates.mjs";
 import { staticAssets } from "./src/static-assets.mjs";
+import { resolvePageRoute } from "./src/page-routes.mjs";
 import { developerAdminRoute, developerEmailRoute, developerEmailStatus, developerAccountInfo } from "./src/developer-api.mjs";
 import { webhookRoute, adminWebhookRoute } from "./src/developer-webhooks.mjs";
 import { verifyTurnstile } from "./src/turnstile.mjs";
@@ -612,17 +613,24 @@ async function handle(request, env, ctx) {
   const normalizedPath = decodedPath.replace(/\/+$/, "") || "/";
   const routePath = normalizedPath.toLowerCase();
 
-  // Enforce the dashboard gate before API routing, static asset lookup or upstream proxying.
-  // This also closes case, percent-encoding and trailing-slash variants of dashboard URLs.
-  const dashboardRoute = routePath === "/dashboard" || routePath.startsWith("/dashboard/") || routePath.startsWith("/dashboard.");
-  const dashboardAssets = new Set(["/dashboard.js", "/dashboard.css", "/dashboard-app.js", "/dashboard-app.css", "/developer-api-keys.html", "/html-preview.js", "/html-preview.css", "/assets/vendor/dompurify.min.js"]);
-  if (dashboardRoute || dashboardAssets.has(routePath)) {
+  // Resolve clean browser-facing page paths to the existing static HTML assets.
+  // Authentication is enforced before any protected page or dashboard bundle is served.
+  const pageRoute = resolvePageRoute(routePath);
+  if (pageRoute.requiresSession) {
     const session = await sessionFor(request, env);
-    if (!session) return Response.redirect(new URL("/login.html", request.url), 302);
-    if (routePath === "/dashboard") return Response.redirect(new URL("/dashboard.html" + url.search, request.url), 302);
-    if (routePath === "/dashboard.html" && url.pathname !== "/dashboard.html") return Response.redirect(new URL("/dashboard.html" + url.search, request.url), 302);
-    if (dashboardRoute && !["/dashboard.html", "/dashboard.js", "/dashboard.css"].includes(routePath)) return new Response("Not found", { status: 404, headers: { "cache-control": "no-store", "x-content-type-options": "nosniff" } });
-    if (dashboardAssets.has(routePath) && url.pathname !== routePath) return Response.redirect(new URL(routePath + url.search, request.url), 302);
+    if (!session) return Response.redirect(new URL("/login" + url.search, request.url), 302);
+  }
+
+  // Permanently canonicalize old .html URLs and non-canonical casing/trailing slashes.
+  // Query strings (including dashboard app deep links) are retained.
+  if (pageRoute.redirect || (pageRoute.isPage && url.pathname !== pageRoute.path)) {
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return new Response("Method not allowed", { status: 405, headers: { allow: "GET, HEAD", "cache-control": "no-store" } });
+    }
+    const canonicalPath = pageRoute.canonicalPath || pageRoute.path;
+    const canonicalUrl = new URL(canonicalPath, url.origin);
+    canonicalUrl.search = url.search;
+    return Response.redirect(canonicalUrl, 308);
   }
 
   if (url.pathname === "/api/aws/ses-events") return sesSnsEvents(request,env);
@@ -755,11 +763,11 @@ async function handle(request, env, ctx) {
     return json({ authenticated: false, email: null, account: null });
   }
 
-  if (url.pathname === "/logout" && request.method === "GET") return Response.redirect(new URL("/login.html", request.url), 302);
+  if (url.pathname === "/logout" && request.method === "GET") return Response.redirect(new URL("/login", request.url), 302);
 
   if (url.pathname === "/mcp" || url.pathname.startsWith("/mcp/")) return json({ error: "MCP is not available in production. Use the documented LeadMASTER REST API." }, 404);
 
-  const assetPath = url.pathname === "/" ? "/index.html" : url.pathname;
+  const assetPath = pageRoute.assetPath;
   const asset = staticAssets[assetPath];
   if (asset) {
     const isHtml = asset.contentType.startsWith("text/html");
@@ -788,7 +796,7 @@ async function handle(request, env, ctx) {
   const outHeaders = new Headers(response.headers);
   outHeaders.set("x-content-type-options", "nosniff");
   outHeaders.set("referrer-policy", "strict-origin-when-cross-origin");
-  if (url.pathname === "/login.html" || url.pathname === "/dashboard.html") outHeaders.set("cache-control", "no-store");
+  if (pageRoute.isPage && (pageRoute.path === "/login" || pageRoute.path === "/dashboard")) outHeaders.set("cache-control", "no-store");
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers: outHeaders });
 }
 
