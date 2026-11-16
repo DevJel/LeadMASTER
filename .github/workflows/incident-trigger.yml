@@ -16,10 +16,7 @@ on:
 
 permissions:
   actions: read
-  contents: write
   id-token: write
-  issues: write
-  pull-requests: write
 
 jobs:
   notify-worker:
@@ -54,7 +51,6 @@ jobs:
 
       - name: Send verified incident to LeadMASTER Worker
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EVENT_NAME: ${{ github.event_name }}
           EVENT_ID: ${{ github.run_id }}-${{ github.run_attempt }}
           RUN_ID: ${{ github.event.workflow_run.id }}
@@ -97,7 +93,6 @@ jobs:
               issue_url: process.env.ISSUE_URL || ""
             };
           }
-          event.github_token = process.env.GITHUB_TOKEN;
           const response = await fetch(process.env.WORKER_URL, {
             method: "POST",
             headers: { authorization: "Bearer " + oidc, "content-type": "application/json" },

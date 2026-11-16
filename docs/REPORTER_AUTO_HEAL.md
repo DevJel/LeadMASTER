@@ -16,7 +16,7 @@ The `LeadMASTER Incident Trigger` workflow is triggered by:
 - A newly opened or newly labelled GitHub issue carrying a `bug`, `incident`, or `production` label.
 - A manual workflow dispatch for the sample report.
 
-The workflow obtains a short-lived GitHub Actions OIDC token for audience `leadmaster-auto-heal` and sends it to `POST /api/auto-heal/trigger`. The Worker verifies the token signature against GitHub's published JWKS and checks issuer, audience, repository and exact allowed workflow file. No static webhook secret is required. A repository-scoped short-lived GitHub Actions token is passed in the request body for the duration of that incident only; it is never logged or stored.
+The workflow obtains a short-lived GitHub Actions OIDC token for audience `leadmaster-auto-heal` and sends it to `POST /api/auto-heal/trigger`. The Worker verifies the token signature against GitHub's published JWKS and checks issuer, audience, repository and exact allowed workflow file. No static webhook secret is required. The workflow never forwards its GitHub Actions token to the Worker. Repository operations use only the Worker’s separately configured, least-privilege `GITHUB_TOKEN` secret; event-supplied credentials are ignored. Without that secret, the Worker records a manual-action result rather than attempting repository changes or creating an issue. Confirm this secret and its minimum repository permissions before deploying the workflow change. Deploy the Worker first, then the workflows, and test the incident and rejection paths without sending a sample email.
 
 Every incident is checked and reported to the same configured primary admin using the existing SES coordinator. An error hash is recorded in the `AUTO_HEAL_KV` namespace for deduplication. Rejected hashes are retained for 90 days; investigated hashes are retained for 30 days.
 
@@ -37,7 +37,7 @@ Every incident is checked and reported to the same configured primary admin usin
 - Exactly one source file and no more than two files (the Worker requires exactly one).
 - No test, spec, configuration, auth, dependency or workflow files.
 - No more than 20 total insertions + deletions.
-- Existing `npm test` and `npm run check:dashboard` both pass.
+- `npm run build:assets`, `npm test` and `npm run check:dashboard` all pass.
 
 If the guard or test suite fails, the workflow labels the PR `auto-heal-rejected`, closes it without merging, and calls the Worker with the full error hash. The Worker records that hash in KV so the same failure is not retried.
 
