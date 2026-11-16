@@ -121,19 +121,28 @@ try {
     await page.waitForSelector("#root main",{timeout:15000});
     await page.waitForFunction(()=>!document.querySelector("#root")?.textContent?.includes("Loading workspace"),null,{timeout:10000});
     await mark();
-    const views = [["Inbox","inbox"],["Compose","compose"],["Sent","sent"],["Outbox","outbox"],["Deleted","deleted"],["Assistant","assistant"],["Automation","automation"],["Templates","templates"],["Scheduled","scheduled"],["Settings","settings"]];
+    const views = [["Inbox","inbox"],["Compose","compose"],["Sent","sent"],["Outbox","outbox"],["Deleted","deleted"],["Assistant","assistant"],["Automation","automation"],["Templates","templates"],["Scheduled","scheduled"]];
     for (const [label,slug] of views) {
-      if (device === "mobile") await page.getByRole("button",{name:"Show or hide navigation"}).click();
-      await page.getByRole("navigation",{name:"LeadMaster navigation"}).getByRole("button",{name:label,exact:true}).click();
+      if (device === "mobile") await page.getByRole("button",{name:"Open navigation"}).click();
+      await page.getByRole("navigation",{name:"LeadMASTER navigation"}).getByRole("button",{name:label,exact:true}).click();
       await page.waitForTimeout(200);
       await snap(`dashboard-${slug}`);
+    }
+    if (device === "mobile") await page.getByRole("button",{name:"Open navigation"}).click();
+    await page.getByRole("button",{name:"Open profile and settings"}).click();
+    await page.getByRole("button",{name:"Profile, settings & configurations"}).click();
+    await page.waitForTimeout(200);
+    await snap("dashboard-settings");
+    if (device === "desktop") {
+      await page.getByRole("button",{name:"Collapse sidebar"}).click();
+      await page.getByRole("button",{name:"Expand sidebar"}).click();
     }
     // Retain the existing refresh and template-preview smoke checks.
     if (device === "desktop") {
       await page.getByRole("button",{name:"Refresh workspace"}).click();
       await page.getByText("Refreshing and verifying workspace data…",{exact:true}).waitFor({state:"hidden",timeout:5000});
       await snap("dashboard-refresh-verified");
-      await page.getByRole("navigation",{name:"LeadMaster navigation"}).getByRole("button",{name:"Templates",exact:true}).click();
+      await page.getByRole("navigation",{name:"LeadMASTER navigation"}).getByRole("button",{name:"Templates",exact:true}).click();
       await page.getByRole("button",{name:/New Template/}).first().click();
       await page.getByLabel("Name").fill("Preview template");
       await page.getByLabel("Subject").fill("A sample subject");
@@ -142,12 +151,10 @@ try {
       await page.getByRole("button",{name:"Preview",exact:true}).first().click();
       await snap("dashboard-template-preview");
     }
-    if (device === "mobile") await page.getByRole("button",{name:"Show or hide navigation"}).click();
-    await page.getByRole("navigation",{name:"LeadMaster navigation"}).getByRole("button",{name:"Inbox",exact:true}).click();
-    for (const tab of ["Primary","Promotions","Social","Updates","Forums"]) {
-      await page.getByRole("button",{name:new RegExp(`^${tab}`)}).first().click();
-      await snap(`inbox-${tab.toLowerCase()}`);
-    }
+    if (device === "mobile") await page.getByRole("button",{name:"Open navigation"}).click();
+    await page.getByRole("navigation",{name:"LeadMASTER navigation"}).getByRole("button",{name:"Inbox",exact:true}).click();
+    await page.waitForTimeout(200);
+    await snap("dashboard-inbox-unified");
     for (const app of ["notes","contacts","calendar","calculator","currency","email-html-playground"]) {
       await page.goto(`http://127.0.0.1:${port}/dashboard.html?app=${app}`,{waitUntil:"domcontentloaded"});
       await page.waitForSelector("#root",{timeout:15000});
