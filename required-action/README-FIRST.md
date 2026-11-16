@@ -2,7 +2,7 @@
 
 ## Important status
 
-This ZIP is a **source and requirements handoff, not a completed or production-ready release**. It includes the existing repository and the unfinished implementation work. It does not contain a signed APK, deployment credentials, real SMTP credentials, or a guarantee that any staged feature is live. Do not deploy the supplied prototype or unmounted code directly.
+This Folder is a **source and requirements handoff, not a completed or production-ready release**. It includes the existing repository and the unfinished implementation work. It does not contain a signed APK, deployment credentials, real SMTP credentials, or a guarantee that any staged feature is live. Do not deploy the supplied prototype or unmounted code directly.
 
 Repository snapshot: `DevJel/LeadMASTER` `main` at commit `920fe0247eaa69cfc5fd137229cc86f40811216c` (PR #49 merged). The code was exported from Git as a snapshot, so Git history is not included. Before implementation, fetch the latest `main`, compare it with this snapshot, and work in one integration branch; do not blindly overwrite later changes. Merging staged code does not activate it. Earlier handoff documents describe historical states and may be stale; prioritize source and tests at the current revision.
 
