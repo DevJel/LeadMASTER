@@ -55,6 +55,10 @@ The Apps launcher exposes Notes, Contacts, Calendar, Calculator, Currency Conver
 
 Desktop uses a fixed application shell and a scrollable main content area; mobile adapts the navigation and content. The responsive React dashboard is also the Android WebView UI. Keep backend APIs and account session logic shared; do not duplicate backend functionality in the native wrapper.
 
+## Loading and error handling
+
+Workspace fetches show the existing loading indicator until a complete server snapshot is available. A failed foreground fetch shows a retryable error instead of an empty-state claim; retry uses one fetch cycle. Silent background refresh retains prior data and reports explicit refresh errors. Browser regression uses synthetic local data; authenticated acceptance remains separate.
+
 ## Security and release checks
 
 1. Validate the current administrator session before serving the dashboard HTML or protected bundles.

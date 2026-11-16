@@ -284,6 +284,8 @@ npm test
 npm run check:dashboard
 ```
 
+The CI browser job also runs `scripts/test-dashboard-load-states.mjs` against synthetic local responses after installing Playwright and Chromium; this does not verify a production account.
+
 Run the application locally using the configured Worker development command in the deployment environment. Do not commit local credentials or production secrets.
 
 ## Change protocol

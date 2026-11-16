@@ -1,3 +1,18 @@
+## 2026-11-16 — Customer product and developer guides (not deployed)
+
+- Added Help Center links to product features, email delivery, the developer API, webhooks and MCP availability.
+- Replaced internal operations material in public guides with customer support guidance and kept protocol limitations and security warnings visible.
+- Documented external SMTP, automated scheduling and MCP as unavailable; no new integration or sending behavior was enabled.
+- Updated API examples to use the account-specific endpoint returned when creating a key. Live delivery, webhook safety and production deployment remain separate verification steps.
+
+## 2026-11-16 — Truthful dashboard loading states (not deployed)
+
+- Show the existing loading view during real workspace fetches and show a retryable error instead of an empty workspace when loading fails.
+- Removed the duplicate refresh request and retained failure reporting.
+- Added source and synthetic local browser regression checks for loading, failure, retry, empty and refresh states.
+- Successful refreshes no longer display a confirmation notice; failures remain visible. The header uses the existing favicon without a wordmark.
+- The shared web layout and Android WebView use the same dashboard; no native Android source, API, authentication or data schema changes. Device and authenticated production checks remain outstanding.
+
 ## 2026-11-16 — Dashboard validation CI repair (not deployed)
 
 - Repaired the staged dashboard bundle validation script after a malformed recent edit, retaining JavaScript, component CSS and shared sending-indicator stylesheet checks.

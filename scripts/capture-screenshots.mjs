@@ -70,7 +70,12 @@ const server = createServer(async (req,res) => {
     res.writeHead(403); return res.end("Forbidden");
   }
   try {
-    const body = await readFile(file);
+    // Match the production asset builder's canonical illustration sources.
+    const referenceAssets = {
+      'assets/illustrations/empty-mail.webp': resolve('design-references/illustrations/empty-mail.webp'),
+      'assets/illustrations/empty-contacts.webp': resolve('design-references/illustrations/empty-contacts.webp')
+    };
+    const body = await readFile(referenceAssets[rel] || file);
     res.writeHead(200,{"content-type":types[extname(file)]||"application/octet-stream","cache-control":"no-store"});
     res.end(body);
   } catch {
@@ -81,7 +86,7 @@ const server = createServer(async (req,res) => {
 
 await mkdir(output,{recursive:true});
 await new Promise(resolveListen=>server.listen(port,"127.0.0.1",resolveListen));
-const browser = await chromium.launch({headless:true,args:["--no-sandbox"]});
+const browser = await chromium.launch({headless:true,...(process.env.LOCAL_CHROMIUM ? {executablePath:process.env.LOCAL_CHROMIUM} : {}),args:["--no-sandbox"]});
 try {
   const page = await browser.newPage({viewport:{width:1440,height:1000},deviceScaleFactor:1});
   page.on("pageerror", error => console.log("Dashboard page error:", error.message));
@@ -118,7 +123,7 @@ try {
   }
 
   await page.getByRole("button",{name:"Refresh workspace"}).click();
-  await page.getByText("Workspace refreshed from the server.",{exact:true}).waitFor({timeout:5000});
+  await page.getByText("Refreshing and verifying workspace data…",{exact:true}).waitFor({state:"hidden",timeout:5000});
   await page.screenshot({path:output+"/dashboard-refresh-verified.png",fullPage:true});
 
   await page.getByRole("button",{name:"Templates",exact:true}).first().click();
