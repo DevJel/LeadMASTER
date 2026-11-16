@@ -24,7 +24,7 @@ permissions:
 jobs:
   notify-worker:
     if: >-
-      github.event_name == 'workflow_run' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.head_branch == 'main') ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'issues' &&
         (contains(toJSON(github.event.issue.labels), 'bug') ||
