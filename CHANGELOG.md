@@ -1,3 +1,15 @@
+## 2026-11-17 — Gravatar avatar integration
+
+- Updated the Data Privacy Notice to explain Gravatar's hash-based image requests and the standard connection metadata the image provider may receive; privacy/legal review is required before production release.
+
+- Added a shared SHA-256 Gravatar helper and resilient avatar component. Email addresses are normalized before hashing and never included in image URLs.
+- Replaced email identity glyphs with Gravatar avatars where available while retaining existing personal/organization icon fallbacks.
+- Added Gravatar avatars to saved Contacts, with locally generated initials when no avatar is available.
+- Kept the integration API-key-free and database-free: no migration, extra D1 reads, polling, or authentication/OTP changes.
+- Added unit tests for the documented hash, URL construction, normalization and invalid email handling.
+- Android uses the same responsive dashboard in its authenticated WebView; no native-only behavior changed.
+- Validation/build/deployment status: pending CI and production release checks.
+
 ## 2026-11-16 — Unified viewport loading and sending overlays (production deployed)
 
 - Consolidated initial workspace loading, per-tab loading, refresh, and busy-action feedback into one fixed, viewport-centered overlay with a blurred backdrop and dismiss control.

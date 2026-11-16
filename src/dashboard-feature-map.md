@@ -88,3 +88,13 @@ Initial workspace loading, per-tab fetches, manual refreshes and other busy acti
 5. Run `npm test`, `npm run build:assets`, `npm run check:dashboard`, syntax checks and screenshot capture.
 6. Inspect desktop and mobile screenshots, then perform authenticated browser smoke tests before deployment.
 7. Update `docs/FEATURES.md`, the relevant feature guide, `README.md`, `HANDOVER.md` and `CHANGELOG.md` in the same change where affected.
+
+
+## Gravatar avatars
+
+- Email-based avatars use Gravatar's documented SHA-256 identifier: trim whitespace, lowercase the address, then hash with SHA-256. MD5 is not used.
+- The browser requests only the hash-based image URL; the original email address is never placed in the URL. Requests use HTTPS, a bounded image size, `d=404`, lazy loading and `referrerPolicy=no-referrer`.
+- A custom LeadMASTER image (if one is introduced later) should take precedence; currently the fallback is the existing account/contact icon or locally generated initials. A missing or blocked Gravatar never blocks the workspace.
+- No API key, profile API, database column, migration, scheduled task or extra D1 read is required for avatar images. Profile enrichment is intentionally not enabled.
+- The shared React dashboard covers web and the Android WebView companion; native Android business logic is unchanged.
+- Tests: `test/gravatar.test.mjs`.

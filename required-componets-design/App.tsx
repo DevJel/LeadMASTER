@@ -4,6 +4,7 @@ import { SendingIndicator, SendingPhase } from '../src/dashboard-tsx/SendingIndi
 import { ActionConfirmation, ActionConfirmationRequest } from '../src/dashboard-tsx/ActionConfirmation';
 import { SafeEmailHtml } from '../src/dashboard-tsx/SafeEmailHtml';
 import UtilityApps from './UtilityApps';
+import { GravatarAvatar } from '../src/dashboard-tsx/GravatarAvatar';
 import { createMailSoundPlayer, createMailSoundTracker } from './mail-sounds.mjs';
 import { mapLeadMasterError } from '../src/leadmaster-error-mapper.mjs';
 
@@ -157,7 +158,7 @@ function initialsFor(name:string){ return name.split(' ').filter(Boolean).slice(
 const PERSONAL_MAIL_DOMAINS = new Set(['gmail.com','yahoo.com','icloud.com','outlook.com','hotmail.com','protonmail.com','aol.com','mail.com','gmx.com','zoho.com']);
 function avatarKindForEmail(email:string){ const domain = (email||'').split('@')[1]?.toLowerCase().trim() || ''; return (PERSONAL_MAIL_DOMAINS.has(domain) || [...PERSONAL_MAIL_DOMAINS].some(d=>domain.endsWith('.'+d))) ? 'user' as const : 'building' as const; }
 function avatarLabelForEmail(email:string){ return avatarKindForEmail(email)==='building' ? 'Organization' : 'Personal'; }
-function AvatarIcon({email, size=18}:{email:string; size?:number}){ return <UniformIcon name={avatarKindForEmail(email)} size={size} />; }
+function AvatarIcon({email, size=18}:{email:string; size?:number}){ return <GravatarAvatar email={email} size={size} fallback={<UniformIcon name={avatarKindForEmail(email)} size={size} />} />; }
 
 async function api(action:string, args:any, signal?:AbortSignal){
   const res = await fetch("/api/workspace/actions", {method:'POST', credentials:'same-origin', headers:{'content-type':'application/json'}, body: JSON.stringify({action, args}), ...(signal ? {signal} : {})});
@@ -712,7 +713,7 @@ export default function App(){
       </nav>
       <div className="shrink-0 border-t border-[var(--border)] p-3 grid gap-1">
         <button onClick={()=>setShowProfile(!showProfile)} className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-[var(--surface-2)]" aria-label="Open profile and settings" aria-expanded={showProfile}>
-          <span className="w-9 h-9 shrink-0 rounded-full bg-[var(--text)] text-[var(--surface)] grid place-items-center"><UniformIcon name="user" size={18}/></span>
+          <GravatarAvatar email={profileEmail} name={profileName} size={36} className="shrink-0 rounded-full" fallback={<UniformIcon name="user" size={18}/>} />
           <span className="min-w-0 flex-1"><span className="block truncate text-[13px] font-semibold text-[var(--text-2)]">{profileName}</span><span className="block truncate text-[11px] text-[var(--text-3)]">Profile &amp; settings</span></span>
           <UniformIcon name="chevron-right" size={16}/>
         </button>
@@ -1053,7 +1054,7 @@ export default function App(){
       </header>
       {showProfile && <div className="fixed left-3 md:left-4 bottom-20 z-[90] w-[min(310px,calc(100vw-24px))] rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 gmail-shadow" role="dialog" aria-label="Profile and settings">
         <div className="flex items-center gap-3 pb-3 border-b border-[var(--border)]">
-          <div className="w-11 h-11 rounded-full bg-[var(--text)] text-[var(--surface)] grid place-items-center font-semibold">{profileName.trim().charAt(0).toUpperCase()||'U'}</div>
+          <GravatarAvatar email={profileEmail} name={profileName} size={44} className="rounded-full" />
           <div className="min-w-0"><p className="font-semibold text-[14px] truncate">{profileName}</p><p className="text-[12px] text-[var(--text-3)] truncate">{profileEmail}</p></div>
         </div>
         <button onClick={()=>{setShowProfile(false);goView('settings');}} className="mt-3 w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] font-medium hover:bg-[var(--surface-2)]"><UniformIcon name="settings" size={18}/> Profile, settings &amp; configurations</button>

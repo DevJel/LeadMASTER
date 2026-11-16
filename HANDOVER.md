@@ -453,3 +453,15 @@ The shared dashboard now uses opt-in foreground sounds for new mail, confirmed s
 ## OTP verification read resilience — branch change
 
 The verification endpoint retries only read-only identity, challenge and verification-key lookups with bounded per-attempt and total deadlines. Failed reads leave the code and its attempt count unchanged. OTP attempt updates, session creation, challenge claims and email delivery are never automatically retried. Fixed, non-sensitive diagnostic event names identify the unavailable step without recording credentials or code values. This addresses transient read failures but does not establish the cause of any particular live error. Confirm the exact deployed revision and have the authorized user test after release; no agent should access a human sign-in challenge or credentials.
+
+
+## Gravatar avatars
+
+- Email-based avatars use Gravatar's documented SHA-256 identifier: trim whitespace, lowercase the address, then hash with SHA-256. MD5 is not used.
+- The browser requests only the hash-based image URL; the original email address is never placed in the URL. Requests use HTTPS, a bounded image size, `d=404`, lazy loading and `referrerPolicy=no-referrer`.
+- A custom LeadMASTER image (if one is introduced later) should take precedence; currently the fallback is the existing account/contact icon or locally generated initials. A missing or blocked Gravatar never blocks the workspace.
+- No API key, profile API, database column, migration, scheduled task or extra D1 read is required for avatar images. Profile enrichment is intentionally not enabled.
+- The shared React dashboard covers web and the Android WebView companion; native Android business logic is unchanged.
+- Tests: `test/gravatar.test.mjs`.
+
+- Updated the Data Privacy Notice to explain Gravatar's hash-based image requests and the standard connection metadata the image provider may receive; privacy/legal review is required before production release.
