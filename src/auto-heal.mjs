@@ -254,7 +254,10 @@ export async function processAutoHealEvent(env, event) {
   const stacktrace = safe(event.stacktrace || event.issue_body || "", 8000);
   const frames = parseStackFrames(stacktrace);
   const token = await secretValue(env.GITHUB_TOKEN);
-  const computedHash = await sha256((frames[0]?.file || "unknown") + ":" + (frames[0]?.line || 0) + ":" + (stacktrace || safe(event.event_id || event.issue_url || event.event_type, 1000)));
+  const eventFingerprint = frames[0]
+    ? frames[0].file + ":" + frames[0].line + ":" + stacktrace
+    : [safe(event.event_type || "incident", 80), safe(event.title || "", 160), safe(event.issue_body || "", 1000), safe(event.conclusion || "", 80)].join(":");
+  const computedHash = await sha256(eventFingerprint);
   const errorHash = event.event_type === "rejected" ? String(event.error_hash || computedHash) : computedHash;
   const kv = env.AUTO_HEAL_KV;
   if (event.event_type !== "rejected" && kv?.get) {
