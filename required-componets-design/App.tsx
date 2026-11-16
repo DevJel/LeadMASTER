@@ -788,7 +788,7 @@ export default function App(){
 
   const mailList = (
     <div className="bg-[var(--surface)] rounded-2xl overflow-hidden gmail-shadow mx-1 sm:mx-2">
-      {filtered.length===0 ? <div className="p-10 sm:p-16 text-center"><UniformIcon name="inbox" size={40} className="mx-auto text-[var(--text-3)]"/><h2 className="text-[18px] mt-3">Nothing in {viewTitle}</h2><p className="text-[14px] text-[var(--text-3)] mt-1 max-w-[420px] mx-auto">{view==='deleted'?'Deleted is empty. Restored mail returns to Inbox.': search? `No results for “${search}”. Try a different sender, subject, or lead.` : 'You are all caught up.'}</p><button onClick={()=>{setSearch(''); setOnlyAttachment(false); goView('inbox');}} className="mt-4 px-5 py-2.5 rounded-full bg-[var(--text)] text-[var(--surface)] text-[14px]">Back to Inbox</button></div> : filtered.map(email=>{
+      {filtered.length===0 ? <div className="p-10 sm:p-16 text-center"><img src="/assets/illustrations/empty-mail.webp" alt="" width="168" height="120" className="mx-auto mb-2 h-auto w-[168px] object-contain" loading="lazy"/><h2 className="text-[18px] mt-3">Nothing in {viewTitle}</h2><p className="text-[14px] text-[var(--text-3)] mt-1 max-w-[420px] mx-auto">{view==='deleted'?'Deleted is empty. Restored mail returns to Inbox.': search? `No results for “${search}”. Try a different sender, subject, or lead.` : 'You are all caught up.'}</p><button onClick={()=>{setSearch(''); setOnlyAttachment(false); goView('inbox');}} className="mt-4 px-5 py-2.5 rounded-full bg-[var(--text)] text-[var(--surface)] text-[14px]">Back to Inbox</button></div> : filtered.map(email=>{
         const isUnread = !readIds.has(email.id); const isSel = selected.has(email.id); const rowPad = density==='compact'?'py-1.5':'py-2.5';
         return <div key={email.id} className={`group relative flex items-center gap-1 sm:gap-2 px-2 sm:px-3 border-b border-[var(--border)] last:border-0 cursor-pointer hover:bg-[var(--surface-2)] ${isSel?'bg-[var(--surface-2)]':''} ${previewEmailId===email.id?'bg-[var(--surface-2)]':''} ${rowPad}`} onClick={()=>{ if(previewMode){ setPreviewEmailId(email.id); openMessage(email.id); } else { openMessage(email.id); } }} onDoubleClick={()=>{ openMessage(email.id); }} title="Click to preview or open · Double-click to open full detail">
           <input type="checkbox" checked={isSel} onChange={e=>{e.stopPropagation(); const n=new Set(selected); n.has(email.id)?n.delete(email.id):n.add(email.id); setSelected(n);}} onClick={e=>e.stopPropagation()} className="accent-black w-4 h-4 shrink-0" aria-label={`Select ${email.subject}`}/>
@@ -1083,7 +1083,7 @@ export default function App(){
         </div>}
       </header>
 
-      <div className="flex flex-1 min-h-0 items-start overflow-hidden">
+      <div className="flex flex-1 min-h-0 items-start lg:overflow-hidden">
         <aside className={`hidden md:block shrink-0 sticky top-[64px] h-[calc(100vh-64px)] lg:h-full ${sidebarOpen?'w-[256px]':'w-[72px]'} transition-all overflow-hidden`} style={{top:'calc(var(--safe-area-inset-top) + 64px)'}}>
           {sidebarOpen ? sidebar : <div className="pt-2 flex flex-col items-center gap-1">{NAV.map(k=><button key={k.k} onClick={()=>goView(k.k)} className={`w-11 h-11 grid place-items-center rounded-full ${view===k.k?'bg-[var(--text)] text-[var(--surface)]':'hover:bg-[var(--surface-2)]'}`} aria-label={k.label} title={k.label}><UniformIcon name={k.icon} size={20}/></button>)}</div>}
         </aside>
