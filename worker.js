@@ -833,6 +833,7 @@ async function handle(request, env, ctx) {
 export default {
   async fetch(request, env, ctx) {
     try {
+      env = await withTursoDatabase(env);
       // Verification and an existing session do not depend on the mail sender or
       // the password/security-check configuration. A sender outage must not block
       // a code already delivered, or block access after its session is issued.
@@ -848,15 +849,12 @@ export default {
       return await handle(request, env, ctx);
     } catch (error) {
       const requestId = crypto.randomUUID();
-      if (isD1DailyReadLimit(error)) {
-        console.error("LEADMASTER_D1_DAILY_READ_LIMIT", JSON.stringify({ requestId, path: new URL(request.url).pathname }));
-        return authCapacityResponse(error);
-      }
-      console.error("LEADMASTER_UNHANDLED_SYSTEM_ERROR", JSON.stringify({ requestId, reason: String(error?.message || "unknown").slice(0, 300) }));
+            console.error("LEADMASTER_UNHANDLED_SYSTEM_ERROR", JSON.stringify({ requestId, reason: String(error?.message || "unknown").slice(0, 300) }));
       return json({ errorCode: "342322", error: "We couldn't complete this action due to a system issue (Error 342322). Please contact the LeadMASTER support team for further assistance at cs@leadmaster.jelvan.space." }, 503);
     }
   },
   async scheduled(controller, env, ctx) {
+    env = await withTursoDatabase(env);
     ctx.waitUntil(runDailyReporter(reporterEnvironment(env, ctx), controller.scheduledTime).then(result => {
       console.log(JSON.stringify({ event: "leadmaster_daily_reporter_completed", reportDate: result.reportDate, status: result.status || (result.skipped ? "skipped" : "unknown"), checks: result.summary?.total || 0 }));
     }).catch(error => {
@@ -865,6 +863,7 @@ export default {
   },
   async email(message, env) {
     try {
+      env = await withTursoDatabase(env);
       await receiveInboundEmail(message, env);
     } catch (error) {
       console.error("LEADMASTER_INBOUND_EMAIL_FAILED", String(error?.message || error).slice(0, 300));
