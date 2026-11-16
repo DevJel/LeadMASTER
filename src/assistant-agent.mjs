@@ -189,7 +189,7 @@ export async function assistantAgentRoute(request, env, session, adminEmail) {
   let usage = null;
   try {
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      const result = await env.AI.run(MODEL, { messages, tools, tool_choice: "auto", max_tokens: 850, temperature: 0.2 });
+      const result = await env.AI.run(MODEL, { messages, tools, max_tokens: 850, temperature: 0.2 });
       usage = result?.usage || usage;
       const calls = callsFrom(result).slice(0, MAX_TOOL_CALLS - actions.length);
       if (!calls.length) {
@@ -197,15 +197,15 @@ export async function assistantAgentRoute(request, env, session, adminEmail) {
           : typeof result?.choices?.[0]?.message?.content === "string" ? result.choices[0].message.content.trim() : "";
         break;
       }
-      messages.push({ role: "assistant", content: JSON.stringify(calls) });
       for (const call of calls) {
+        messages.push({ role: "assistant", content: JSON.stringify({ name: call.name, arguments: call.args }) });
         const outcome = await executeTool(call.name, call.args, env, history, prepared);
         actions.push({ name: call.name, status: outcome?.error ? "needs_attention" : call.name === "prepare_email" ? "needs_review" : "completed" });
         messages.push({ role: "tool", name: call.name, content: JSON.stringify(outcome) });
       }
     }
     if (!finalResponse) {
-      const final = await env.AI.run(MODEL, { messages, tools, tool_choice: "none", max_tokens: 850, temperature: 0.2 });
+      const final = await env.AI.run(MODEL, { messages, max_tokens: 850, temperature: 0.2 });
       usage = final?.usage || usage;
       finalResponse = typeof final?.response === "string" ? final.response.trim()
         : typeof final?.choices?.[0]?.message?.content === "string" ? final.choices[0].message.content.trim() : "";
