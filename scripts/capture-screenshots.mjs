@@ -119,7 +119,10 @@ try {
     });
     // Keep screenshot automation deterministic: the static fixture has no
     // production API, so provide an isolated in-memory workspace API.
-    const screenshotRecords = new Map();
+    const screenshotRecords = new Map([["leadmaster_templates", [{
+      id: "fixture-template-1",
+      value: {id: "fixture-template-1", name: "Preview template", subject: "A sample subject", body: "This is a synthetic template preview.", category: "Sales"}
+    }]]]);
     let screenshotRecordId = 0;
     await page.route("**/api/workspace/actions", async route => {
       const request = route.request();
@@ -193,11 +196,6 @@ try {
       await page.getByText("Refreshing and verifying workspace data…",{exact:true}).waitFor({state:"hidden",timeout:5000});
       await snap("dashboard-refresh-verified");
       await page.getByRole("navigation",{name:"LeadMaster navigation"}).getByRole("button",{name:"Templates",exact:true}).click();
-      await page.getByRole("button",{name:/New Template/}).first().click();
-      await page.getByLabel("Name").fill("Preview template");
-      await page.getByLabel("Subject").fill("A sample subject");
-      await page.getByLabel("Body").fill("This is a synthetic template preview.");
-      await page.getByRole("button",{name:"Save template"}).click();
       const templateCard = page.locator("article").filter({hasText:"Preview template"});
       await templateCard.waitFor({state:"visible",timeout:10000});
       await templateCard.getByRole("button",{name:"Preview",exact:true}).click();
