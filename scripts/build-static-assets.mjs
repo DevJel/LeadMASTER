@@ -1,9 +1,19 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
 import { build } from "esbuild";
 
 const root = resolve(process.cwd());
 const publicDir = join(root, "public");
+const tailwind = spawnSync("npx", [
+  "--yes",
+  "tailwindcss@3.4.19",
+  "-i", join(root, "required-componets-design", "index.css"),
+  "-o", join(publicDir, "dashboard-app.css"),
+  "--config", join(root, "tailwind.config.js"),
+  "--minify"
+], { cwd: root, stdio: "inherit" });
+if (tailwind.status !== 0) throw new Error("Tailwind CSS compilation failed.");
 await build({
   entryPoints: [join(root, "required-componets-design", "main.tsx")],
   bundle: true,
