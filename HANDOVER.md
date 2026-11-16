@@ -430,3 +430,7 @@ A feature branch fixes over-escaped server-side suppression email validation and
 The candidate consumer handles bulk To recipients separately with durable per-row claims and SES correlation tags, suppresses and reports each row independently, and rejects CC/BCC on new multi-To requests. For legacy queued batches, copies go only with the first original To recipient. Existing legacy batch claims are fenced from replay; claimed failures remain uncertain. The failed-queue handler distinguishes unclaimed pending rows from potentially sent claimed rows. The shared coordinator enforces a conservative recipient-based maximum of 10/s for its own paths, not other SES clients.
 
 No provider configuration, account records, live queue, credentials, migrations, or production deployment were changed by this branch. This does not establish why a given accepted message was not delivered. Rollout requires quiescing old consumers, reconciling legacy/unknown batches, staging failure/restart tests, SNS event configuration checks and an explicitly approved test mailbox. Android uses the shared web implementation; source is unchanged and device acceptance is outstanding.
+
+## Dashboard foreground loading verification — branch only
+
+Foreground workspace loading and retry must reflect real snapshot results, never a fabricated empty state or success. `scripts/test-dashboard-load-states.mjs` exercises synthetic local loading, failure, retry and refresh; it does not validate authenticated production or Android device behavior. Follow the release checklist before deployment.
