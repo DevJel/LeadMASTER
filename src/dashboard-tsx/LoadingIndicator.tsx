@@ -1,4 +1,3 @@
-import './loading-indicator.css';
 
 type LoadingIndicatorProps = {
   /** Describe the actual in-flight operation; do not imply completion. */
