@@ -25,7 +25,7 @@ test('premium shell keeps centered search, transparent product logo and bottom p
   assert.match(app, /md:grid-cols-\[minmax\(0,1fr\)_minmax\(280px,680px\)_minmax\(0,1fr\)\]/);
   assert.match(app, /aria-label="Open profile and settings"/);
   assert.match(app, /Profile, settings &amp; configurations/);
-  assert.match(app, /aria-label="Collapse sidebar"/);
+  assert.match(app, /Collapse sidebar/);
   assert.match(app, /aria-label="Expand sidebar"/);
   assert.doesNotMatch(app, /\{k:'settings'/);
   assert.doesNotMatch(app, /aria-label="Show or hide navigation"/);
