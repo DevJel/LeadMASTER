@@ -32,7 +32,7 @@ export const CUSTOMER_ERROR_GUIDE = [
   { code:"LM-USR-4005", category:"Limits", title:"This send is larger than the current allowance", what:"The number of recipients or messages is above the permitted amount for one action.", steps:["Split the recipients into smaller groups.","Review the number of selected messages.","Ask your workspace administrator if you need a larger allowance."] }
 ];
 
-const SYSTEM_FALLBACK = "We couldn't complete this action due to a system issue (Error 342322). Please contact the LeadMASTER support team for further assistance at " + SUPPORT_EMAIL + ".";
+const SYSTEM_FALLBACK = "We couldn't complete this action just now. Please contact LeadMASTER support at " + SUPPORT_EMAIL + ".";
 
 function textOf(error) {
   if (typeof error === "string") return error;
@@ -69,7 +69,7 @@ export function mapLeadMasterError(error, context = "") {
   else if (/unverified|verify.*email/.test(normalized)) code = "LM-USR-1004";
   else if (/verification.*(mismatch|invalid)|otp|two.factor|2fa/.test(normalized)) code = "LM-USR-1005";
   else if (/expired.*(session|sign.in|link)|unauthorized|http\s*401/.test(normalized)) code = "LM-USR-1002";
-  else if (/network|fetch failed|connection.*(lost|interrupted)|timeout/.test(normalized)) code = "LM-USR-2002";
+  else if (/network|fetch failed|failed to fetch|connection.*(lost|interrupted)|timeout/.test(normalized)) code = "LM-USR-2002";
   else if (/integration|authorization.*expired|reconnect/.test(normalized)) code = "LM-USR-2003";
   else if (/file.*(type|format)|unsupported.*file/.test(normalized)) code = "LM-USR-3004";
   else if (/file.*(large|size)|too large/.test(normalized)) code = "LM-USR-3005";
