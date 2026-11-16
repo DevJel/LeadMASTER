@@ -18,6 +18,7 @@ import { receiveInboundEmail } from "./src/inbound-email-handler.mjs";
 import { leadmasterRecordsRoute } from "./src/leadmaster-records-api.mjs";
 import { runDailyReporter, reporterStatus } from "./src/daily-reporter.mjs";
 import { processAutoHealEvent, verifyActionsOidc } from "./src/auto-heal.mjs";
+import { withTursoDatabase } from "./src/turso-database.mjs";
 export { EmailCoordinator } from "./src/email-coordinator.mjs";
 
 const HOSTNAME = "leadmaster.jelvan.pro";
@@ -64,23 +65,8 @@ function equal(a, b) {
 function json(body, status = 200, headers = {}) {
   return Response.json(body, { status, headers: { "cache-control": "no-store", "x-content-type-options": "nosniff", ...headers } });
 }
-function isD1DailyReadLimit(error) {
-  const message = String(error?.message || error || "");
-  return /(?:7500|exceeded D1's free tier daily row read limit|daily row read limit)/i.test(message);
-}
-function authCapacityResponse(error) {
-  if (isD1DailyReadLimit(error)) {
-    return json({
-      error: "LeadMASTER has reached its daily database read allowance. Your verification code has not been consumed. Please try again after 00:00 UTC or increase the D1 allowance.",
-      errorCode: "LM-AUTH-D1-LIMIT",
-      retryable: false
-    }, 503);
-  }
-  return json({
-    error: "Sign-in verification is temporarily unavailable. Your verification code has not been consumed. Please try again shortly.",
-    errorCode: "LM-AUTH-RETRY",
-    retryable: true
-  }, 503);
+function authCapacityResponse() {
+  return json({ error: "Sign-in verification is temporarily unavailable. Your verification code has not been consumed. Please try again shortly.", errorCode: "LM-AUTH-RETRY", retryable: true }, 503);
 }
 function cookieValue(request, name) {
   const raw = request.headers.get("Cookie") || "";
