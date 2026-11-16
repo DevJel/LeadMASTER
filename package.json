@@ -5,7 +5,8 @@
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "build:assets": "node scripts/build-static-assets.mjs",
-    "check:dashboard": "tsc -p tsconfig.dashboard.json && node scripts/check-dashboard-bundle.mjs"
+    "check:dashboard": "tsc -p tsconfig.dashboard.json && node scripts/check-dashboard-bundle.mjs",
+    "db:migrate:turso": "node scripts/migrate-turso.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",
