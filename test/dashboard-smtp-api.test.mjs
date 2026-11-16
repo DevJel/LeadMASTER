@@ -17,11 +17,11 @@ test('settings use same-origin, no-store requests and preserve the configuration
 });
 test('connection edits and monitoring encode the expected path and revision',async()=>{
  const calls=[];const api=smtpApi(async (url,options)=>{calls.push({url,options});return Response.json({});});
- await api.replace(id,3,config);await api.revoke(id,4);await api.activity(id,{createdAt:123,messageId:id});
+ await api.replace(id,3,config);await api.revoke(id,4);await api.activity(id,{createdAt:123,messageId:id});await api.testConnection(id,4);
  assert.equal(calls[0].url,`/api/admin/smtp/${id}`);assert.deepEqual(JSON.parse(calls[0].options.body),{revision:3,config});
  assert.equal(calls[1].options.method,'DELETE');assert.deepEqual(JSON.parse(calls[1].options.body),{revision:4});
  const url=new URL(calls[2].url,'https://example.test');assert.equal(url.pathname,`/api/admin/smtp/${id}/activity`);
- assert.equal(url.searchParams.get('before_time'),'123');assert.equal(url.searchParams.get('before_id'),id);assert.equal(url.searchParams.get('limit'),'50');
+ assert.equal(calls[3].url,`/api/admin/smtp/${id}/test`);assert.deepEqual(JSON.parse(calls[3].options.body),{revision:4});assert.equal(url.searchParams.get('before_time'),'123');assert.equal(url.searchParams.get('before_id'),id);assert.equal(url.searchParams.get('limit'),'50');
 });
 test('rejects invalid IDs before performing a request',async()=>{
  let calls=0;const api=smtpApi(async()=>{calls++;return Response.json({})});
