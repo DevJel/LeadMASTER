@@ -52,6 +52,26 @@ const server = createServer(async (req,res) => {
     res.writeHead(200,{"content-type":"application/json","cache-control":"no-store"});
     return res.end(JSON.stringify(folder === "counts" ? {counts,storage:true} : {items:[],counts,storage:true}));
   }
+  if (url.pathname === "/api/admin/templates" && req.method === "GET") {
+    res.writeHead(200,{"content-type":"application/json","cache-control":"no-store"});
+    return res.end(JSON.stringify({templates:[]}));
+  }
+  if (url.pathname === "/api/admin/templates" && req.method === "POST") {
+    let raw="";for await (const chunk of req) raw+=chunk;
+    let payload={};try{payload=JSON.parse(raw)}catch{}
+    res.writeHead(201,{"content-type":"application/json","cache-control":"no-store"});
+    return res.end(JSON.stringify({id:"preview-template",name:payload.name||"Preview template",updated_at:Date.now()}));
+  }
+  if (url.pathname === "/api/admin/templates/preview-template") {
+    if (req.method === "GET") {
+      res.writeHead(200,{"content-type":"application/json","cache-control":"no-store"});
+      return res.end(JSON.stringify({template:{id:"preview-template",name:"Preview template",subject:"A sample subject",text_body:"This is a synthetic template preview.",html_body:null,updated_at:Date.now()}}));
+    }
+    if (req.method === "PUT" || req.method === "DELETE") {
+      res.writeHead(200,{"content-type":"application/json","cache-control":"no-store"});
+      return res.end(JSON.stringify({ok:true}));
+    }
+  }
   if (url.pathname === "/api/admin/activity" || url.pathname === "/api/admin/unsubscribes" || url.pathname === "/api/admin/webhooks") {
     res.writeHead(200,{"content-type":"application/json","cache-control":"no-store"});
     return res.end(JSON.stringify(url.pathname.endsWith("/webhooks") ? {webhooks:[]} : {items:[],counts:{unsubscribed:0}}));
