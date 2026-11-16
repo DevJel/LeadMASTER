@@ -19,6 +19,12 @@ The current authentication rollout supports one configured administrator identit
 
 MCP is an experimental read-only prototype and is not mounted in production. No public MCP endpoint or production send tool exists.
 
+## 1A. Feature architecture and implementation maps
+
+Use [`docs/FEATURES.md`](docs/FEATURES.md) as the canonical index for feature behavior and Mermaid diagrams. It links to the 14 feature guides under `docs/features/`. Each guide records the currently implemented path, API/data connections, authorization boundary, error behavior, tests and limitations. The older documents below remain detailed references for their specialist workflows; update both the specialist guide and feature index when behavior changes.
+
+Canonical page URLs use extensionless browser paths: `/`, `/login`, `/dashboard`, `/help-center`, `/docs`, `/privacy`, `/terms`, `/developer-api-keys` and `/mcp-info`. The Worker resolves them to existing page assets internally. Legacy `.html` bookmarks redirect to the canonical path with query strings preserved.
+
 ## 2. Non-negotiable product identity and confidentiality
 
 - All user-facing product UI, landing copy, dashboard text, status messages, API docs, agent responses and examples must refer to the service as **LeadMASTER**.
