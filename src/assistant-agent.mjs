@@ -16,12 +16,19 @@ function plainTextFromEml(raw) {
   if (split < 0) return raw.replace(/<[^>]*>/g, " ").slice(0, 8000);
   const headers = raw.slice(0, split);
   let body = raw.slice(split).replace(/^\r?\n/, "");
+  let bodyHeaders = headers;
   const boundary = headers.match(/boundary="?([^";]+)"?/i)?.[1];
   if (boundary) {
     const part = body.split("--" + boundary).find(value => /content-type:\s*text\/plain/i.test(value));
-    if (part) body = part.replace(/^.*?\r?\n\r?\n/s, "");
+    if (part) {
+      const partSplit = part.search(/\r?\n\r?\n/);
+      if (partSplit >= 0) {
+        bodyHeaders = part.slice(0, partSplit);
+        body = part.slice(partSplit).replace(/^\r?\n/, "");
+      }
+    }
   }
-  const transfer = /content-transfer-encoding:\s*([^\r\n]+)/i.exec(body)?.[1]?.trim().toLowerCase()
+  const transfer = bodyHeaders.match(/content-transfer-encoding:\s*([^\r\n]+)/i)?.[1]?.trim().toLowerCase()
     || headers.match(/content-transfer-encoding:\s*([^\r\n]+)/i)?.[1]?.trim().toLowerCase();
   if (transfer === "base64") {
     try {
