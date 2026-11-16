@@ -66,3 +66,17 @@ test('message detail and utility app loading are viewport overlays, not panel in
   assert.match(utilities, /aria-label="Dismiss loading overlay"/);
   assert.doesNotMatch(utilities, /<LoadingIndicator[^>]*compact/);
 });
+
+
+test('all retained inbox and SMTP component loading indicators use dismissible viewport overlays', async () => {
+  const [inbox, smtp] = await Promise.all([
+    readFile(new URL('../src/dashboard-tsx/Inbox.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/dashboard-tsx/SmtpSettings.tsx', import.meta.url), 'utf8')
+  ]);
+  for (const source of [inbox, smtp]) {
+    assert.doesNotMatch(source, /<LoadingIndicator compact/);
+    assert.match(source, /fixed inset-0 z-\[120\] grid place-items-center/);
+    assert.match(source, /backdrop-blur-md/);
+    assert.match(source, /aria-label="Dismiss loading overlay"/);
+  }
+});

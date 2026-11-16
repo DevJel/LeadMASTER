@@ -4,7 +4,7 @@
 - Removed the in-panel loading skeleton and inline refresh spinner/status banner so loading UI no longer appears inside dashboard panels. Dismissing the overlay hides only the visual layer; the underlying request continues.
 - Reused the existing truthful sending-stage component in the same overlay. Unknown send outcomes are labelled as uncertain, never as delivered; transient status clears after the request lifecycle without changing server state.
 - Responsive viewport positioning is shared by desktop, mobile browsers and the Android WebView. No backend, API, authentication, database, or native Android behavior changed.
-- Added regression checks for overlay placement, dismissal, panel-loader removal and truthful send outcomes. Message-detail loading and standalone Notes, Contacts, Calendar, Currency Conversion and AI email utility loading/saving now use the same centered, dismissible overlay treatment. CI, generated asset build, authenticated browser/device checks and production deployment remain pending.
+- Added regression checks for overlay placement, dismissal, panel-loader removal and truthful send outcomes. Message-detail loading and standalone Notes, Contacts, Calendar, Currency Conversion, AI email utility, retained Inbox and SMTP settings loading/saving now use the same centered, dismissible overlay treatment. CI, generated asset build, authenticated browser/device checks and production deployment remain pending.
 
 ## 2026-11-16 — Premium inbox and navigation refinement (staged; not deployed)
 
