@@ -36,6 +36,7 @@ jobs:
           GITHUB_ACTOR: ${{ github.actor }}
       - run: npm ci
       - run: npm run build:assets
+      - run: npm run build:workers
       - name: Commit generated asset bundle
         if: (github.event_name == 'push' || github.event_name == 'pull_request') && github.actor != 'github-actions[bot]'
         run: |
@@ -43,7 +44,8 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add src/static-assets.mjs public/dashboard.html
-            git commit -m "chore: sync generated static assets"
+            git add -f dist/worker.js dist/mail-queue-consumer.js dist/mail-failed-consumer.js
+            git commit -m "chore: sync generated assets and Worker bundles"
             git push
           fi
       - run: npm test
