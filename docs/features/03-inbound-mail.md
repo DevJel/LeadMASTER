@@ -29,7 +29,7 @@ The inbound handler accepts the dedicated address `app@leadmaster.jelvan.space`,
 - Message deletion is a soft-delete into Deleted. Restore is available before permanent cleanup.
 - Permanent deletion requires explicit confirmation and is per-message; it must not clear queues, event history, suppression records, API keys, webhooks or audit history.
 
-## Connections and code
+## Source and tests
 
 - Recipient and size validation / persistence: `src/inbound-email-handler.mjs`
 - Worker email entry: `worker.js`
