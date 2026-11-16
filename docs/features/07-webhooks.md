@@ -50,3 +50,7 @@ The current implementation performs one synchronous request attempt with a timeo
 - `src/developer-api.mjs` for API-key scope ownership
 - `docs/API.md` and `docs/MCP.md` for account integration boundary
 - Webhook regression tests under `test/`
+
+## Request and callback safeguards
+
+Registration requires a JSON object of at most 8,192 bytes and an HTTPS URL of at most 2,048 UTF-8 bytes. Local and reserved hostname suffixes, IP literals, credentials, and non-default ports are rejected, including trailing-dot forms. Existing callback URLs are rechecked before dispatch. These syntax checks do **not** validate or pin DNS answers: private-address resolution and DNS rebinding remain a release risk requiring a vetted egress solution. Invalid existing targets are recorded as unsuccessful attempts.
