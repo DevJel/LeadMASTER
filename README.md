@@ -9,8 +9,9 @@ LeadMASTER is an email workspace and developer integration service.
 - **Detailed API reference:** [docs/API.md](docs/API.md)
 - **Engineering handover:** [HANDOVER.md](HANDOVER.md)
 - **Production mail workflow:** [docs/MAIL_WORKFLOW.md](docs/MAIL_WORKFLOW.md)
+- **Daily operational reporting:** [docs/DAILY_REPORTER.md](docs/DAILY_REPORTER.md)
 
-> **Feature branch only:** A draft persistence module and migration 0015 are in development; they are not routed, connected to the dashboard, or deployed. See `docs/API.md` and `src/dashboard-feature-map.md`.
+> **Production integration:** The authenticated workspace, account-scoped records and migrations 0015–0019 are merged into `main` and deployed. The daily Reporter/Worker is scheduled for 08:00 Asia/Kuala_Lumpur after this change is deployed. See `docs/DAILY_REPORTER.md` for its checks, status colors and remediation boundaries.
 
 ## Product status
 
