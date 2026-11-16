@@ -45,8 +45,8 @@ class FakeDb {
   }
 }
 const session = accountId => ({ email: accountId + "@example.test", accountId });
-const request = (body, origin = "https://leadmaster.test") => new Request(origin + "/api/workspace/actions", {
-  method: "POST", headers: { origin, "content-type": "application/json" }, body: JSON.stringify(body)
+const request = (body, requestOrigin = "https://leadmaster.test", headerOrigin = requestOrigin) => new Request(requestOrigin + "/api/workspace/actions", {
+  method: "POST", headers: { origin: headerOrigin, "content-type": "application/json" }, body: JSON.stringify(body)
 });
 
 test("workspace records are isolated by authenticated account", async () => {
@@ -91,6 +91,6 @@ test("workspace route rejects missing sessions, foreign origins and unapproved c
   const env = { AUTH_DB: new FakeDb() };
   const payload = { action: "records.list", args: { collection: "leadmaster_notes" } };
   assert.equal((await leadmasterRecordsRoute(request(payload), env, null)).status, 401);
-  assert.equal((await leadmasterRecordsRoute(request(payload, "https://attacker.test"), env, session("acct_one"))).status, 403);
+  assert.equal((await leadmasterRecordsRoute(request(payload, "https://leadmaster.test", "https://attacker.test"), env, session("acct_one"))).status, 403);
   assert.equal((await leadmasterRecordsRoute(request({ action: "records.list", args: { collection: "users" } }), env, session("acct_one"))).status, 400);
 });
