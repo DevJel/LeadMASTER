@@ -72,7 +72,7 @@ test("MCP initializes and validates email payloads without sending or echoing co
 test("MCP enforces exact Origin allowlist when an Origin header is present", async () => {
   const origin = { ...headers, origin: "https://client.example" };
   assert.equal((await call(rpc("tools/list"), origin, envFor())).status, 200);
-  assert.equal((await call(rpc("tools/list"), { ...origin, origin: "https://client.example.evil.test" }, envFor()).status, 403);
+  assert.equal((await call(rpc("tools/list"), { ...origin, origin: "https://client.example.evil.test" }, envFor())).status, 403);
 });
 
 test("MCP bounds request size and rejects unsupported methods", async () => {
