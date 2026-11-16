@@ -60,6 +60,7 @@ function createEnv(options = {}) {
   globalThis.fetch = async input => {
     const url = new URL(String(input));
     if (url.hostname === "leadmaster.jelvan.space") {
+      if (url.pathname === "/" || url.pathname === "/login.html") return new Response("ok", { status: 200 });
       const count = (calls.get(url.pathname) || 0) + 1;
       calls.set(url.pathname, count);
       if (url.pathname === "/api/auth/config") {
