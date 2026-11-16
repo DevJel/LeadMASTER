@@ -6,6 +6,7 @@ LeadMASTER is an email workspace and developer integration service.
 - **Public documentation:** https://leadmaster.jelvan.space/#documentation
 - **AI-agent instructions:** https://leadmaster.jelvan.space/llms.txt
 - **Crawler policy:** https://leadmaster.jelvan.space/robots.txt
+- **Feature architecture and Mermaid diagrams:** [docs/FEATURES.md](docs/FEATURES.md)
 - **Detailed API reference:** [docs/API.md](docs/API.md)
 - **Engineering handover:** [HANDOVER.md](HANDOVER.md)
 - **Production mail workflow:** [docs/MAIL_WORKFLOW.md](docs/MAIL_WORKFLOW.md)
@@ -13,6 +14,10 @@ LeadMASTER is an email workspace and developer integration service.
 - **Strict incident auto-heal:** [docs/REPORTER_AUTO_HEAL.md](docs/REPORTER_AUTO_HEAL.md)
 
 > **Production integration:** The authenticated workspace, account-scoped records and migrations 0015–0019 are merged into `main` and deployed. The daily Reporter/Worker is scheduled for 08:00 Asia/Kuala_Lumpur after this change is deployed. See `docs/DAILY_REPORTER.md` for its checks, status colors and remediation boundaries.
+
+## Feature architecture and implementation guides
+
+The feature index is the starting point for the engineering documentation. It links to 14 feature guides covering login and routing, dashboard and utility modules, inbound/outbound email, delivery events, API keys, webhooks, workspace persistence, AI suggestions, notifications, error/security controls, operational reporting, MCP boundaries, Android and release verification. Each guide records current source paths, API/data connections, behavior, limitations and a Mermaid flow. Use the source and tests as the authority when updating a feature.
 
 ## Product status
 
