@@ -40,7 +40,7 @@ jobs:
       - name: Commit generated asset bundle
         if: (github.event_name == 'push' || github.event_name == 'pull_request') && github.actor != 'github-actions[bot]'
         run: |
-          if ! git diff --quiet -- src/static-assets.mjs; then
+          if [ -n "$(git status --porcelain -- src/static-assets.mjs public/dashboard.html dist/worker.js dist/mail-queue-consumer.js dist/mail-failed-consumer.js)" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add src/static-assets.mjs public/dashboard.html
