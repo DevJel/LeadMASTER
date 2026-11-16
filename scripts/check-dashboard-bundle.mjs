@@ -3,11 +3,7 @@ import { build } from 'esbuild';
 import { readFile } from 'node:fs/promises';
 
 const result = await build({
-  entryPoints: [
-    'src/dashboard-tsx/SmtpSettings.tsx',
-    'src/dashboard-tsx/SendingIndicator.tsx',
-    'src/dashboard-tsx/Inbox.tsx'
-  ],
+  entryPoints: ['src/dashboard-tsx/SmtpSettings.tsx','src/dashboard-tsx/SendingIndicator.tsx','src/dashboard-tsx/Inbox.tsx'],
   bundle: true,
   write: false,
   outdir: 'unused-dashboard-build',
