@@ -63,6 +63,11 @@
       "binding": "TURNSTILE_SECRET",
       "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
       "secret_name": "TURNSTILE_SECRET_KEY"
+    },
+    {
+      "binding": "TURSO_AUTH_TOKEN",
+      "store_id": "e4c5eeca43e24f1fa21e6f808180e0dc",
+      "secret_name": "TURSO_AUTH_TOKEN"
     }
   ],
   "observability": {
