@@ -38,7 +38,7 @@
     try{
       const res=await request('/api/auth/verify',{method:'POST',body:JSON.stringify({code})});
       if(!res.ok){const body=await res.json().catch(()=>({}));const message=typeof body.error==='string'?body.error:res.status===429?'Too many verification attempts. Please wait before trying again.':res.status===401?'This code is incorrect, expired, or no longer active. Use the latest email code.':res.status===400?'Enter the six-digit code from the latest email.':res.status===503?'The email verification service is unavailable. Please try again shortly.':'We could not verify this code. Please try again.';error('otp-error',message);return;}
-      const body=await res.json();if(body.authenticated!==true)throw Error();location.assign('/dashboard.html');
+      const body=await res.json();if(body.authenticated!==true)throw Error();location.assign('/dashboard');
     }catch(err){error('otp-error',err?.name==='AbortError'?'The verification request timed out. Check your connection and retry with the latest code.':'Could not reach the verification service. Check your connection, then retry with the latest code.');}
     finally{setBusy(otpButton,false,'Verify and continue');}
   });
