@@ -50,13 +50,16 @@ export function errorByCode(code) {
 export function mapLeadMasterError(error, context = "") {
   const raw = textOf(error);
   const normalized = (context + " " + raw).toLowerCase();
-  let code = "";
+  const suppliedCode = raw.match(/LM-USR-\\d{4}/)?.[0];
+  let code = suppliedCode || "";
+  if (code) { const supplied = errorByCode(code); if (supplied) return { code: supplied.code, title: supplied.title, message: supplied.what + " " + supplied.steps[0] }; }
   if (typeof navigator !== "undefined" && navigator.onLine === false) code = "LM-USR-2001";
   else if (/popup|pop-up|new tab|blocked.*window/.test(normalized)) code = "LM-USR-2004";
   else if (/duplicate|already exists|unique constraint/.test(normalized)) code = "LM-USR-3003";
   else if (/invalid.*email|email.*invalid|recipient.*format/.test(normalized)) code = "LM-USR-3002";
   else if (/required|missing.*field|name and email|add a recipient/.test(normalized)) code = "LM-USR-3001";
   else if (/empty.*(template|body)|template.*empty/.test(normalized)) code = "LM-USR-3006";
+  else if (/currency.*provider|exchange.*unavailable/.test(normalized)) code = "LM-USR-2005";
   else if (/currency|exchange pair/.test(normalized)) code = "LM-USR-4003";
   else if (/calculation|invalid amount|not a number/.test(normalized)) code = "LM-USR-4004";
   else if (/quota|storage.*full|storage.*limit/.test(normalized)) code = "LM-USR-4002";
