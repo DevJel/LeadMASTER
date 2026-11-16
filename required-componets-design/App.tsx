@@ -227,7 +227,7 @@ export default function App(){
   const pointerStartY = useRef<number|null>(null);
   const wheelDistance = useRef(0);
   const [settingsSaved, setSettingsSaved] = useState(false);
-  const showLoading = isLoading || busy;
+  const showLoading = busy;
 
   const [theme] = useState<'system'|'light'|'dark'>('light');
   const [profileName, setProfileName] = useState('LeadMASTER User');
@@ -319,7 +319,7 @@ export default function App(){
   const [fmtStrike, setFmtStrike] = useState(false);
 
   useEffect(()=>{setViewError(false);setViewLoading(false);},[view]);
-  function retryCurrentView(){setViewError(false);void reloadRecords();}
+  async function retryCurrentView(){setViewError(false);return await reloadRecords();}
 
   const allEmails = useMemo(()=> userEmails.filter(e=>!deletedForever.has(e.id)), [userEmails, deletedForever]);
   useEffect(()=>{ document.documentElement.setAttribute('data-theme','light'); },[theme]);
@@ -443,8 +443,6 @@ export default function App(){
       if(wheelDistance.current >= 120){ wheelDistance.current = 0; void refreshWorkspace(); }
     }else wheelDistance.current = 0;
   }
-
-  async function handleRetry(){ await reloadRecords(); }
 
   async function savePrefs(next?:any){
     const value = {starred:[...(next?.starred||starred)], read:[...(next?.read||readIds)], archived:[...(next?.archived||archived)], deleted:[...(next?.deleted||deleted)], deletedForever:[...(next?.deletedForever||deletedForever)], snoozed:[...(next?.snoozed||snoozed)], theme:'light', density: next?.density||density, profileName: next?.profileName||profileName, profileEmail: next?.profileEmail||profileEmail, signature: next?.signature||signature, notifEmail: next?.notifEmail ?? notifEmail, notifDesktop: next?.notifDesktop ?? notifDesktop, notifSound: next?.notifSound ?? notifSound, replyBehavior: next?.replyBehavior||replyBehavior, vacationOn: next?.vacationOn ?? vacationOn, vacationSubject: next?.vacationSubject||vacationSubject, vacationBody: next?.vacationBody||vacationBody, componentOrder: next?.componentOrder||componentOrder, componentHidden: next?.componentHidden || [...hiddenComponents], senderNotes: next?.senderNotes||senderNotes};
@@ -712,7 +710,7 @@ export default function App(){
   const stateBar = (
     <div className="mx-1 sm:mx-2 mt-2 space-y-2">
       {showLoading && <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3"><LoadingIndicator compact label={busy?'Saving your changes…':'Loading LeadMASTER…'}/></div>}
-      {(loadError || actionError) && <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border-2 border-[var(--text)] bg-[var(--surface)] px-3 py-2.5"><UniformIcon name="alert" size={18}/><span className="flex-1 min-w-[180px] text-[13px] font-medium">{loadError || actionError}</span>{loadError && <button onClick={handleRetry} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--text)] text-[var(--surface)] text-[13px]"><UniformIcon name="refresh" size={15}/> Retry</button>}<button onClick={()=>{setLoadError(''); setActionError('');}} className="px-3 py-1.5 rounded-full border border-[var(--border)] text-[13px]">Dismiss</button></div>}
+      {actionError && <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border-2 border-[var(--text)] bg-[var(--surface)] px-3 py-2.5"><UniformIcon name="alert" size={18}/><span className="flex-1 min-w-[180px] text-[13px] font-medium">{actionError}</span><button onClick={()=>setActionError('')} className="px-3 py-1.5 rounded-full border border-[var(--border)] text-[13px]">Dismiss</button></div>}
       {status && !showLoading && <div className="flex flex-wrap items-center gap-2"><span className="bg-[var(--text)] text-[var(--surface)] text-[13px] px-3 py-2 rounded-lg">{status}</span><button onClick={()=>setStatus('')} className="text-[13px] underline underline-offset-2">Dismiss</button></div>}
       {settingsSaved && view==='settings' && <div className="flex items-center gap-2 bg-[var(--text)] text-[var(--surface)] text-[13px] px-3 py-2 rounded-lg"><UniformIcon name="check" size={16}/> Settings saved.<button onClick={()=>setSettingsSaved(false)} className="underline underline-offset-2 ml-1">Dismiss</button></div>}
     </div>
@@ -911,7 +909,7 @@ export default function App(){
       {(view==='inbox'||view==='sent'||view==='deleted') && !openEmail && (
         <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 h-[48px] text-[var(--text-3)]">
           <label className="flex items-center gap-1 p-1"><input type="checkbox" disabled={viewLoading} checked={filtered.length>0 && selected.size===filtered.length} onChange={toggleSelectAll} className="accent-black w-4 h-4" aria-label="Select all"/><UniformIcon name="chevron-down" size={16}/></label>
-          <button disabled={viewLoading} onClick={async()=>{ setStatus('Refreshing…'); retryCurrentView(); await reloadRecords(); if(!loadError) setStatus('LeadMaster refreshed'); }} className="p-2 rounded-full hover:bg-[var(--surface-3)] disabled:opacity-50" aria-label="Refresh">{isLoading? <Spinner/> : <UniformIcon name="refresh" size={18}/>}</button>
+          <button disabled={viewLoading} onClick={async()=>{ setStatus('Refreshing…'); const loaded = await retryCurrentView(); setStatus(loaded ? 'LeadMASTER refreshed' : ''); }} className="p-2 rounded-full hover:bg-[var(--surface-3)] disabled:opacity-50" aria-label="Refresh">{isLoading? <Spinner/> : <UniformIcon name="refresh" size={18}/>}</button>
           {selected.size>0 ? <><button onClick={bulkArchive} className="p-2 rounded-full hover:bg-[var(--surface-3)]" aria-label="Archive selected"><UniformIcon name="archive" size={18}/></button><button onClick={bulkDelete} className="p-2 rounded-full hover:bg-[var(--surface-3)]" aria-label="Delete selected"><UniformIcon name="trash" size={18}/></button><span className="text-[13px] text-[var(--text-2)]">{selected.size} selected</span></> : <button onClick={()=>setStatus('More actions: Mark as read, Filter messages, Mute — use row actions for quick triage.')} className="p-2 rounded-full hover:bg-[var(--surface-3)]" aria-label="More actions"><UniformIcon name="more" size={18}/></button>}
           <span className="flex items-center gap-1 border border-[var(--border)] rounded-full p-0.5" aria-label="Preview pane layout"><button onClick={()=>{ setPreviewMode(false); setPreviewEmailId(null); setStatus('Preview pane off — rows open the full message again.'); }} className={`px-2.5 py-1 rounded-full text-[12px] ${!previewMode?'bg-[var(--text)] text-[var(--surface)]':''}`}>No split</button><button onClick={()=>{ setPreviewMode(true); setPreviewLayout('vertical'); setStatus('Preview pane on — Vertical. Click any Inbox or Sent row to preview it.'); }} className={`px-2.5 py-1 rounded-full text-[12px] ${previewMode&&previewLayout==='vertical'?'bg-[var(--text)] text-[var(--surface)]':''}`}>Vertical</button><button onClick={()=>{ setPreviewMode(true); setPreviewLayout('horizontal'); setStatus('Preview pane on — Horizontal. Click any Inbox or Sent row to preview it below.'); }} className={`px-2.5 py-1 rounded-full text-[12px] ${previewMode&&previewLayout==='horizontal'?'bg-[var(--text)] text-[var(--surface)]':''}`}>Horizontal</button></span>
           <div className="ml-auto flex items-center gap-2 text-[12px] sm:text-[13px]"><span className="hidden sm:inline">1–{filtered.length} of {filtered.length}</span><span className="sm:hidden">{filtered.length}</span><button className="p-1" aria-label="Previous page">‹</button><button className="p-1" aria-label="Next page">›</button><button onClick={()=>setShowSettings(!showSettings)} className="p-1.5 rounded-full hover:bg-[var(--surface-3)]" aria-label="List settings"><UniformIcon name="settings" size={16}/></button></div>
@@ -1094,7 +1092,7 @@ export default function App(){
           {isRefreshing && <div role="status" aria-live="polite" className="mx-2 mt-2 mb-1 flex items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[13px] text-[var(--text-2)]"><Spinner size={16}/> Refreshing and verifying workspace data…</div>}
           {refreshError && <div role="alert" className="mx-2 mt-2 mb-1 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-[13px]"><span className="flex-1 min-w-[180px]">{refreshError}</span><button onClick={()=>void refreshWorkspace()} disabled={isRefreshing} className="rounded-full border border-[var(--text)] px-4 py-2 font-medium disabled:opacity-50">Retry refresh</button></div>}
           {stateBar}
-          {viewError ? ErrorState : viewLoading ? LoadingState : mainContent}
+          {isLoading || viewLoading ? LoadingState : loadError || viewError ? ErrorState : mainContent}
         </main>
 
       </div>
