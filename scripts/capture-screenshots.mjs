@@ -117,6 +117,38 @@ try {
       if (u.pathname === "/login.js") return route.fulfill({status:200,contentType:"text/javascript",body:""});
       return route.continue();
     });
+    // Keep screenshot automation deterministic: the static fixture has no
+    // production API, so provide an isolated in-memory workspace API.
+    const screenshotRecords = new Map();
+    let screenshotRecordId = 0;
+    await page.route("**/api/workspace/actions", async route => {
+      const request = route.request();
+      let body = {};
+      try { body = request.postDataJSON() || {}; } catch {}
+      const action = body.action;
+      const args = body.args || {};
+      const collection = String(args.collection || "");
+      if (!screenshotRecords.has(collection)) screenshotRecords.set(collection, []);
+      const records = screenshotRecords.get(collection);
+      let data = {};
+      if (action === "records.list") data = {records};
+      else if (action === "records.create") {
+        const record = {id: "screenshot-record-" + (++screenshotRecordId), value: args.value || {}};
+        records.unshift(record);
+        data = {id: record.id};
+      } else if (action === "records.replace") {
+        const index = records.findIndex(item => item.id === args.id);
+        if (index >= 0) records[index] = {id: args.id, value: args.value || {}};
+        data = {id: args.id};
+      } else if (action === "records.delete") {
+        screenshotRecords.set(collection, records.filter(item => item.id !== args.id));
+        data = {deleted: true};
+      }
+      await route.fulfill({status: 200, contentType: "application/json", body: JSON.stringify({data})});
+    });
+    await page.route("**/api/admin/mail**", async route => {
+      await route.fulfill({status: 200, contentType: "application/json", body: JSON.stringify({items: [], counts: {inbox: 0, archived: 0, sent: 0, queued: 0, deleted: 0, bounced: 0, unsuccessful: 0, unsubscribed: 0}})});
+    });
     const pageErrors = [];
     page.on("pageerror", error => pageErrors.push(error.message));
     const mark = async () => page.addStyleTag({content:watermarkCss});
