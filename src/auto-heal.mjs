@@ -251,6 +251,8 @@ export async function processAutoHealEvent(env, event) {
   const errorHash = event.event_type === "rejected" ? String(event.error_hash || computedHash) : computedHash;
   const kv = env.AUTO_HEAL_KV;
   if (event.event_type !== "rejected" && kv?.get) {
+    const rejected = await kv.get("rejected:" + errorHash);
+    if (rejected) return { status: "already_processed", errorHash, prior: JSON.parse(rejected) };
     const prior = await kv.get("error:" + errorHash);
     if (prior) return { status: "already_processed", errorHash, prior: JSON.parse(prior) };
   }
