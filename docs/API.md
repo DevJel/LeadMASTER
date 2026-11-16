@@ -327,3 +327,8 @@ The feature branch adds a Streamable HTTP MCP endpoint at https://leadmaster.jel
 - list_webhooks, create_webhook, revoke_webhook and list_webhook_deliveries for webhook:manage.
 
 The send_email tool delegates to the existing account-scoped REST email submission route, preserving idempotency, suppression, per-key rate limiting and queue handling. MCP clients should request explicit user confirmation before calling write tools. The MCP endpoint is not available in production until this feature branch is reviewed, merged and deployed. See MCP.md for client configuration and the complete scope/tool matrix.
+
+
+## 12. AI assistant endpoint
+
+The authenticated administrator dashboard exposes POST /api/admin/assistant for the built-in Cloudflare Workers AI agent. It is a same-origin, cookie-session endpoint and is not a public developer API. It supports mailbox overview, sender/subject search, reading one received message and preparing an unsent draft. It does not send mail or modify mailbox state. See AI_ASSISTANT.md for the request contract, limits, model/tool flow and security boundary.
