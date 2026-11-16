@@ -23,14 +23,6 @@
     "REPORTER_TIME_ZONE": "Asia/Manila",
     "TURSO_URL": "libsql://leadmaster-devjel.aws-ap-southeast-2.turso.io"
   },
-  "d1_databases": [
-    {
-      "binding": "AUTH_DB",
-      "database_name": "leadmaster-auth",
-      "database_id": "246db481-9bff-4088-8dcc-b810138aea68",
-      "migrations_dir": "migrations"
-    }
-  ],
   "secrets_store_secrets": [
     {
       "binding": "SES_SMTP_HOST",
