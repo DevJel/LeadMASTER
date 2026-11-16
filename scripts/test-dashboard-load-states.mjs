@@ -40,22 +40,59 @@ try {
   // Suppress the unrelated periodic background poll so refresh request counts are deterministic.
   await page.addInitScript(() => Object.defineProperty(document, 'visibilityState', { get: () => 'hidden' }));
   await page.goto(`http://127.0.0.1:${server.address().port}/dashboard.html`, { waitUntil: 'domcontentloaded' });
-  await page.getByText('Loading primary', { exact: false }).first().waitFor({ timeout: 5000 });
-  assert.equal(await page.getByText('Nothing in Primary').isVisible(), false, 'empty state during loading');
+  await page.getByText('Loading inbox', { exact: false }).first().waitFor({ timeout: 5000 });
+  const loadingCard = page.locator('section[aria-label="Loading status"]');
+  await page.getByRole('button', { name: 'Dismiss loading overlay' }).waitFor({ timeout: 5000 });
+  const box = await loadingCard.boundingBox();
+  const viewport = page.viewportSize();
+  assert.ok(box && viewport && Math.abs((box.x + box.width / 2) - viewport.width / 2) < 4, 'loading card horizontally centered');
+  assert.ok(box && viewport && Math.abs((box.y + box.height / 2) - viewport.height / 2) < 4, 'loading card vertically centered');
+  await page.getByRole('button', { name: 'Dismiss loading overlay' }).click();
+  assert.equal(await page.getByRole('button', { name: 'Dismiss loading overlay' }).count(), 0, 'dismiss hides the overlay');
+  assert.ok(requestCount > 0, 'dismissal does not cancel the loading request');
+  assert.equal(await page.getByText('Nothing in Inbox').isVisible(), false, 'empty state during loading');
   await page.getByRole('heading', { name: 'Something went wrong' }).waitFor({ timeout: 5000 });
-  assert.equal(await page.getByText('Nothing in Primary').isVisible(), false, 'empty state after load failure');
+  assert.equal(await page.getByText('Nothing in Inbox').isVisible(), false, 'empty state after load failure');
   fail = false;
   await page.getByRole('button', { name: 'Retry', exact: true }).click();
-  await page.getByText('Nothing in Primary').waitFor({ timeout: 5000 });
+  await page.getByText('Nothing in Inbox').waitFor({ timeout: 5000 });
   const before = requestCount;
   await page.getByRole('button', { name: 'Refresh', exact: true }).click();
-  await page.getByText('Loading primary', { exact: false }).first().waitFor({ timeout: 5000 });
-  await page.getByText('Nothing in Primary').waitFor({ timeout: 5000 });
+  await page.getByText('Loading inbox', { exact: false }).first().waitFor({ timeout: 5000 });
+  await page.getByText('Nothing in Inbox').waitFor({ timeout: 5000 });
   assert.equal(requestCount - before, 11, 'refresh must request one workspace snapshot');
   assert.equal(await page.getByText('LeadMASTER refreshed', { exact: true }).count(), 0);
   assert.equal(await page.getByText('Workspace refreshed from the server.', { exact: true }).count(), 0);
-  assert.equal(await page.getByRole('button', { name: 'Go to Inbox' }).locator('img').getAttribute('src'), '/assets/brand/favicon-gray.svg');
-  console.log('Synthetic local dashboard: loading, error, retry, empty and single refresh passed.');
+  assert.equal(await page.locator('header img[src="/assets/brand/leadmaster-full.svg"]').count(), 1, 'transparent LeadMASTER brand mark remains visible');
+
+  const utilityPage = await browser.newPage();
+  const utilityStart = requestCount;
+  await utilityPage.goto(`http://127.0.0.1:${server.address().port}/dashboard.html?app=notes`, { waitUntil: 'domcontentloaded' });
+  const utilityCard = utilityPage.locator('section[aria-label="Utility loading status"]');
+  await utilityPage.getByRole('button', { name: 'Dismiss loading overlay' }).waitFor({ timeout: 5000 });
+  const utilityBox = await utilityCard.boundingBox();
+  const utilityViewport = utilityPage.viewportSize();
+  assert.ok(utilityBox && utilityViewport && Math.abs((utilityBox.x + utilityBox.width / 2) - utilityViewport.width / 2) < 4, 'utility loading card horizontally centered');
+  assert.ok(utilityBox && utilityViewport && Math.abs((utilityBox.y + utilityBox.height / 2) - utilityViewport.height / 2) < 4, 'utility loading card vertically centered');
+  await utilityPage.getByRole('button', { name: 'Dismiss loading overlay' }).click();
+  await utilityPage.getByText('No notes have been saved yet.', { exact: true }).waitFor({ timeout: 5000 });
+  assert.ok(requestCount > utilityStart, 'utility overlay dismissal does not cancel its request');
+  await utilityPage.close();
+
+  const mobilePage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await mobilePage.addInitScript(() => Object.defineProperty(document, 'visibilityState', { get: () => 'hidden' }));
+  await mobilePage.goto(`http://127.0.0.1:${server.address().port}/dashboard.html`, { waitUntil: 'domcontentloaded' });
+  const mobileCard = mobilePage.locator('section[aria-label="Loading status"]');
+  await mobilePage.getByRole('button', { name: 'Dismiss loading overlay' }).waitFor({ timeout: 5000 });
+  const mobileBox = await mobileCard.boundingBox();
+  const mobileViewport = mobilePage.viewportSize();
+  assert.ok(mobileBox && mobileViewport && Math.abs((mobileBox.x + mobileBox.width / 2) - mobileViewport.width / 2) < 4, 'mobile loading card horizontally centered');
+  assert.ok(mobileBox && mobileViewport && Math.abs((mobileBox.y + mobileBox.height / 2) - mobileViewport.height / 2) < 4, 'mobile loading card vertically centered');
+  await mobilePage.getByRole('button', { name: 'Dismiss loading overlay' }).click();
+  await mobilePage.getByText('Nothing in Inbox', { exact: true }).waitFor({ timeout: 5000 });
+  await mobilePage.close();
+
+  console.log('Synthetic local dashboard: centered dismissible workspace and utility loading on desktop and mobile, error, retry, empty and single refresh passed.');
 } finally {
   if (browser) await browser.close();
   await new Promise(resolveClose => server.close(resolveClose));

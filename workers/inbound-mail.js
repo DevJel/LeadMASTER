@@ -1,3 +1,5 @@
+import { withTursoDatabase } from '../src/turso-database.mjs';
+
 const RECIPIENT = "app@leadmaster.jelvan.space";
 const ADMIN_FORWARD = "admin@work.jelvan.pro";
 const MAX_MESSAGE_BYTES = 25 * 1024 * 1024;
@@ -22,6 +24,7 @@ function parseDisplayName(value) {
 
 export default {
   async email(message, env) {
+    env = await withTursoDatabase(env);
     const recipient = clean(message?.to, 254).toLowerCase();
     if (recipient !== RECIPIENT) {
       message.setReject("This LeadMASTER mailbox address is not configured.");

@@ -8,7 +8,7 @@ This is the engineering index for the implemented LeadMASTER product. Each featu
 |---|---|---|
 | Public landing, Help Center and clean page URLs | Implemented | Worker maps clean browser paths to existing static HTML assets; old `.html` links redirect |
 | Human administrator login | Implemented | Single configured administrator identity; password, Turnstile, email OTP and server session |
-| Dashboard and six utility modules | Implemented | Shared responsive React UI; Notes, Contacts and Calendar persist as workspace records; Calculator, Currency Conversion and HTML Playground are client-side utilities |
+| Dashboard and six utility modules | Implemented | Shared responsive React UI with a unified inbox, centered search, responsive collapsible sidebar and bottom-anchored profile/settings; all initial, per-view, refresh and busy-action loading uses one dismissible, viewport-centered blurred overlay; Notes, Contacts and Calendar persist as workspace records; Calculator, Currency Conversion and HTML Playground are client-side utilities |
 | Inbox and incoming email | Implemented | One dedicated inbound address; original message retained; attachment extraction is not a separate feature |
 | Sending and queue processing | Implemented | Immediate send queue, persistent per-message idempotency/rate reservations; no scheduled send engine |
 | SES delivery events and suppression | Implemented | Signed event verification, deduplication, delivery status updates, permanent-bounce/complaint suppression |

@@ -73,6 +73,10 @@ export default function UtilityApps({route}:{route:string|null}){
   const [html,setHtml]=useState('<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-family:Arial,sans-serif;color:#222"><tr><td style="padding:28px"><h1 style="margin:0 0 12px">Your next update</h1><p>Write a helpful introduction for your readers.</p><a href="https://example.com" style="display:inline-block;padding:12px 18px;background:#222;color:#fff;text-decoration:none;border-radius:24px">Read more</a></td></tr></table>');
   const [subject,setSubject]=useState('A helpful update from our team');
   const [aiBusy,setAiBusy]=useState(false);
+  const [loadingOverlayDismissed,setLoadingOverlayDismissed]=useState(false);
+  const loadingOverlayActive=loading||saving||currencyBusy||aiBusy;
+  const loadingOverlayLabel=loading?'Loading '+labels[selected].toLowerCase()+'…':saving?'Saving your changes…':currencyBusy?'Checking the latest conversion rate…':'Preparing your email…';
+  useEffect(()=>{if(loadingOverlayActive)setLoadingOverlayDismissed(false);},[loadingOverlayActive]);
   const [showPreview,setShowPreview]=useState(true);
   const [htmlCopied,setHtmlCopied]=useState(false);
   const [lastLoaded,setLastLoaded]=useState<number|null>(null);
@@ -198,7 +202,7 @@ export default function UtilityApps({route}:{route:string|null}){
       <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-[#777]">Workspace utility</p><h1 className="mt-1 text-2xl font-semibold">{labels[selected]}</h1>{lastLoaded&&<p className="mt-1 text-xs text-[#888]">Updated {new Date(lastLoaded).toLocaleTimeString()}</p>}</div><button type="button" className={secondary} disabled={loading||saving} onClick={()=>void load(false)}>{loading?'Refreshing…':'Refresh'}</button></div>
       {error&&<div role="alert" className="rounded-xl border border-[#e6caca] bg-[#fff8f8] p-3 text-sm">{error}</div>}
       {notice&&<div role="status" className="rounded-xl border border-[#ddd] bg-white p-3 text-sm">{notice}</div>}
-      {loading&&['notes','contacts','calendar'].includes(selected)?<div className={panel}><LoadingIndicator label={'Loading '+labels[selected].toLowerCase()} compact/></div>:null}
+      
 
       {selected==='notes'&&<div className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_1fr]">
         <section className={panel}><h2 className="font-semibold">Create or edit a note</h2><div className="mt-3 space-y-3"><input className={field} placeholder="Note title" value={noteForm.title} onChange={e=>setNoteForm({...noteForm,title:e.target.value})}/><textarea className={field} rows={7} placeholder="Write your note…" value={noteForm.body} onChange={e=>setNoteForm({...noteForm,body:e.target.value})}/><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={noteForm.pinned} onChange={e=>setNoteForm({...noteForm,pinned:e.target.checked})}/> Pin this note</label><div className="flex gap-2"><button className={action} disabled={saving} onClick={()=>void saveNote()}>{saving?'Saving…':'Save note'}</button><button className={secondary} onClick={()=>setNoteForm({id:'',title:'',body:'',pinned:false})}>Clear</button></div></div></section>
@@ -227,5 +231,6 @@ export default function UtilityApps({route}:{route:string|null}){
     <ActionConfirmation request={confirmation} onCancel={()=>{setConfirmation(null);setConfirmationAction(null);}} onConfirm={async()=>{
       const action=confirmationAction;setConfirmation(null);setConfirmationAction(null);if(action)await action();
     }}/>
+    {loadingOverlayActive&&!loadingOverlayDismissed&&<div className="fixed inset-0 z-[120] grid place-items-center p-4 bg-black/35 backdrop-blur-md" role="status" aria-live="polite"><section className="relative w-full max-w-[420px] min-h-[220px] flex items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl px-4 py-8" aria-label="Utility loading status"><button type="button" onClick={()=>setLoadingOverlayDismissed(true)} className="absolute right-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-full text-[var(--text-2)] hover:bg-[var(--surface-2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" aria-label="Dismiss loading overlay" title="Dismiss"><span aria-hidden="true">×</span></button><LoadingIndicator label={loadingOverlayLabel}/></section></div>}
   </div>;
 }

@@ -28,6 +28,22 @@ See [`docs/FEATURES.md`](../docs/FEATURES.md) for the complete implementation/st
 | Workspace utilities | `POST /api/workspace/actions` | Account-scoped `records.list/create/replace/delete` actions with a collection allowlist. |
 | HTML preview | `public/html-preview.js`, `public/html-preview.css`, DOMPurify | Browser-local sanitized preview; not sending or persistence. |
 
+## Workspace shell and navigation
+
+- Inbox is a unified list; category tabs and category-based filtering have been removed.
+- Header uses the transparent full LeadMASTER SVG at the left, centered search, and right-aligned Help, Refresh and Apps actions. Profile is not shown in the header.
+- Profile & Settings is anchored at the bottom of the expanded or collapsed sidebar and opens the existing account configuration view. Settings is removed from the main navigation list.
+- Sidebar collapse/expand controls live at the bottom edge; mobile uses a bottom-edge navigation opener for the responsive drawer.
+- Android uses the same authenticated responsive React dashboard inside its WebView, so the navigation update is shared without adding native business logic.
+
+## Workspace shell and navigation
+
+- Inbox is a unified list; category tabs and category-based filtering have been removed.
+- Header uses the transparent full LeadMASTER SVG at the left, centered search, and right-aligned Help, Refresh and Apps actions. Profile is not shown in the header.
+- Profile & Settings is anchored at the bottom of the expanded or collapsed sidebar and opens the existing account configuration view. Settings is removed from the main navigation list.
+- Sidebar collapse/expand controls live at the bottom edge; mobile uses a bottom-edge navigation opener for the responsive drawer.
+- Android uses the same authenticated responsive React dashboard inside its WebView, so the navigation update is shared without adding native business logic.
+
 ## Utility modules
 
 The Apps launcher exposes Notes, Contacts, Calendar, Calculator, Currency Conversion and Email HTML Playground. Notes, Contacts and Calendar use workspace record collections. Calculator and HTML Playground are local tools. Currency Conversion requires a real quote source and must not fabricate or silently reuse an expired rate.
@@ -61,7 +77,7 @@ Desktop uses a fixed application shell and a scrollable main content area; mobil
 
 Message detail has a retryable load state. Sent HTML uses a sanitized opaque-origin iframe that blocks scripts, links and remote content; incoming HTML is not extracted. The original incoming `.eml` remains downloadable, but individual attachment previews are unavailable.
 
-Workspace fetches show the existing loading indicator until a complete server snapshot is available. A failed foreground fetch shows a retryable error instead of an empty-state claim; retry uses one fetch cycle. Silent background refresh retains prior data and reports explicit refresh errors. Browser regression uses synthetic local data; authenticated acceptance remains separate.
+Initial workspace loading, per-tab fetches, manual refreshes and other busy actions use one fixed, viewport-centered loading overlay with a blurred backdrop and an accessible X dismiss control. Dismissing the overlay hides only the visual layer; it does not cancel the underlying request. Loading indicators and sending animations are not rendered inside panels or as floating corner cards. Message-detail fetches and standalone Notes, Contacts, Calendar, Currency Conversion, AI email utility, retained Inbox and SMTP settings operations use the same centered overlay treatment. The overlay uses the actual sending phase when available; queued/accepted states never claim delivery, and uncertain outcomes instruct the user to check Outbox before retrying. A failed foreground fetch shows a retryable error instead of an empty-state claim; retry uses one fetch cycle. Silent background refresh retains prior data and reports explicit refresh errors. Browser regression uses synthetic local data; authenticated acceptance remains separate.
 
 ## Security and release checks
 

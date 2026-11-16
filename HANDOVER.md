@@ -15,6 +15,10 @@
 
 Sent HTML preview is sandboxed and blocks active/remote content. The incoming original remains downloadable; individual attachments and incoming HTML are not extracted. Unsafe outbox retry controls were removed pending a complete immutable-message and idempotency design. Threading, attachment transport and standards-compliant replies are not implemented; see `docs/MAIL_THREADS_DESIGN.md`. Validate Android WebView downloads and authenticated account behavior separately.
 
+## Premium inbox and navigation refinement (staged; not deployed)
+
+The current UI change is being implemented in `required-componets-design/App.tsx`. It removes inbox category tabs and category filtering, replaces the favicon-only header mark with the transparent full LeadMASTER logo, centers the search field, right-aligns Help/Refresh/Apps, moves Profile & Settings to the sidebar footer, removes Settings from primary navigation, and adds desktop sidebar collapse/expand plus a mobile bottom-edge drawer opener. The Android companion shares this React surface through its authenticated WebView; no native Android change is required. The screenshot automation and UI regression tests are updated with the new navigation. Do not call this deployed until CI generates `public/dashboard-app.js`, `public/dashboard-app.css` and `src/static-assets.mjs`, the authenticated browser smoke check passes, and the production Worker is actually updated.
+
 ## Documentation screenshot atlas
 
 `assets/screenshots/` holds watermarked desktop/mobile UI captures produced by `scripts/capture-screenshots.mjs`; [docs/screenshots/README.md](docs/screenshots/README.md) records the viewport, fixture and gallery. The code-entry screenshot renders existing markup without running login or verification, and none of these images prove live deployment or device acceptance. Stack icon sources and license are in `assets/stack-icons/README.md`. The `required-action/project/` and `required-action/ANDROID APK/` README files are historical snapshot copies, not maintained current documentation.
