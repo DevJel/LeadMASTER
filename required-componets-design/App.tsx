@@ -560,9 +560,26 @@ export default function App(){
   async function bulkArchive(){const ids=[...selected];for(const id of ids){try{await patchMail(id,'archive');}catch(e){setActionError(e instanceof Error?e.message:String(e));}}setSelected(new Set());await reloadRecords();setStatus('Archive actions processed.');}
   async function bulkDelete(){const ids=[...selected];for(const id of ids){try{await patchMail(id,'delete');}catch(e){setActionError(e instanceof Error?e.message:String(e));}}setSelected(new Set());await reloadRecords();setStatus('Delete actions processed.');}
 
-  async function resendOutbox(id:string){ const item=outbox.find(o=>o.id===id); if(!item)return; setBusy(true); try{const res=await fetch('/api/admin/send',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({to:item.to,subject:item.subject,text:item.body,fromEmail:profileEmail||'hello@work.jelvan.pro',fromName:profileName||'LeadMASTER'})});const j=await res.json().catch(()=>({}));if(!res.ok)throw new Error(j.error||`Resend failed (${res.status})`);setStatus('Retry queued. Delivery will be shown only after a delivery event is recorded.');await reloadRecords();}catch(e){setActionError(e instanceof Error?e.message:String(e));setStatus('Retry was not queued.');}finally{setBusy(false);}}
+  async function queueExistingOutboxItem(item:OutboxItem){
+    const detailRes=await fetch(`/api/admin/mail/${encodeURIComponent(item.id)}`,{credentials:'same-origin'});
+    const detail=await detailRes.json().catch(()=>({}));
+    if(!detailRes.ok)throw new Error(detail.error||`Could not load original message (${detailRes.status})`);
+    const text=String(detail.text_body||item.body||'');
+    if(!text.trim())throw new Error('Original plain-text content is unavailable; this message was not resent.');
+    const res=await fetch('/api/admin/send',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({to:item.to,subject:item.subject,text,fromEmail:profileEmail||'hello@work.jelvan.pro',fromName:profileName||'LeadMASTER'})});
+    const result=await res.json().catch(()=>({}));
+    if(!res.ok)throw new Error(result.error||`Queue request failed (${res.status})`);
+    return result;
+  }
+  async function resendOutbox(id:string){
+    const item=outbox.find(o=>o.id===id);if(!item)return;
+    setBusy(true);setActionError('');
+    try{await queueExistingOutboxItem(item);setStatus('Retry queued. Delivery will be shown only after a delivery event is recorded.');await reloadRecords();}
+    catch(e){setActionError(e instanceof Error?e.message:String(e));setStatus('Retry was not queued.');}
+    finally{setBusy(false);}
+  }
   function cancelOutbox(id:string){ setStatus('This message cannot be cancelled from the dashboard after it has entered the sending queue.'); }
-  async function sendAllNow(){ if(outbox.length===0){ setStatus('Outbox is already clear.'); return; } setBusy(true);let queued=0,failed=0;for(const item of outbox){try{const res=await fetch('/api/admin/send',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({to:item.to,subject:item.subject,text:item.body,fromEmail:profileEmail||'hello@work.jelvan.pro',fromName:profileName||'LeadMASTER'})});const j=await res.json().catch(()=>({}));if(!res.ok)throw new Error(j.error||'Queue rejected');queued+=Number(j.queued||1);}catch{failed++;}}await reloadRecords();setBusy(false);setStatus(`${queued} message(s) queued; ${failed} could not be queued. Queue acceptance is not delivery confirmation.`); }
+  async function sendAllNow(){ if(outbox.length===0){ setStatus('Outbox is already clear.'); return; } setBusy(true);let queued=0,failed=0;for(const item of outbox){try{const j=await queueExistingOutboxItem(item);queued+=Number(j.queued||1);}catch{failed++;}}await reloadRecords();setBusy(false);setStatus(`${queued} message(s) queued; ${failed} could not be queued. Queue acceptance is not delivery confirmation.`); }
   async function sendNowScheduled(item:ScheduledItem){setBusy(true);try{const res=await fetch('/api/admin/send',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({to:item.to,subject:item.subject,text:item.body,fromEmail:profileEmail||'hello@work.jelvan.pro',fromName:profileName||'LeadMASTER'})});const j=await res.json().catch(()=>({}));if(!res.ok)throw new Error(j.error||`Send failed (${res.status})`);if(item.recordId)await api('records.delete',{collection:'leadmaster_scheduled',id:item.recordId});setScheduled(prev=>prev.filter(s=>s.id!==item.id));setStatus('Message queued now. Delivery is not yet confirmed.');await reloadRecords();}catch(e){setActionError(e instanceof Error?e.message:String(e));setStatus('Scheduled message was not removed because sending could not be confirmed.');}finally{setBusy(false);}}
   function cancelScheduled(item:ScheduledItem){ setScheduled(prev=>prev.filter(s=>s.id!==item.id)); setStatus('Scheduled message cancelled.'); if(item.recordId){ api("records.delete", {collection:'leadmaster_scheduled', id:item.recordId}).catch(()=>setActionError('Could not delete the scheduled record yet.')); } }
   function openEditSchedule(item:ScheduledItem){ setScheduleForm({id:item.id, to:item.to, subject:item.subject, body:item.body, when:item.when}); setShowScheduleForm(true); setSchedulePicker({id:item.id, when:item.when, dateTime:''}); }
