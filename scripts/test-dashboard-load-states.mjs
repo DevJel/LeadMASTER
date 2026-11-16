@@ -51,7 +51,7 @@ try {
   assert.equal(await page.getByRole('button', { name: 'Dismiss loading overlay' }).count(), 0, 'dismiss hides the overlay');
   assert.ok(requestCount > 0, 'dismissal does not cancel the loading request');
   assert.equal(await page.getByText('Nothing in Inbox').isVisible(), false, 'empty state during loading');
-  await page.getByRole('heading', { name: 'Something went wrong' }).waitFor({ timeout: 5000 });
+  await page.getByRole('heading', { name: 'Workspace could not be loaded' }).waitFor({ timeout: 5000 });
   assert.equal(await page.getByText('Nothing in Inbox').isVisible(), false, 'empty state after load failure');
   fail = false;
   await page.getByRole('button', { name: 'Retry', exact: true }).click();
