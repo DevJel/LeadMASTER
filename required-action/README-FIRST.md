@@ -6,6 +6,18 @@ This Folder is a **source and requirements handoff, not a completed or productio
 
 Repository snapshot: `DevJel/LeadMASTER` `main` at commit `920fe0247eaa69cfc5fd137229cc86f40811216c` (PR #49 merged). The code was exported from Git as a snapshot, so Git history is not included. Before implementation, fetch the latest `main`, compare it with this snapshot, and work in one integration branch; do not blindly overwrite later changes. Merging staged code does not activate it. Earlier handoff documents describe historical states and may be stale; prioritize source and tests at the current revision.
 
+## Handoff relationship
+
+This folder is an archived handoff; its nested README files describe the captured revision, not current `main`. For the maintained product documentation and screenshots, start at the [root README](../README.md), [feature index](../docs/FEATURES.md), and [screenshot atlas](../docs/screenshots/README.md). Do not overwrite this historical snapshot when updating current documentation.
+
+```mermaid
+flowchart LR
+  Snapshot[Historical project snapshot] --> Compare[Compare with current main]
+  References[Design references] --> Compare
+  Compare --> Review[Review source, tests and capability boundaries]
+  Review --> Integration[Reviewed integration and release]
+```
+
 ## What's inside
 
 - `project/` — complete tracked source snapshot, including Worker, existing dashboard, Android shell, migrations, workflows, tests and staging documents.

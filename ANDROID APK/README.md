@@ -1,6 +1,6 @@
 # LeadMASTER for Android
 
-[![Build Android APK](https://github.com/DevJel/LeadMASTER/actions/workflows/android-apk.yml/badge.svg)](https://github.com/DevJel/LeadMASTER/actions/workflows/android-apk.yml)
+[Android build workflow](https://github.com/DevJel/LeadMASTER/actions/workflows/android-apk.yml)
 
 LeadMASTER for Android is the official Android companion to the LeadMASTER web workspace. It provides a native Android application shell around the same authenticated, responsive production dashboard used on the web.
 
@@ -54,7 +54,24 @@ The shared dashboard plays distinct send, delete and receive sounds while visibl
 
 Android notification permission, channel settings, vibration, Do Not Disturb and device volume remain under the device owner's control. The app does not register a push token or run a dedicated background notification worker. Monitoring pauses when the document is hidden and is not guaranteed after the app is closed, force-stopped or its WebView is no longer active.
 
+## Interface preview
+
+The Android companion displays the responsive web workspace. These images are **synthetic local browser previews**, not Android device captures or proof of APK behavior. See the [complete screenshot atlas](../docs/screenshots/README.md).
+
+| Inbox | Compose | Settings |
+|---|---|---|
+| [![Mobile inbox preview](../assets/screenshots/dashboard-inbox-mobile.png)](../assets/screenshots/dashboard-inbox-mobile.png) | [![Mobile compose preview](../assets/screenshots/dashboard-compose-mobile.png)](../assets/screenshots/dashboard-compose-mobile.png) | [![Mobile settings preview](../assets/screenshots/dashboard-settings-mobile.png)](../assets/screenshots/dashboard-settings-mobile.png) |
+
 ## 3. Architecture
+
+```mermaid
+flowchart LR
+  User[User] --> Shell[Android app shell]
+  Shell --> WebView[Restricted HTTPS WebView]
+  WebView --> Workspace[Shared responsive workspace]
+  Workspace --> API[Authenticated app API]
+  WebView --> Native[File chooser, downloads and notifications]
+```
 
 ```text
 Android application (pro.leadmaster.app)
