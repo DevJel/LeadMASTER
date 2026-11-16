@@ -40,4 +40,6 @@ The inbound handler accepts the dedicated address `app@leadmaster.jelvan.space`,
 
 ## Not available
 
+A proposed account-scoped conversation and attachment model is documented in [MAIL_THREADS_DESIGN.md](../MAIL_THREADS_DESIGN.md); it is not implemented. Inbox does not yet extract HTML or individual attachments.
+
 There is no user-facing inbox provisioning API, custom forwarding-rule editor, or standalone attachment extraction/download feature. Do not imply other domains or addresses are being ingested by the dedicated mailbox.

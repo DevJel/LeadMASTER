@@ -26,6 +26,8 @@ This is the engineering index for the implemented LeadMASTER product. Each featu
 
 **Deployment caution:** Source presence, green unit tests and a generated asset bundle do not by themselves prove a production deployment or an end-to-end provider delivery. Deployment and real inbox acceptance must be recorded separately in `CHANGELOG.md` and `HANDOVER.md`.
 
+The proposed, not-yet-implemented conversation and persistent-attachment design is in [MAIL_THREADS_DESIGN.md](MAIL_THREADS_DESIGN.md).
+
 ## Feature guides
 
 1. [Authentication, authorization and routing](features/01-authentication-and-routing.md)

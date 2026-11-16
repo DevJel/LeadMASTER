@@ -11,6 +11,10 @@
 
 > **Draft API branch:** Migration 0015 and an account-scoped draft module exist in the feature branch, but the Worker has no route to it; it is not deployed or wired to the dashboard. Apply migrations only through an approved, verified release plan; test concurrency, account isolation and UI behavior before enabling. The current Worker contains an undefined `connect` argument in developer email dispatch: an isolated local test observed a 503 on an unauthenticated request instead of 401. A local fix was tested but not committed or deployed; verify and correct it through the normal reviewed change process.
 
+## Staged mail detail safety changes (not deployed)
+
+Sent HTML preview is sandboxed and blocks active/remote content. The incoming original remains downloadable; individual attachments and incoming HTML are not extracted. Unsafe outbox retry controls were removed pending a complete immutable-message and idempotency design. Threading, attachment transport and standards-compliant replies are not implemented; see `docs/MAIL_THREADS_DESIGN.md`. Validate Android WebView downloads and authenticated account behavior separately.
+
 ## 1. Product purpose and truthful status
 
 LeadMASTER is an email workspace and developer integration service. The landing page and integrated documentation are the public product entry point. Human sign-in, API-key management, account-scoped REST routes and webhook code exist. The dashboard displays the authenticated account identity and API base URL, and links to the developer console; campaigns, audiences, persistent templates, domain management and analytics are not complete modules. The email API and webhook paths require controlled authenticated end-to-end acceptance testing before delivery guarantees can be claimed.

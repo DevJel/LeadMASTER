@@ -8,6 +8,7 @@ test('outbox and composer use persisted production send queue results',async()=>
  assert.match(app,/Queued/);
  assert.match(app,/Failed/);
  assert.match(app,/Queue acceptance is not delivery confirmation/);
- assert.match(app,/async function resendOutbox/);
- assert.match(app,/async function sendAllNow/);
+ assert.doesNotMatch(app,/async function resendOutbox/);
+ assert.doesNotMatch(app,/async function sendAllNow/);
+ assert.match(app,/Unknown outcomes must be reconciled/);
 });

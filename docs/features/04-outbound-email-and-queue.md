@@ -57,6 +57,10 @@ sequenceDiagram
 - Failed queue consumer: `workers/mail-failed-consumer.js`
 - Operational details: `docs/QUEUE_DESIGN.md`, `docs/QUEUE_SUBMISSION_SAFETY.md`, `docs/MAIL_WORKFLOW.md`
 
+## Message detail and retry limitations
+
+The staged dashboard can display an existing sent HTML alternative in an isolated preview that blocks active content and remote resources. The old retry buttons were removed because they could retry active or uncertain work and omit original fields. A complete safe retry workflow and attachment transport are not yet implemented; see [MAIL_THREADS_DESIGN.md](../MAIL_THREADS_DESIGN.md). This is not a deployment claim.
+
 ## Recovery rules
 
 Inspect the message/batch status before retrying. A confirmed accepted outcome is not resent. A confirmed failed outcome may be retried only according to the safe retry policy. An unknown or partially submitted batch requires reconciliation; never assume a timeout means nothing was sent.
