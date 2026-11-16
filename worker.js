@@ -14,6 +14,7 @@ import { verifyTurnstile } from "./src/turnstile.mjs";
 import { sesSnsEvents } from "./src/ses-sns-events.mjs";
 import { receiveInboundEmail } from "./src/inbound-email-handler.mjs";
 import { leadmasterRecordsRoute } from "./src/leadmaster-records-api.mjs";
+import { runDailyReporter, reporterStatus } from "./src/daily-reporter.mjs";
 export { EmailCoordinator } from "./src/email-coordinator.mjs";
 
 const HOSTNAME = "leadmaster.jelvan.pro";
@@ -615,6 +616,20 @@ async function handle(request, env, ctx) {
   if (url.pathname === "/api/admin/activity") return adminActivityRoute(request,env,adminSession);
   if (url.pathname === "/api/admin/notifications" || url.pathname.startsWith("/api/admin/notifications/")) return adminNotificationsRoute(request,env,adminSession);
 
+  if (url.pathname === "/api/admin/reporter/status") {
+    if (!adminSession) return json({ error: "Unauthorized" }, 401);
+    if (adminSession.email !== await configuredAdminEmail(env)) return json({ error: "Forbidden" }, 403);
+    if (request.method !== "GET") return json({ error: "Method not allowed" }, 405, { allow: "GET" });
+    return json({ runs: await reporterStatus(env, 14) });
+  }
+  if (url.pathname === "/api/admin/reporter/run") {
+    if (!adminSession) return json({ error: "Unauthorized" }, 401);
+    if (adminSession.email !== await configuredAdminEmail(env)) return json({ error: "Forbidden" }, 403);
+    if (request.method !== "POST" || !sameOrigin(request)) return json({ error: "Invalid request" }, 403);
+    const result = await runDailyReporter(env, Date.now(), { manual: true });
+    return json(result, result.status === "sent" || result.skipped ? 200 : 503);
+  }
+
   if (url.pathname === "/api/developer/keys" || url.pathname.startsWith("/api/developer/keys/")) {
     const session = await sessionFor(request, env);
     return developerAdminRoute(request, env, session);
@@ -697,6 +712,13 @@ export default {
     } catch {
       return json({ error: "Service temporarily unavailable" }, 503);
     }
+  },
+  async scheduled(controller, env, ctx) {
+    ctx.waitUntil(runDailyReporter(env, controller.scheduledTime).then(result => {
+      console.log(JSON.stringify({ event: "leadmaster_daily_reporter_completed", reportDate: result.reportDate, status: result.status || (result.skipped ? "skipped" : "unknown"), checks: result.summary?.total || 0 }));
+    }).catch(error => {
+      console.error(JSON.stringify({ event: "leadmaster_daily_reporter_failed", error: String(error?.message || error).slice(0, 500) }));
+    }));
   },
   async email(message, env) {
     try {
