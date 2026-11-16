@@ -8,7 +8,7 @@ import { readBoundedJson } from "./src/bounded-json.mjs";
 import { sendThroughEmailCoordinator } from "./src/email-coordinator-client.mjs";
 import { emailOtpTemplate, emailSecurityAlertTemplate } from "./src/email-templates.mjs";
 import { staticAssets } from "./src/static-assets.mjs";
-import { resolvePageRoute } from "./src/page-routes.mjs";
+import { isProtectedPageAsset, resolvePageRoute } from "./src/page-routes.mjs";
 import { developerAdminRoute, developerEmailRoute, developerEmailStatus, developerAccountInfo } from "./src/developer-api.mjs";
 import { webhookRoute, adminWebhookRoute } from "./src/developer-webhooks.mjs";
 import { verifyTurnstile } from "./src/turnstile.mjs";
@@ -631,6 +631,12 @@ async function handle(request, env, ctx) {
     const canonicalUrl = new URL(canonicalPath, url.origin);
     canonicalUrl.search = url.search;
     return Response.redirect(canonicalUrl, 308);
+  }
+
+  // Preserve the old dashboard namespace boundary: unknown dashboard subpaths
+  // stay private and return 404 after authentication instead of reaching upstream.
+  if (!pageRoute.isPage && (routePath.startsWith("/dashboard/") || routePath.startsWith("/dashboard.")) && !isProtectedPageAsset(routePath)) {
+    return new Response("Not found", { status: 404, headers: { "cache-control": "no-store", "x-content-type-options": "nosniff" } });
   }
 
   if (url.pathname === "/api/aws/ses-events") return sesSnsEvents(request,env);
