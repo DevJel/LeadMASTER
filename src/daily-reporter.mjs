@@ -177,7 +177,7 @@ async function checkApplication(env, checks) {
 }
 async function checkDatabase(env, checks) {
   if (!env.AUTH_DB || typeof env.AUTH_DB.prepare !== "function") {
-    checks.push(makeCheck("Cloudflare Runtime", "D1 database binding", "Unable to Fix", "AUTH_DB is not available in this Worker runtime.", "Restore the AUTH_DB D1 binding in the LeadMASTER Worker configuration."));
+    checks.push(makeCheck("Cloudflare Runtime", "Turso database connection", "Unable to Fix", "The Turso database adapter is not available in this Worker runtime.", "Restore TURSO_URL and TURSO_AUTH_TOKEN in the LeadMASTER Worker configuration."));
     return;
   }
   try {
