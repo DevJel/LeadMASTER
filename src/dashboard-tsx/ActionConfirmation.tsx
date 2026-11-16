@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import './action-confirmation.css';
 
 export type ActionConfirmationRequest = {
   title: string;
