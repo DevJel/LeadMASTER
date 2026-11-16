@@ -78,7 +78,13 @@
       "persist": true
     }
   },
-  "kv_namespaces": [\n    {\n      "binding": "AUTO_HEAL_KV",\n      "id": "504506b1b6b3406d89325f17a8a3cf17"\n    }\n  ],\n  "r2_buckets": [
+  "kv_namespaces": [
+    {
+      "binding": "AUTO_HEAL_KV",
+      "id": "504506b1b6b3406d89325f17a8a3cf17"
+    }
+  ],
+  "r2_buckets": [
     {
       "binding": "INBOUND_MAIL",
       "bucket_name": "leadmaster-inbound-mail"
