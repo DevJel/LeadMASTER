@@ -111,3 +111,8 @@ Before the production endpoint is advertised, run:
 7. Cloudflare production route checks and a final deployment smoke test.
 
 The local test suite does not prove live inbox delivery or successful third-party webhook receipt. Keep claims limited to the evidence collected.
+
+
+## External platform boundaries
+
+This MCP server does not inherit Gmail, Google Drive, GitHub, Slack or Notion OAuth sessions from ChatGPT, Notion, or another connector. Those credentials are not exposed to LeadMASTER by a Notion API integration. Each external platform must be separately authorized through its official OAuth/API flow or an explicitly configured automation gateway. The current LeadMASTER MCP tools are limited to LeadMASTER transactional email and webhook resources.
