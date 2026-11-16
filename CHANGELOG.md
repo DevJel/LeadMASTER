@@ -1,3 +1,11 @@
+## 2026-11-16 — Premium inbox and navigation refinement (staged; not deployed)
+
+- Removed the Primary, Promotions, Social, Updates and Forums category strip and its category-only inbox filtering; the inbox now presents one unified message list.
+- Rebuilt the workspace header with the transparent full LeadMASTER logo at top left, a centered search field and right-aligned utility actions. Removed the header profile control and duplicate Settings shortcut.
+- Moved Profile & Settings to the bottom of the sidebar, removed Settings from the main navigation list, and added accessible expand/collapse controls. Mobile navigation opens from a bottom-edge control.
+- Updated local screenshot automation and regression tests. The dashboard remains the shared responsive React surface used by Android WebView; no native Android code or backend API behavior changed.
+- Source change only until CI, generated assets, authenticated browser checks and the production Worker deployment are verified.
+
 ## 2026-11-16 — Documentation screenshot atlas (not deployed)
 
 - Captured watermarked local desktop/mobile UI previews for the public tabs, Help Center, login/code layouts, workspace views, inbox categories and six utilities. The code view is static markup only; no human challenge, OTP or real account is used.
