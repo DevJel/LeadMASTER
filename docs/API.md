@@ -224,6 +224,8 @@ export function verifyLeadMasterWebhook(req, rawBody, secret) {
 - `DELETE /api/v1/accounts/{account_id}/webhooks/{id}` — revoke a subscription.
 - `GET /api/v1/accounts/{account_id}/webhooks/{id}/deliveries` — inspect the latest 50 delivery attempts.
 
+Webhook registration requires an `application/json` object no larger than 8,192 bytes; callback URLs are limited to 2,048 UTF-8 bytes. Developer key creation is limited to 4,000 bytes and email submission to 250,000 bytes. Bodies are rejected while streaming when they exceed the limit.
+
 A webhook URL must use HTTPS and cannot contain URL credentials. Literal IP addresses and local/internal hostnames are rejected, but validation does not pin DNS answers or guarantee protection from DNS rebinding. Register only callback hosts you control and prevent them from resolving or rebinding to private network addresses. LeadMASTER sends a POST with redirects disabled and a seven-second timeout. Each matching event currently receives one delivery attempt; non-2xx responses and network errors are recorded as unsuccessful. Automatic retries, replay controls, dead-letter recovery and delivery guarantees are not yet implemented. Your endpoint should respond quickly with a 2xx status and process work asynchronously. Treat event delivery as at-least-once from your application's perspective and deduplicate by event ID.
 
 Delivery events describe email submission outcomes only. They are not SES bounce, complaint, unsubscribe, open or click events.

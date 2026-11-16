@@ -1,4 +1,5 @@
 import { sendSesEmail } from "./ses-smtp.mjs";
+import { readBoundedJson } from "./bounded-json.mjs";
 import { deliverWebhookEvent } from "./developer-webhooks.mjs";
 import { submitInOrder, writeBestEffort } from "./queue-submission.mjs";
 const enc = new TextEncoder();
@@ -17,7 +18,7 @@ function validMessage(v){
  if(v.reply_to!==undefined&&(typeof v.reply_to!=="string"||v.reply_to.length>254||!email.test(v.reply_to)||v.reply_to.includes("..")))return false;
  return true;
 }
-async function readBody(req,max=250000){const raw=await req.text();if(enc.encode(raw).length>max)throw Error("large");const v=JSON.parse(raw);if(!v||typeof v!=="object"||Array.isArray(v))throw Error("invalid");return v;}
+async function readBody(req,max=250000){return readBoundedJson(req,max)}
 export async function developerAdminRoute(request,env,session){
  if(!session)return json({error:"Unauthorized"},401);
  if(request.method!=="GET" && request.headers.get("Origin")!==new URL(request.url).origin)return json({error:"Invalid request origin"},403);

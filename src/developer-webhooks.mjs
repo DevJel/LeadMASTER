@@ -1,3 +1,4 @@
+import { readBoundedJson } from "./bounded-json.mjs";
 const enc=new TextEncoder();
 const json=(v,s=200)=>Response.json(v,{status:s,headers:{"cache-control":"no-store","x-content-type-options":"nosniff"}});
 const b64=b=>{let s="";for(const x of b)s+=String.fromCharCode(x);return btoa(s).replaceAll("+","-").replaceAll("/","_").replace(/=+$/,"")};
@@ -17,7 +18,17 @@ async function auth(req,env){
  if(!row||row.revoked_at||await sha(m[1])!==row.key_hash)return null;
  return {...row,scopes:JSON.parse(row.scopes||"[]")};
 }
-function safeUrl(value){try{const u=new URL(value),host=u.hostname.toLowerCase();const ipLiteral=/^(?:\d{1,3}\.){3}\d{1,3}$/.test(host)||host.includes(":");const reserved=/^(localhost|.*\.(?:local|internal|test|invalid|example))$/.test(host);return u.protocol==="https:"&&(!u.port||u.port==="443")&&!u.username&&!u.password&&!ipLiteral&&!reserved&&host.includes(".")?u:null}catch{return null}}
+// Syntax checks only: this does not pin DNS or prevent DNS rebinding.
+function safeUrl(value){
+ try{
+  if(typeof value!=="string"||enc.encode(value).length>2048)return null;
+  const u=new URL(value),host=u.hostname.toLowerCase().replace(/\.$/,"");
+  const ipLiteral=/^(?:\d{1,3}\.){3}\d{1,3}$/.test(host)||host.includes(":");
+  const reserved=/(?:^|\.)(?:localhost|local|internal|test|invalid|example)$/.test(host);
+  const validHost=host.length<=253&&host.includes(".")&&host.split(".").every(label=>/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label));
+  return u.protocol==="https:"&&(!u.port||u.port==="443")&&!u.username&&!u.password&&!ipLiteral&&!reserved&&validHost?u:null;
+ }catch{return null}
+}
 export async function webhookRoute(req,env,accountId){
  if(!env.AUTH_DB)return json({error:"Service unavailable"},503);
  const key=await auth(req,env);if(!key)return json({error:"Unauthorized"},401);if(key.account_id!==accountId)return json({error:"Not found"},404);
@@ -28,7 +39,7 @@ export async function webhookRoute(req,env,accountId){
   return json({webhooks:(rows.results||[]).map(r=>({...r,events:JSON.parse(r.events)}))});
  }
  if(parts.length===5&&parts[4]==="webhooks"&&req.method==="POST"){
-  let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}
+  let body;try{body=await readBoundedJson(req,8192)}catch{return json({error:"Invalid JSON"},400)}
   const name=typeof body.name==="string"?body.name.trim():"",target=safeUrl(body.url),events=Array.isArray(body.events)?[...new Set(body.events)]:[];
   if(!name||name.length>80||!target||!events.length||events.some(e=>!EVENTS.includes(e)))return json({error:"Provide a name, public HTTPS URL and supported events"},400);
   const id=crypto.randomUUID(),secret=makeSecret(),now=Date.now();
@@ -56,10 +67,10 @@ export async function deliverWebhookEvent(env,eventType,eventData,apiKeyId,accou
   const signature=await crypto.subtle.sign("HMAC",await crypto.subtle.importKey("raw",enc.encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]),enc.encode(timestamp+"."+body));
   const sig=Array.from(new Uint8Array(signature),b=>b.toString(16).padStart(2,"0")).join("");
   let status=null,success=0;
-  try{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),7000);try{const response=await fetch(hook.target_url,{method:"POST",headers:{"content-type":"application/json","user-agent":"LeadMASTER-Webhooks/1.0","leadmaster-id":eventId,"leadmaster-timestamp":String(timestamp),"leadmaster-signature":"v1="+sig},body,signal:controller.signal,redirect:"manual"});status=response.status;success=response.ok?1:0;}finally{clearTimeout(timer)}}catch{}
+  try{const target=safeUrl(hook.target_url);if(!target)throw Error("Invalid webhook target");const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),7000);try{const response=await fetch(target.href,{method:"POST",headers:{"content-type":"application/json","user-agent":"LeadMASTER-Webhooks/1.0","leadmaster-id":eventId,"leadmaster-timestamp":String(timestamp),"leadmaster-signature":"v1="+sig},body,signal:controller.signal,redirect:"manual"});status=response.status;success=response.ok?1:0;}finally{clearTimeout(timer)}}catch{}
   const now=Date.now();
   await env.AUTH_DB.prepare("INSERT INTO developer_webhook_deliveries (id,webhook_id,event_type,event_id,http_status,attempted_at,success) VALUES (?,?,?,?,?,?,?)").bind(crypto.randomUUID(),hook.id,eventType,eventId,status,now,success).run();
-  await env.AUTH_DB.prepare("UPDATE developer_webhooks SET last_delivery_at=? WHERE id=?").bind(now,hook.id).run();
+  await env.AUTH_DB.prepare("UPDATE developer_webhooks SET last_delivery_at=? WHERE id=? AND api_key_id=? AND account_id=?").bind(now,hook.id,apiKeyId,accountId).run();
   }catch{}
  }
 }
@@ -75,7 +86,7 @@ export async function adminWebhookRoute(req,env,session){
   return json({webhooks:(rows.results||[]).map(r=>({...r,events:JSON.parse(r.events||"[]")}))});
  }
  if(parts.length===3&&req.method==="POST"){
-  let body;try{body=await req.json()}catch{return json({error:"Invalid JSON"},400)}
+  let body;try{body=await readBoundedJson(req,8192)}catch{return json({error:"Invalid JSON"},400)}
   const name=typeof body.name==="string"?body.name.trim():"",target=safeUrl(body.url),events=Array.isArray(body.events)?[...new Set(body.events)]:[],keyId=String(body.api_key_id||"");
   if(!name||name.length>80||!target||!events.length||events.some(e=>!EVENTS.includes(e))||!/^[0-9a-f-]{36}$/i.test(keyId))return json({error:"Provide a name, public HTTPS URL, supported events and an API key with webhook:manage scope."},400);
   const key=await env.AUTH_DB.prepare("SELECT id,scopes FROM developer_api_keys WHERE id=? AND account_id=? AND revoked_at IS NULL").bind(keyId,session.accountId).first();
