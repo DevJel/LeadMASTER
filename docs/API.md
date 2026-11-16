@@ -52,6 +52,8 @@ Do not use browser-exposed names such as `NEXT_PUBLIC_*` or `VITE_*`.
 
 Headers: `Authorization: Bearer <key>`, `Content-Type: application/json`, and a stable `Idempotency-Key` (16–128 characters).
 
+For requests created after the fingerprint migration, retrying the same key with the same payload returns the existing request without re-enqueueing; changing the payload returns `409` and the original request ID and status. Requests created before the migration cannot be safely compared and also return `409` on replay, with the original ID for status checks and reconciliation. A concurrent retry may initially receive `409` and should retry the same key and payload. Never use a new key until the original outcome is reconciled. A `sending` replay is not proof of queue acceptance or delivery.
+
 ```json
 {
   "to": "recipient@example.com",
