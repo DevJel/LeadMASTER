@@ -29,7 +29,7 @@ const PROTECTED_ASSETS = new Set([
   "/assets/vendor/dompurify.min.js"
 ]);
 
-export function resolvePageRoute(pathname) {
+export function isProtectedPageAsset(pathname) {\n  return PROTECTED_ASSETS.has(String(pathname || "").toLowerCase());\n}\n\nexport function resolvePageRoute(pathname) {
   const normalizedPath = String(pathname || "/").toLowerCase().replace(/\/+$/, "") || "/";
   const cleanRoute = CLEAN_PAGE_ROUTES[normalizedPath];
   if (cleanRoute) {
@@ -61,6 +61,6 @@ export function resolvePageRoute(pathname) {
     canonicalPath: null,
     redirect: false,
     isPage: false,
-    requiresSession: PROTECTED_ASSETS.has(normalizedPath)
+    requiresSession: PROTECTED_ASSETS.has(normalizedPath) || normalizedPath.startsWith("/dashboard/") || normalizedPath.startsWith("/dashboard.")
   };
 }
