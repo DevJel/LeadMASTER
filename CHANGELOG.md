@@ -1,3 +1,10 @@
+## 2026-11-16 — Auto-heal credential boundary (not deployed)
+
+- Stopped forwarding GitHub Actions repository tokens to the incident endpoint; repository operations use only the Worker-configured credential.
+- Isolated the rejection audit step from the GitHub CLI credential, reduced incident workflow permissions, and added regression tests for untrusted payload tokens.
+- Restored the static-asset build prerequisite in the auto-heal guard. No customer UI, account data, API contract or Android behavior changed.
+- Before release, verify a least-privilege Worker credential exists, deploy the Worker before the workflow change, and test both incident and rejection paths. Missing credentials cause manual-action fallback.
+
 ## 2026-11-16 — Dashboard validation CI repair (not deployed)
 
 - Repaired the staged dashboard bundle validation script after a malformed recent edit, retaining JavaScript, component CSS and shared sending-indicator stylesheet checks.
