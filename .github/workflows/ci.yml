@@ -43,6 +43,7 @@ jobs:
       - name: Syntax-check account and route modules
         run: |
           node --check worker.js
+          node --check src/auth-read-retry.mjs
           node --check src/auto-heal.mjs
           node --check src/daily-reporter.mjs
           node --check src/email-coordinator.mjs
