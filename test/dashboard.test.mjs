@@ -48,7 +48,7 @@ test('design CSS retains the monochrome palette and responsive workspace layout'
  assert.match(css, /--bg:#FFFFFF/);
  assert.match(css, /--text:#2B2B2B/);
  assert.match(css, /prefers-reduced-motion/);
- assert.match(css, /--safe-area-inset-top/);
+ assert.match(css, /color-scheme:light/);
  const app = await read('../required-componets-design/App.tsx');
  assert.match(app, /<aside/);
  assert.match(app, /<main/);
