@@ -258,8 +258,8 @@ export default function App(){
   const [activeTab, setActiveTab] = useState<Category>('Primary');
   const [view, setView] = useState<View>('inbox');
   const [previousView, setPreviousView] = useState<View>('inbox');
-  const [starred, setStarred] = useState<Set<string>>(new Set(['e3','e7','e2']));
-  const [readIds, setReadIds] = useState<Set<string>>(new Set(SAMPLE.filter(e=>!e.unread).map(e=>e.id)));
+  const [starred, setStarred] = useState<Set<string>>(new Set());
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [archived, setArchived] = useState<Set<string>>(new Set());
   const [deleted, setDeleted] = useState<Set<string>>(new Set());
   const [deletedForever, setDeletedForever] = useState<Set<string>>(new Set());
@@ -293,9 +293,9 @@ export default function App(){
   const showLoading = isLoading || busy;
 
   const [theme] = useState<'system'|'light'|'dark'>('light');
-  const [profileName, setProfileName] = useState('Alex Morgan');
-  const [profileEmail, setProfileEmail] = useState('alex.morgan@leadmaster.com');
-  const [signature, setSignature] = useState('Best,\nAlex Morgan\nLeadMaster · Sales Lead\nalex.morgan@leadmaster.com');
+  const [profileName, setProfileName] = useState('LeadMASTER User');
+  const [profileEmail, setProfileEmail] = useState('hello@work.jelvan.pro');
+  const [signature, setSignature] = useState('Best,\nLeadMASTER');
   const [notifEmail, setNotifEmail] = useState(true);
   const [notifDesktop, setNotifDesktop] = useState(true);
   const [notifSound, setNotifSound] = useState(false);
@@ -304,10 +304,10 @@ export default function App(){
   const [vacationSubject, setVacationSubject] = useState('Out of office — back Monday');
   const [vacationBody, setVacationBody] = useState('Thanks for your message! I’m out of office and will reply when I’m back on Monday. For urgent leads, contact team@leadmaster.com.');
 
-  const [templates, setTemplates] = useState<Template[]>(DEFAULT_TEMPLATES);
-  const [rules, setRules] = useState<Rule[]>(DEFAULT_RULES);
-  const [scheduled, setScheduled] = useState<ScheduledItem[]>(DEFAULT_SCHEDULED);
-  const [outbox, setOutbox] = useState<OutboxItem[]>(DEFAULT_OUTBOX);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [scheduled, setScheduled] = useState<ScheduledItem[]>([]);
+  const [outbox, setOutbox] = useState<OutboxItem[]>([]);
   const [showRuleForm, setShowRuleForm] = useState(false);
   const [ruleForm, setRuleForm] = useState({name:'', triggerType:'sender' as 'sender'|'subject', contains:'', action:'label' as Rule['action'], actionValue:'Work'});
   const [showTemplateForm, setShowTemplateForm] = useState(false);
@@ -338,9 +338,9 @@ export default function App(){
   const [contactSearch, setContactSearch] = useState('');
   const [showContactForm, setShowContactForm] = useState(false);
   const [contactForm, setContactForm] = useState({name:'', email:'', company:'', phone:'', role:'', location:''});
-  const [contacts, setContacts] = useState<Contact[]>(DEFAULT_CONTACTS);
-  const [reminders, setReminders] = useState<Reminder[]>(DEFAULT_REMINDERS);
-  const [notes, setNotes] = useState<NoteItem[]>(DEFAULT_NOTES);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [notes, setNotes] = useState<NoteItem[]>([]);
   const [calendarDate, setCalendarDate] = useState(()=>{ const d=new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); });
   const [selectedDay, setSelectedDay] = useState(()=> new Date().toISOString().slice(0,10));
   const [showReminderForm, setShowReminderForm] = useState(false);
@@ -398,13 +398,13 @@ export default function App(){
   }
   function simulateError(){ setViewLoading(false); setViewError(true); }
 
-  const allEmails = useMemo(()=> [...userEmails, ...SAMPLE].filter(e=>!deletedForever.has(e.id)), [userEmails, deletedForever]);
+  const allEmails = useMemo(()=> userEmails.filter(e=>!deletedForever.has(e.id)), [userEmails, deletedForever]);
   useEffect(()=>{ document.documentElement.setAttribute('data-theme','light'); },[theme]);
 
   async function reloadRecords(){
     setIsLoading(true); setLoadError('');
     try{
-      const [prefsData, msgsData, tplData, ruleData, schedData, contactsData, remindersData, notesData] = await Promise.all([
+      const [prefsData, msgsData, tplData, ruleData, schedData, contactsData, remindersData, notesData, inboxData, sentData, deletedData] = await Promise.all([
         api("records.list", {collection:'leadmaster_prefs'}),
         api("records.list", {collection:'leadmaster_messages'}),
         api("records.list", {collection:'leadmaster_templates'}),
@@ -413,6 +413,9 @@ export default function App(){
         api("records.list", {collection:'leadmaster_contacts'}),
         api("records.list", {collection:'leadmaster_reminders'}),
         api("records.list", {collection:'leadmaster_notes'}),
+        fetch('/api/admin/mail?folder=inbox', {credentials:'same-origin'}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`Inbox request failed (${r.status})`);return j;}),
+        fetch('/api/admin/mail?folder=sent', {credentials:'same-origin'}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`Sent request failed (${r.status})`);return j;}),
+        fetch('/api/admin/mail?folder=deleted', {credentials:'same-origin'}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`Deleted request failed (${r.status})`);return j;}),
       ]);
       const prefsRec = prefsData?.records?.[0];
       if(prefsRec){
@@ -426,15 +429,22 @@ export default function App(){
         if(Array.isArray(v.componentHidden)) setHiddenComponents(new Set(v.componentHidden as View[]));
         if(v.senderNotes) setSenderNotes(v.senderNotes);
       }
-      const msgs = (msgsData?.records||[]).map((r:any)=>{ const v=r.value||{}; return {id:r.id, sender: v.kind==='sent'?'Me':(v.to||'Me'), email: v.kind==='sent'?'me@leadmaster.com':(v.to||''), initials:'Me', color:'#111111', subject:v.subject||'(no subject)', snippet:(v.body||'').slice(0,110)||'Draft — no body yet.', body:v.body||'', category:'Primary' as Category, label:null, date:'Today', time:'Now', unread: v.kind==='draft', attachment:false, folder: v.kind==='sent'?'sent':'drafts' as Folder, isUser:true} as Email; });
-      setUserEmails(msgs);
+      const formatMailDate=(value:any)=>{const d=new Date(typeof value==='number'?value:(value||Date.now()));return Number.isNaN(d.getTime())?'':d.toLocaleDateString([], {month:'short',day:'numeric'});};
+      const formatMailTime=(value:any)=>{const d=new Date(typeof value==='number'?value:(value||Date.now()));return Number.isNaN(d.getTime())?'':d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});};
+      const inboxRows=(inboxData?.items||[]).map((m:any)=>({id:m.id,sender:m.from_name||m.from_address||'Unknown sender',email:m.from_address||'',initials:initialsFor(m.from_name||m.from_address||'?'),color:'#333333',subject:m.subject||'(no subject)',snippet:'Open message to load its contents.',body:'',category:'Primary' as Category,label:null,date:formatMailDate(m.received_at),time:formatMailTime(m.received_at),unread:!m.read_at,attachment:Number(m.size_bytes||0)>0,folder:'inbox' as Folder,isUser:false} as Email));
+      const sentRows=(sentData?.items||[]).map((m:any)=>({id:m.id,sender:'Me',email:m.recipient||'',initials:'Me',color:'#111111',subject:m.subject||'(no subject)',snippet:`${m.delivery_status||m.queue_status||m.status||'Status unavailable'}`,body:m.text_body||'',category:'Primary' as Category,label:null,date:formatMailDate(m.created_at),time:formatMailTime(m.created_at),unread:false,attachment:false,folder:'sent' as Folder,isUser:true} as Email));
+      const deletedRows=(deletedData?.items||[]).map((m:any)=>({id:m.id,sender:m.from_address||m.from_email||'Deleted message',email:m.from_address||m.recipient||'',initials:'DL',color:'#555555',subject:m.subject||'(no subject)',snippet:'Deleted message',body:'',category:'Primary' as Category,label:null,date:formatMailDate(m.received_at),time:formatMailTime(m.received_at),unread:false,attachment:false,folder:(m.kind==='sent'?'sent':'inbox') as Folder,isUser:m.kind==='sent'} as Email));
+      const draftRows=(msgsData?.records||[]).filter((r:any)=>r.value?.kind==='draft').map((r:any)=>{const v=r.value||{};return {id:r.id,sender:'Draft',email:v.to||'',initials:'DR',color:'#555555',subject:v.subject||'(no subject)',snippet:(v.body||'').slice(0,110),body:v.body||'',category:'Primary' as Category,label:null,date:'Saved',time:'',unread:false,attachment:false,folder:'drafts' as Folder,isUser:true} as Email;});
+      setUserEmails([...inboxRows,...sentRows,...deletedRows,...draftRows]);
+      setDeleted(new Set(deletedRows.map((m:any)=>m.id)));
+      setOutbox((sentData?.items||[]).filter((m:any)=>['queued','processing','retrying','sending','failed','unknown'].includes(String(m.queue_status||m.status||'').toLowerCase()) || ['bounced','rejected','failed'].includes(String(m.delivery_status||'').toLowerCase())).map((m:any)=>({id:m.id,to:m.recipient||'',subject:m.subject||'(no subject)',body:m.text_body||'',status:(['failed','unknown','bounced','rejected'].includes(String(m.delivery_status||m.status||'').toLowerCase())?'Failed':String(m.queue_status||'').toLowerCase()==='processing'?'Sending':'Queued') as OutboxItem['status'],error:m.error_code||undefined,attempt:`${m.queue_status||m.delivery_status||m.status||'Status pending'} · ${formatMailTime(m.updated_at||m.created_at)}`})));
       if((tplData?.records||[]).length){ setTemplates(tplData.records.map((r:any)=>({...r.value, id:r.value?.id||r.id, recordId:r.id}))); }
       if((ruleData?.records||[]).length){ setRules(ruleData.records.map((r:any)=>({...r.value, id:r.value?.id||r.id, recordId:r.id}))); }
       if((schedData?.records||[]).length){ setScheduled(schedData.records.map((r:any)=>({...r.value, id:r.value?.id||r.id, recordId:r.id}))); }
       if((contactsData?.records||[]).length){ setContacts(contactsData.records.map((r:any)=>({...r.value, id:r.value?.id||r.id, recordId:r.id}))); }
       if((remindersData?.records||[]).length){ setReminders(remindersData.records.map((r:any)=>({...r.value, id:r.value?.id||r.id, recordId:r.id}))); }
       if((notesData?.records||[]).length){ setNotes(notesData.records.map((r:any)=>({...r.value, id:r.value?.id||r.id, recordId:r.id}))); }
-    }catch(e){ const msg = e instanceof Error? e.message : String(e); setLoadError(`Couldn’t load saved LeadMaster data — ${msg}. Your sample inbox is still shown.`); }
+    }catch(e){ const msg = e instanceof Error? e.message : String(e); setLoadError(`Couldn’t load production mailbox data — ${msg}. Retry after checking your admin session and mailbox connection.`); }
     finally{ setIsLoading(false); }
   }
   useEffect(()=>{ reloadRecords(); },[]);
@@ -530,23 +540,35 @@ export default function App(){
   async function handleSendOrDraft(kind:'sent'|'draft'){
     if(!compose.to.trim() && kind==='sent'){ setStatus('Add a recipient before sending.'); return; }
     if(!compose.subject.trim() && !compose.body.trim() && kind==='draft'){ setStatus('Draft is empty — add a subject or body first.'); return; }
-    const key = `leadmaster-msg-${uid()}`; const row = {kind, to:compose.to.trim()||'Me', subject:compose.subject.trim()||'(no subject)', body:compose.body, _key:key}; const rows=[row];
-    setBusy(true); let saved=0; let error:string|null=null;
-    try{ for(const r of rows){ await createRow(r); saved+=1; } }catch(e){ error = e instanceof Error? e.message : String(e); }
-    let reloadError:string|null=null; try{ await reloadRecords(); }catch(e){ reloadError = e instanceof Error? e.message : String(e); }
-    setBusy(false);
-    if(error){ setStatus(`Saved ${saved} of ${rows.length} — ${error}. ${reloadError?`Reload also failed: ${reloadError}`:''} Your message is still in the compose window.`); setActionError(error); return; }
-    setComposeOpen(false); setCompose({to:'',cc:'',bcc:'',subject:'',body:'',showCc:false}); setStatus(kind==='sent'? `Message sent — saved ${saved} of ${rows.length}. Find it in Sent.` : `Draft saved — saved ${saved} of ${rows.length}.`); if(kind==='sent') setView('sent'); setOpenEmailId(null);
+    setBusy(true); setActionError('');
+    try{
+      if(kind==='draft'){
+        const key=`leadmaster-draft-${uid()}`;
+        await createRow({kind:'draft',to:compose.to.trim(),subject:compose.subject.trim()||'(no subject)',body:compose.body,_key:key});
+        setStatus('Draft saved to your account.');
+      }else{
+        const body=compose.body||'';
+        const payload={to:compose.to.trim(),cc:compose.cc,bcc:compose.bcc,subject:compose.subject.trim(),text:containsHtml(body)?body.replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ').trim():body,html:containsHtml(body)?sanitizeHtml(body):undefined,fromEmail:profileEmail||'hello@work.jelvan.pro',fromName:profileName||'LeadMASTER'};
+        const res=await fetch('/api/admin/send',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
+        const result=await res.json().catch(()=>({}));
+        if(!res.ok) throw new Error(result.error||`Send request failed (${res.status})`);
+        setStatus(`Queued ${result.queued||1} message${(result.queued||1)===1?'':'s'}. Queue acceptance is not delivery confirmation.`);
+      }
+      setComposeOpen(false); setCompose({to:'',cc:'',bcc:'',subject:'',body:'',showCc:false});
+      if(kind==='sent') setView('outbox');
+      setOpenEmailId(null); await reloadRecords();
+    }catch(e){const message=e instanceof Error?e.message:String(e);setActionError(message);setStatus(kind==='sent'?`Not confirmed queued: ${message}`:`Draft was not saved: ${message}`);}
+    finally{setBusy(false);}
   }
   function scheduleCompose(){ if(!compose.to.trim()){ setStatus('Add a recipient before scheduling.'); return; } const item: ScheduledItem = {id:uid(), to:compose.to, subject:compose.subject||'(no subject)', body:compose.body, when: scheduleWhen || schedulePick || 'Tomorrow · 9:00 AM'}; setScheduled(prev=>[item, ...prev]); setComposeOpen(false); setCompose({to:'',cc:'',bcc:'',subject:'',body:'',showCc:false}); setView('scheduled'); setStatus('Scheduled — find it in Scheduled.'); (async()=>{ try{ const created = await api("records.create", {collection:'leadmaster_scheduled', value:item, idempotency_key:`leadmaster-sched-${item.id}`}); if(created?.id) setScheduled(prev=>prev.map(s=>s.id===item.id?{...s, recordId:created.id}:s)); }catch{ setActionError('Scheduled locally, but could not save it yet.'); } })(); }
   function toggleSelectAll(){ if(selected.size===filtered.length) setSelected(new Set()); else setSelected(new Set(filtered.map(e=>e.id))); }
   function bulkArchive(){ const next=new Set(archived); selected.forEach(id=>next.add(id)); setArchived(next); savePrefs({archived:next}); setStatus(`${selected.size} archived`); setSelected(new Set()); }
   function bulkDelete(){ const next=new Set(deleted); selected.forEach(id=>next.add(id)); setDeleted(next); savePrefs({deleted:next}); setStatus(`${selected.size} moved to Deleted`); setSelected(new Set()); }
 
-  function resendOutbox(id:string){ setOutbox(prev=>prev.map(o=>o.id===id?{...o, status:'Sending' as const, attempt:'Sending now…', error:undefined}:o)); setStatus('Resending…'); setTimeout(()=>{ setOutbox(prev=>prev.map(o=>o.id===id?{...o, status:'Queued' as const, attempt:'Queued · Will retry in 2 minutes'}:o)); setStatus('Queued again — it will send on the next attempt.'); }, 900); }
-  function cancelOutbox(id:string){ setOutbox(prev=>prev.filter(o=>o.id!==id)); setStatus('Outbox message cancelled.'); }
-  function sendAllNow(){ if(outbox.length===0){ setStatus('Outbox is already clear.'); return; } setOutbox(prev=>prev.map(o=>({...o, status:'Sending' as const, attempt:'Sending now…', error:undefined}))); setStatus('Sending all outbox messages…'); setTimeout(()=>{ setOutbox([]); setStatus('All outbox messages sent — Outbox is clear.'); }, 1000); }
-  function sendNowScheduled(item:ScheduledItem){ setScheduled(prev=>prev.filter(s=>s.id!==item.id)); setStatus(`“${item.subject}” sent now — find it in Sent.`); if(item.recordId){ api("records.delete", {collection:'leadmaster_scheduled', id:item.recordId}).catch(()=>setActionError('Could not delete the scheduled record yet.')); } }
+  async function resendOutbox(id:string){ const item=outbox.find(o=>o.id===id); if(!item)return; setBusy(true); try{const res=await fetch('/api/admin/send',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({to:item.to,subject:item.subject,text:item.body,fromEmail:profileEmail||'hello@work.jelvan.pro',fromName:profileName||'LeadMASTER'})});const j=await res.json().catch(()=>({}));if(!res.ok)throw new Error(j.error||`Resend failed (${res.status})`);setStatus('Retry queued. Delivery will be shown only after a delivery event is recorded.');await reloadRecords();}catch(e){setActionError(e instanceof Error?e.message:String(e));setStatus('Retry was not queued.');}finally{setBusy(false);}}
+  function cancelOutbox(id:string){ setStatus('This message cannot be cancelled from the dashboard after it has entered the sending queue.'); }
+  async function sendAllNow(){ if(outbox.length===0){ setStatus('Outbox is already clear.'); return; } setBusy(true);let queued=0,failed=0;for(const item of outbox){try{const res=await fetch('/api/admin/send',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({to:item.to,subject:item.subject,text:item.body,fromEmail:profileEmail||'hello@work.jelvan.pro',fromName:profileName||'LeadMASTER'})});const j=await res.json().catch(()=>({}));if(!res.ok)throw new Error(j.error||'Queue rejected');queued+=Number(j.queued||1);}catch{failed++;}}await reloadRecords();setBusy(false);setStatus(`${queued} message(s) queued; ${failed} could not be queued. Queue acceptance is not delivery confirmation.`); }
+  async function sendNowScheduled(item:ScheduledItem){setBusy(true);try{const res=await fetch('/api/admin/send',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({to:item.to,subject:item.subject,text:item.body,fromEmail:profileEmail||'hello@work.jelvan.pro',fromName:profileName||'LeadMASTER'})});const j=await res.json().catch(()=>({}));if(!res.ok)throw new Error(j.error||`Send failed (${res.status})`);if(item.recordId)await api('records.delete',{collection:'leadmaster_scheduled',id:item.recordId});setScheduled(prev=>prev.filter(s=>s.id!==item.id));setStatus('Message queued now. Delivery is not yet confirmed.');await reloadRecords();}catch(e){setActionError(e instanceof Error?e.message:String(e));setStatus('Scheduled message was not removed because sending could not be confirmed.');}finally{setBusy(false);}}
   function cancelScheduled(item:ScheduledItem){ setScheduled(prev=>prev.filter(s=>s.id!==item.id)); setStatus('Scheduled message cancelled.'); if(item.recordId){ api("records.delete", {collection:'leadmaster_scheduled', id:item.recordId}).catch(()=>setActionError('Could not delete the scheduled record yet.')); } }
   function openEditSchedule(item:ScheduledItem){ setScheduleForm({id:item.id, to:item.to, subject:item.subject, body:item.body, when:item.when}); setShowScheduleForm(true); setSchedulePicker({id:item.id, when:item.when, dateTime:''}); }
   function saveSchedulePicker(){ if(!schedulePicker) return; const label = schedulePicker.dateTime ? new Date(schedulePicker.dateTime).toLocaleString([], {weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit'}) : schedulePicker.when; setScheduled(prev=>prev.map(s=>s.id===schedulePicker.id?{...s, when:label}:s)); setScheduleForm(prev=>({...prev, when:label})); setSchedulePicker(null); setShowScheduleForm(false); setStatus(`Schedule updated — will send ${label}.`); }
