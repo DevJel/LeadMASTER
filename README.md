@@ -279,8 +279,9 @@ Requirements: Node.js 20+ and npm.
 
 ```bash
 npm ci
-npm test
 npm run build:assets
+npm test
+npm run check:dashboard
 ```
 
 Run the application locally using the configured Worker development command in the deployment environment. Do not commit local credentials or production secrets.
@@ -652,8 +653,9 @@ Requirements: Node.js 20+ and npm.
 
 ~~~bash
 npm ci
-npm test
 npm run build:assets
+npm test
+npm run check:dashboard
 ~~~
 
 Before release, verify affected UI, API, persistence, migrations, security boundaries, documentation and generated assets. Include negative tests for invalid credentials, expired/reused OTPs, revoked API keys, missing scopes, wrong account IDs, duplicate idempotency keys, invalid webhook signatures and unauthorized resource access. Validate on the actual Cloudflare runtime and use an approved test recipient for SES acceptance checks.

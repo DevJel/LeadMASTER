@@ -1,3 +1,9 @@
+## 2026-11-16 — Dashboard validation CI repair (not deployed)
+
+- Repaired the staged dashboard bundle validation script after a malformed recent edit, retaining JavaScript, component CSS and shared sending-indicator stylesheet checks.
+- Added a regression test that runs the validator and documented the asset-build prerequisite for local checks.
+- No runtime, API, data, authentication, dashboard UI or Android behavior changed; Android shares the unchanged web workspace.
+- Local validation only; PR checks and production deployment are separate.
 ## 2026-11-16 — Feature architecture documentation and dashboard CI corrections (not deployed)
 
 - Added a central feature index and 14 feature guides under `docs/features/`, with Mermaid flows, source references, API/data connections, authorization boundaries and explicit availability limits.
