@@ -59,12 +59,25 @@ export function resolvePageRoute(pathname) {
     };
   }
 
+  // Keep dashboard deep links on the single authenticated dashboard page. Do not
+  // consume known protected bundle URLs; those must continue to serve as assets.
+  if ((normalizedPath.startsWith("/dashboard/") || normalizedPath.startsWith("/dashboard.")) && !PROTECTED_ASSETS.has(normalizedPath)) {
+    return {
+      path: normalizedPath,
+      assetPath: "/dashboard.html",
+      canonicalPath: "/dashboard",
+      redirect: true,
+      isPage: true,
+      requiresSession: true
+    };
+  }
+
   return {
     path: normalizedPath,
     assetPath: normalizedPath,
     canonicalPath: null,
     redirect: false,
     isPage: false,
-    requiresSession: PROTECTED_ASSETS.has(normalizedPath) || normalizedPath.startsWith("/dashboard/") || normalizedPath.startsWith("/dashboard.")
+    requiresSession: PROTECTED_ASSETS.has(normalizedPath)
   };
 }
