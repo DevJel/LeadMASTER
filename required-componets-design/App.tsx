@@ -160,8 +160,8 @@ function avatarKindForEmail(email:string){ const domain = (email||'').split('@')
 function avatarLabelForEmail(email:string){ return avatarKindForEmail(email)==='building' ? 'Organization' : 'Personal'; }
 function AvatarIcon({email, size=18}:{email:string; size?:number}){ return <UniformIcon name={avatarKindForEmail(email)} size={size} />; }
 
-async function api(action:string, args:any){
-  const res = await fetch("/api/workspace/actions", {method:'POST', credentials:'same-origin', headers:{'content-type':'application/json'}, body: JSON.stringify({action, args})});
+async function api(action:string, args:any, signal?:AbortSignal){
+  const res = await fetch("/api/workspace/actions", {method:'POST', credentials:'same-origin', headers:{'content-type':'application/json'}, body: JSON.stringify({action, args}), ...(signal ? {signal} : {})});
   const json = await res.json().catch(()=>({}));
   if(!res.ok || json.error) throw new Error(typeof json.error==='string'? json.error : (json.error?.message || `Request failed (${res.status})`));
   return json.data;
@@ -320,23 +320,26 @@ export default function App(){
   const allEmails = useMemo(()=> userEmails.filter(e=>!deletedForever.has(e.id)), [userEmails, deletedForever]);
   useEffect(()=>{ document.documentElement.setAttribute('data-theme','light'); },[theme]);
 
-  async function reloadRecords(options:{silent?:boolean}={}){
+  async function reloadRecords(options:{silent?:boolean; timeoutMs?:number}={}){
     const silent = options.silent === true;
+    const requestController = silent ? new AbortController() : null;
+    const requestTimeout = requestController ? window.setTimeout(()=>requestController.abort(),Math.max(1,options.timeoutMs??10000)) : null;
+    const requestSignal = requestController?.signal;
     if(!silent){ setIsLoading(true); setLoadError(''); }
     else setRefreshError('');
     try{
       const [prefsData, msgsData, tplData, ruleData, schedData, contactsData, remindersData, notesData, inboxData, sentData, deletedData] = await Promise.all([
-        api("records.list", {collection:'leadmaster_prefs'}),
-        api("records.list", {collection:'leadmaster_messages'}),
-        api("records.list", {collection:'leadmaster_templates'}),
-        api("records.list", {collection:'leadmaster_rules'}),
-        api("records.list", {collection:'leadmaster_scheduled'}),
-        api("records.list", {collection:'leadmaster_contacts'}),
-        api("records.list", {collection:'leadmaster_reminders'}),
-        api("records.list", {collection:'leadmaster_notes'}),
-        fetch('/api/admin/mail?folder=inbox', {credentials:'same-origin'}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`Inbox request failed (${r.status})`);return j;}),
-        fetch('/api/admin/mail?folder=sent', {credentials:'same-origin'}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`Sent request failed (${r.status})`);return j;}),
-        fetch('/api/admin/mail?folder=deleted', {credentials:'same-origin'}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`Deleted request failed (${r.status})`);return j;}),
+        api("records.list", {collection:'leadmaster_prefs'}, requestSignal),
+        api("records.list", {collection:'leadmaster_messages'}, requestSignal),
+        api("records.list", {collection:'leadmaster_templates'}, requestSignal),
+        api("records.list", {collection:'leadmaster_rules'}, requestSignal),
+        api("records.list", {collection:'leadmaster_scheduled'}, requestSignal),
+        api("records.list", {collection:'leadmaster_contacts'}, requestSignal),
+        api("records.list", {collection:'leadmaster_reminders'}, requestSignal),
+        api("records.list", {collection:'leadmaster_notes'}, requestSignal),
+        fetch('/api/admin/mail?folder=inbox', {credentials:'same-origin',signal:requestSignal}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`Inbox request failed (${r.status})`);return j;}),
+        fetch('/api/admin/mail?folder=sent', {credentials:'same-origin',signal:requestSignal}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`Sent request failed (${r.status})`);return j;}),
+        fetch('/api/admin/mail?folder=deleted', {credentials:'same-origin',signal:requestSignal}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`Deleted request failed (${r.status})`);return j;}),
       ]);
       if(!Array.isArray(prefsData?.records) || !Array.isArray(msgsData?.records) || !Array.isArray(tplData?.records) || !Array.isArray(ruleData?.records) || !Array.isArray(schedData?.records) || !Array.isArray(contactsData?.records) || !Array.isArray(remindersData?.records) || !Array.isArray(notesData?.records) || !Array.isArray(inboxData?.items) || !Array.isArray(sentData?.items) || !Array.isArray(deletedData?.items)) throw new Error('The server returned an incomplete workspace snapshot.');
       const prefsRec = prefsData?.records?.[0];
@@ -350,7 +353,7 @@ export default function App(){
         if(Array.isArray(v.componentOrder) && v.componentOrder.length){ const merged = [...(v.componentOrder as View[]), ...DEFAULT_COMPONENT_ORDER].filter((x,i,a)=>a.indexOf(x)===i); setComponentOrder(merged); }
         if(Array.isArray(v.componentHidden)) setHiddenComponents(new Set(v.componentHidden as View[]));
         if(v.senderNotes) setSenderNotes(v.senderNotes);
-      }
+      }else setPrefsId(null);
       const formatMailDate=(value:any)=>{const d=new Date(typeof value==='number'?value:(value||Date.now()));return Number.isNaN(d.getTime())?'':d.toLocaleDateString([], {month:'short',day:'numeric'});};
       const formatMailTime=(value:any)=>{const d=new Date(typeof value==='number'?value:(value||Date.now()));return Number.isNaN(d.getTime())?'':d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});};
       const inboxRows=(inboxData?.items||[]).map((m:any)=>({id:m.id,sender:m.from_name||m.from_address||'Unknown sender',email:m.from_address||'',initials:initialsFor(m.from_name||m.from_address||'?'),color:'#333333',subject:m.subject||'(no subject)',snippet:'Open message to load its contents.',body:'',category:'Primary' as Category,label:null,date:formatMailDate(m.received_at),time:formatMailTime(m.received_at),unread:!m.read_at,attachment:Number(m.size_bytes||0)>0,folder:'inbox' as Folder,isUser:false} as Email));
@@ -374,7 +377,7 @@ export default function App(){
       if(silent) setRefreshError(`Could not verify the latest workspace data — ${msg}. Your previously loaded content is still available.`);
       else setLoadError(`Couldn’t load production mailbox data — ${msg}. Retry after checking your admin session and mailbox connection.`);
       return false;
-    }finally{ if(!silent) setIsLoading(false); }
+    }finally{ if(requestTimeout!==null) window.clearTimeout(requestTimeout); if(!silent) setIsLoading(false); }
   }
   useEffect(()=>{ reloadRecords(); },[]);
   async function refreshWorkspace(){
@@ -385,7 +388,9 @@ export default function App(){
     const startedAt = Date.now();
     try{
       while(Date.now() - startedAt < 12000){
-        const verified = await reloadRecords({silent:true});
+        const remainingAtStart = 12000 - (Date.now() - startedAt);
+        if(remainingAtStart <= 0) break;
+        const verified = await reloadRecords({silent:true,timeoutMs:remainingAtStart});
         if(verified){ setRefreshError(''); setStatus('Workspace refreshed from the server.'); return; }
         const remaining = 12000 - (Date.now() - startedAt);
         if(remaining <= 0) break;
@@ -1093,7 +1098,7 @@ export default function App(){
           <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
             <button onClick={()=>setRightPanelOpen(!rightPanelOpen)} className={`px-3 py-2 rounded-full hover:bg-[var(--surface-3)] text-[13px] font-medium whitespace-nowrap ${rightPanelOpen?'bg-[var(--text)] text-[var(--surface)]':'border border-[var(--border)]'}`} aria-label="Show or hide Workspace panel" title="Show or hide Contacts, Calendar and Notes panel">Workspace</button>
             <button onClick={()=>setShowHelp(!showHelp)} className="p-2.5 rounded-full hover:bg-[var(--surface-3)] hidden sm:block" aria-label="Help"><UniformIcon name="help" size={21}/></button>
-            <button onClick={()=>void refreshWorkspace()} disabled={isRefreshing} className="p-2.5 rounded-full hover:bg-[var(--surface-3)] disabled:opacity-50" aria-label="Refresh workspace" title="Refresh workspace"><UniformIcon name="refresh" size={20}/></button>
+            <button onClick={()=>void refreshWorkspace()} disabled={isRefreshing} className="p-2.5 rounded-full hover:bg-[var(--surface-3)] disabled:opacity-50" aria-label="Refresh workspace" title={lastRefreshedAt ? `Last verified ${new Date(lastRefreshedAt).toLocaleTimeString()}` : "Refresh workspace"}><UniformIcon name="refresh" size={20}/></button>
             <button onClick={()=>goView('settings')} className="p-2.5 rounded-full hover:bg-[var(--surface-3)]" aria-label="Settings"><UniformIcon name="settings" size={21}/></button>
             <button onClick={()=>setShowApps(!showApps)} className="p-2.5 rounded-full hover:bg-[var(--surface-3)]" aria-label="Apps"><UniformIcon name="apps" size={20}/></button>
             <button onClick={()=>setShowProfile(!showProfile)} className="ml-1 w-9 h-9 rounded-full bg-[var(--text)] text-[var(--surface)] grid place-items-center font-medium" aria-label="Profile">A</button>
