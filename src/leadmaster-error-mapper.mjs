@@ -50,7 +50,7 @@ export function errorByCode(code) {
 export function mapLeadMasterError(error, context = "") {
   const raw = textOf(error);
   const normalized = (context + " " + raw).toLowerCase();
-  const suppliedCode = raw.match(/LM-USR-\\d{4}/)?.[0];
+  const suppliedCode = raw.match(/LM-USR-\d{4}/)?.[0];
   let code = suppliedCode || "";
   if (code) { const supplied = errorByCode(code); if (supplied) return { code: supplied.code, title: supplied.title, message: supplied.what + " " + supplied.steps[0] }; }
   if (typeof navigator !== "undefined" && navigator.onLine === false) code = "LM-USR-2001";
