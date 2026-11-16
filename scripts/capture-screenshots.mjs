@@ -144,7 +144,14 @@ try {
     const views = [["Inbox","inbox"],["Compose","compose"],["Sent","sent"],["Outbox","outbox"],["Deleted","deleted"],["Assistant","assistant"],["Automation","automation"],["Templates","templates"],["Scheduled","scheduled"],["Settings","settings"]];
     for (const [label,slug] of views) {
       if (device === "mobile") await page.getByRole("button",{name:"Show or hide navigation"}).click();
-      await page.getByRole("navigation",{name:"LeadMaster navigation"}).getByRole("button",{name:label,exact:true}).click();
+      if (slug === "settings") {
+        // Settings is intentionally opened from the profile menu; it is not a
+        // primary sidebar item in the current dashboard information architecture.
+        await page.getByRole("button",{name:"Open profile and settings"}).click();
+        await page.getByRole("button",{name:"Profile, settings & configurations"}).click();
+      } else {
+        await page.getByRole("navigation",{name:"LeadMASTER navigation"}).getByRole("button",{name:label,exact:true}).click();
+      }
       await page.waitForTimeout(200);
       await snap(`dashboard-${slug}`);
     }
