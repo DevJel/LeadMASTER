@@ -387,16 +387,9 @@ export default function App(){
   const [cannedPick, setCannedPick] = useState('');
   const [fmtStrike, setFmtStrike] = useState(false);
 
-  useEffect(()=>{
-    setViewLoading(true); setViewError(false);
-    const t = setTimeout(()=>setViewLoading(false), 800);
-    return ()=>clearTimeout(t);
-  },[view]);
-  function retryCurrentView(){
-    setViewError(false); setViewLoading(true);
-    setTimeout(()=>setViewLoading(false), 800);
-  }
-  function simulateError(){ setViewLoading(false); setViewError(true); }
+  useEffect(()=>{setViewError(false);setViewLoading(false);},[view]);
+  function retryCurrentView(){setViewError(false);void reloadRecords();}
+  function simulateError(){setViewLoading(false);setViewError(true);}
 
   const allEmails = useMemo(()=> userEmails.filter(e=>!deletedForever.has(e.id)), [userEmails, deletedForever]);
   useEffect(()=>{ document.documentElement.setAttribute('data-theme','light'); },[theme]);
@@ -587,22 +580,29 @@ export default function App(){
   function deleteRule(id:string){ const t = rules.find(r=>r.id===id); setRules(prev=>prev.filter(r=>r.id!==id)); setStatus('Rule deleted.'); if(t?.recordId) api("records.delete", {collection:'leadmaster_rules', id:t.recordId}).catch(()=>setActionError('Could not delete the rule record yet.')); }
 
   function runAssistant(kind:'summary'|'drafts'|'cleanup'|'priority'){
-    setAssistantTab(kind); const inbox = allEmails.filter(e=> e.folder==='inbox' && !deleted.has(e.id) && !archived.has(e.id)); const unread = inbox.filter(e=>!readIds.has(e.id));
-    if(kind==='summary'){ setAssistantResult(`Inbox summary · ${unread.length} unread of ${inbox.length} in Inbox.\n\n• Top priority: Priya Sharma (Acme Health) asked for a proposal by Thursday — $48,000/yr opportunity.\n• Daniel Okafor (Northwind) wants enterprise pricing for 120 seats.\n• Lena Fischer (Bright Labs) confirmed interest in 40 seats and onboarding next Monday.\n• Marcus Webb (Harbor Retail) is waiting on the pilot one-pager before Friday.\n\nSuggested next step: Send the Acme proposal first, then the Northwind pricing. Both are time-sensitive.`); }
-    if(kind==='drafts'){ setAssistantResult('Draft replies ready — pick one and it will open in Compose.\n\n1) To Priya Sharma: “Thanks, Priya — proposal coming today. I’ll include onboarding and the January start.”\n2) To Daniel Okafor: “Thanks, Daniel — enterprise pricing for 120 seats + SSO pilot is on its way.”\n3) To Lena Fischer: “Great news, Lena — we can start onboarding Monday. Timeline attached.”'); }
-    if(kind==='cleanup'){ setAssistantResult(`Smart cleanup found newsletters and old promos that can be archived or removed.\n\n• Archive newsletters — archive newsletter mail and keep starred / unread.\n• Delete old promos — move old read Promotions to Deleted.\n\nNothing is deleted forever unless you choose Delete old promos.`); }
-    if(kind==='priority'){ setAssistantResult('Priority leads — ranked by value + urgency:\n\n1. Priya Sharma · Acme Health · $48,000/yr · Proposal due Thursday\n2. Daniel Okafor · Northwind · $96,000/yr · 120 seats, SSO + pilot\n3. Lena Fischer · Bright Labs · $32,000/yr · Onboarding Monday\n4. Marcus Webb · Harbor Retail · $24,500 pilot · Decision Friday\n\nAll four are in Primary. Star them to keep them at the top.'); }
+    setAssistantTab(kind);
+    const inbox=allEmails.filter(e=>e.folder==='inbox'&&!deleted.has(e.id)&&!archived.has(e.id));
+    const unread=inbox.filter(e=>!readIds.has(e.id));
+    const important=[...inbox].sort((a,b)=>Number(starred.has(b.id))-Number(starred.has(a.id))||Number(!readIds.has(b.id))-Number(!readIds.has(a.id)));
+    if(kind==='summary') setAssistantResult(inbox.length?(`Live inbox summary · ${unread.length} unread of ${inbox.length} messages.\n\n${unread.slice(0,8).map((e,i)=>`${i+1}. ${e.sender} — ${e.subject}`).join('\n')||'No unread messages.'}\n\nThis summary uses the messages currently loaded from your connected LeadMASTER mailbox.`):'No inbox messages are currently available. Refresh the mailbox or check your mailbox connection.');
+    if(kind==='drafts') setAssistantResult('Choose a real inbox message below and request an AI reply suggestion. Suggestions are generated from that message and available correspondence; review before sending.');
+    if(kind==='cleanup') setAssistantResult(`${inbox.filter(e=>readIds.has(e.id)&&!starred.has(e.id)).length} read, unstarred inbox message(s) are eligible for archive review. Nothing will be changed until you confirm the action.`);
+    if(kind==='priority') setAssistantResult(important.length?(`Priority view · starred messages first, then unread messages.\n\n${important.slice(0,12).map((e,i)=>`${i+1}. ${starred.has(e.id)?'★ ':''}${e.sender} — ${e.subject}${readIds.has(e.id)?'':' · Unread'}`).join('\n')}`):'No inbox messages are available to rank yet.');
   }
-  function useAssistantDraft(index:number){
-    const drafts = [
-      {to:'priya@acmehealth.com', subject:'Re: Demo follow-up — Acme Health wants pricing', body:'Hi Priya,\n\nThanks again for the demo — I’m sending the proposal today. It includes pricing, onboarding, and the January start date you asked about.\n\nI’ll follow up Thursday if you need anything else.\n\nBest,\nAlex\n\n' + signature},
-      {to:'daniel@northwind.co', subject:'Re: Interested in Enterprise — 120 seats', body:'Hi Daniel,\n\nThanks for reaching out — enterprise pricing for 120 seats, including SSO and a 30-day pilot, is on its way.\n\nI can hold the pilot slot through Friday. Want a quick call to walk through it?\n\nBest,\nAlex\n\n' + signature},
-      {to:'lena@brightlabs.io', subject:'Re: Pricing for 40 seats + onboarding timeline', body:'Hi Lena,\n\nGreat news — we can start onboarding next Monday. I’ve attached the timeline and what we need from your team.\n\nLet me know if Monday still works.\n\nBest,\nAlex\n\n' + signature},
-    ]; const d = drafts[index]||drafts[0]; setCompose({to:d.to, cc:'', bcc:'', subject:d.subject, body:d.body, showCc:false}); setComposeMode('new'); if(view!=='compose') setPreviousView(view); setOpenEmailId(null); setMobileSidebar(false); setView('compose');
+  async function suggestReplyFor(email:Email){
+    if(email.folder!=='inbox'){setStatus('AI reply suggestions are available for received inbox messages.');return;}
+    setBusy(true);setActionError('');
+    try{const res=await fetch(`/api/admin/mail/${encodeURIComponent(email.id)}/suggest`,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'}});const j=await res.json().catch(()=>({}));if(!res.ok)throw new Error(j.error||`Suggestion failed (${res.status})`);openCompose('reply',email);setCompose(prev=>({...prev,body:j.suggestion||prev.body}));setStatus('AI reply suggestion ready. Review it before sending.');}
+    catch(e){setActionError(e instanceof Error?e.message:String(e));setStatus('Could not generate an AI reply suggestion.');}
+    finally{setBusy(false);}
   }
-  function applyCleanup(){ const toArchive = allEmails.filter(e=> e.folder==='inbox' && e.category==='Promotions' && readIds.has(e.id) && !starred.has(e.id)).map(e=>e.id); const next = new Set(archived); toArchive.forEach(id=>next.add(id)); setArchived(next); savePrefs({archived:next}); setCleanupApplied(true); setAssistantResult(`Cleaned up ${toArchive.length} read Promotions messages. They are archived, not deleted.`); setStatus(`Cleaned up ${toArchive.length} messages.`); }
-  function archiveNewsletters(){ const found = allEmails.filter(e=> e.folder==='inbox' && (e.sender.toLowerCase().includes('newsletter') || e.email.toLowerCase().includes('newsletter')) && !starred.has(e.id)); const next = new Set(archived); found.forEach(e=>next.add(e.id)); setArchived(next); savePrefs({archived:next}); setCleanupApplied(true); setAssistantResult(`Archived ${found.length} newsletter message(s). They are archived, not deleted.`); setStatus(`Archived ${found.length} newsletter(s).`); }
-  function deleteOldPromos(){ const found = allEmails.filter(e=> e.folder==='inbox' && e.category==='Promotions' && readIds.has(e.id) && !starred.has(e.id)); const next = new Set(deleted); found.forEach(e=>next.add(e.id)); setDeleted(next); savePrefs({deleted:next}); setCleanupApplied(true); setAssistantResult(`Moved ${found.length} old read Promotions message(s) to Deleted. Restore them from Deleted if needed.`); setStatus(`Moved ${found.length} old promos to Deleted.`); }
+  async function applyCleanup(){
+    const ids=allEmails.filter(e=>e.folder==='inbox'&&readIds.has(e.id)&&!starred.has(e.id)&&!deleted.has(e.id)&&!archived.has(e.id)).map(e=>e.id);
+    for(const id of ids){try{await patchMail(id,'archive');}catch(e){setActionError(e instanceof Error?e.message:String(e));}}
+    setCleanupApplied(true);await reloadRecords();setAssistantResult(`Processed archive requests for ${ids.length} read, unstarred message(s). Review Inbox and Archived after refresh.`);setStatus(`Archive requests processed: ${ids.length}.`);
+  }
+  async function archiveNewsletters(){await applyCleanup();}
+  function deleteOldPromos(){setAssistantResult('Automatic Promotions classification is not provided by the connected mailbox API. No messages were deleted. Use Inbox row actions to review and delete specific messages.');setStatus('No messages changed.');}
   function saveSettings(){ savePrefs({}); setSettingsSaved(true); setStatus('Settings saved — profile, theme, and signature are stored.'); }
 
   // ——— Components Organizer (Settings only): reorder + persist ———
@@ -928,27 +928,16 @@ export default function App(){
 
       {view==='assistant' && (
         <div className="mx-1 sm:mx-2">
-          <div className="bg-[var(--text)] text-[var(--surface)] rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center"><div className="flex-1"><div className="flex items-center gap-3"><span className="w-9 h-9 rounded-full border border-current grid place-items-center"><UniformIcon name="assistant" size={20}/></span><h2 className="text-[22px] font-medium">LeadMaster Assistant</h2></div><p className="text-[14px] opacity-80 mt-2 max-w-[620px]">Your inbox, summarized. Ask Assistant to draft replies, surface priority leads, and clean up the noise — then you decide what to send.</p></div><span className="text-[12px] border border-current px-3 py-1.5 rounded-full">{counts.inboxUnread} unread · {counts.inboxTotal} in Inbox</span></div>
+          <div className="bg-[var(--text)] text-[var(--surface)] rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center"><div className="flex-1"><div className="flex items-center gap-3"><span className="w-9 h-9 rounded-full border border-current grid place-items-center"><UniformIcon name="assistant" size={20}/></span><h2 className="text-[22px] font-medium">LeadMASTER Assistant</h2></div><p className="text-[14px] opacity-80 mt-2 max-w-[620px]">Works with messages in your connected mailbox. AI suggestions are drafts only; review and approve every send.</p></div><span className="text-[12px] border border-current px-3 py-1.5 rounded-full">{counts.inboxUnread} unread · {counts.inboxTotal} in Inbox</span></div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4">
-            {[{k:'summary' as const, t:'Summarize inbox', d:'A tight briefing on what matters today.', i:'spark' as IconName},{k:'drafts' as const, t:'Draft reply suggestions', d:'Three ready-to-send replies for top leads.', i:'reply' as IconName},{k:'cleanup' as const, t:'Smart cleanup', d:'Archive read promos — keep the important mail.', i:'zap' as IconName},{k:'priority' as const, t:'Priority leads / emails', d:'Ranked by value, urgency, and reply needed.', i:'flame' as IconName}].map(c=>(
-              <button key={c.k} disabled={viewLoading} onClick={()=>runAssistant(c.k)} className={`text-left bg-[var(--surface)] rounded-2xl p-4 gmail-shadow border-2 disabled:opacity-50 ${assistantTab===c.k?'border-[var(--text)]':'border-[var(--border)]'}`}><UniformIcon name={c.i} size={20}/><p className="font-medium mt-2">{c.t}</p><p className="text-[13px] text-[var(--text-3)] mt-1 leading-relaxed">{c.d}</p><span className="inline-block mt-3 text-[13px] font-medium underline underline-offset-2">Run →</span></button>
-            ))}
+            {[{k:'summary' as const,t:'Summarize inbox',d:'Briefing from currently loaded messages.',i:'spark' as IconName},{k:'drafts' as const,t:'Suggest replies',d:'Generate a reply for a real received message.',i:'reply' as IconName},{k:'cleanup' as const,t:'Review cleanup',d:'Find read, unstarred messages for archiving.',i:'zap' as IconName},{k:'priority' as const,t:'Priority messages',d:'Starred messages and unread items first.',i:'flame' as IconName}].map(c=><button key={c.k} disabled={busy||viewLoading} onClick={()=>runAssistant(c.k)} className={`text-left bg-[var(--surface)] rounded-2xl p-4 gmail-shadow border-2 disabled:opacity-50 ${assistantTab===c.k?'border-[var(--text)]':'border-[var(--border)]'}`}><UniformIcon name={c.i} size={20}/><p className="font-medium mt-2">{c.t}</p><p className="text-[13px] text-[var(--text-3)] mt-1 leading-relaxed">{c.d}</p><span className="inline-block mt-3 text-[13px] font-medium underline underline-offset-2">Run →</span></button>)}
           </div>
           <div className="bg-[var(--surface)] rounded-2xl gmail-shadow p-4 sm:p-5 mt-4 border border-[var(--border)]">
-            <p className="font-medium">{assistantTab==='summary'?'Inbox summary':assistantTab==='drafts'?'Draft reply suggestions':assistantTab==='cleanup'?'Smart cleanup':'Priority leads'}</p>
-            <p className="whitespace-pre-line text-[14px] leading-relaxed text-[var(--text-2)] mt-2 min-h-[90px]">{assistantResult || 'Choose a card above — Assistant will build a summary, drafts, cleanup plan, or priority list from your current inbox.'}</p>
-            {assistantTab==='summary' && <button disabled={viewLoading} onClick={()=>runAssistant('summary')} className="mt-3 px-4 py-2 rounded-full bg-[var(--text)] text-[var(--surface)] text-[13px] disabled:opacity-50">Summarize Inbox</button>}
-            {assistantTab==='drafts' && <div className="grid sm:grid-cols-3 gap-3 mt-3">
-              {[{n:'Priya Sharma', c:'Acme Health', b:'Proposal coming today — onboarding + January start included.', i:0},{n:'Daniel Okafor', c:'Northwind', b:'Enterprise pricing for 120 seats + SSO pilot on its way.', i:1},{n:'Lena Fischer', c:'Bright Labs', b:'Onboarding can start Monday — timeline attached.', i:2}].map(d=>(
-                <article key={d.n} className="border border-[var(--border)] rounded-xl p-3 flex flex-col"><p className="font-medium">{d.n}</p><p className="text-[12px] text-[var(--text-3)]">{d.c}</p><p className="text-[13px] mt-2 flex-1 leading-relaxed">{d.b}</p><button disabled={viewLoading} onClick={()=>useAssistantDraft(d.i)} className="mt-3 px-3 py-2 rounded-full bg-[var(--text)] text-[var(--surface)] text-[13px] disabled:opacity-50">Use Draft</button></article>
-              ))}
-            </div>}
-            {assistantTab==='cleanup' && <div className="grid sm:grid-cols-2 gap-3 mt-3">
-              <article className="border border-[var(--border)] rounded-xl p-4"><div className="flex items-center gap-2"><UniformIcon name="archive" size={18}/><p className="font-medium">Archive newsletters</p></div><p className="text-[13px] text-[var(--text-3)] mt-2 leading-relaxed">Archive newsletter mail. Starred and unread mail stays in Inbox.</p><button disabled={viewLoading} onClick={archiveNewsletters} className="mt-3 px-4 py-2 rounded-full bg-[var(--text)] text-[var(--surface)] text-[13px] disabled:opacity-50">Archive newsletters</button></article>
-              <article className="border border-[var(--border)] rounded-xl p-4"><div className="flex items-center gap-2"><UniformIcon name="trash" size={18}/><p className="font-medium">Delete old promos</p></div><p className="text-[13px] text-[var(--text-3)] mt-2 leading-relaxed">Move old read Promotions to Deleted. Restore them from Deleted if needed.</p><button disabled={viewLoading} onClick={deleteOldPromos} className="mt-3 px-4 py-2 rounded-full border border-[var(--border)] text-[13px] disabled:opacity-50">Delete old promos</button></article>
-              <div className="sm:col-span-2 flex flex-wrap gap-2"><button disabled={viewLoading} onClick={applyCleanup} className="px-4 py-2 rounded-full border border-[var(--border)] text-[13px] disabled:opacity-50">Apply cleanup</button>{cleanupApplied && <span className="text-[13px] flex items-center gap-1"><UniformIcon name="check" size={16}/> Cleanup applied</span>}</div>
-            </div>}
-            {assistantTab==='priority' && <div className="grid sm:grid-cols-2 gap-3 mt-3">{[{n:'Priya Sharma', c:'Acme Health', v:'$48,000 / yr', d:'Proposal due Thursday'}, {n:'Daniel Okafor', c:'Northwind', v:'$96,000 / yr', d:'120 seats · SSO + pilot'}, {n:'Lena Fischer', c:'Bright Labs', v:'$32,000 / yr', d:'Onboarding Monday'}, {n:'Marcus Webb', c:'Harbor Retail', v:'$24,500 pilot', d:'Decision Friday'}].filter(p=> !q || (p.n+' '+p.c).toLowerCase().includes(q)).map(p=>(<div key={p.n} className="border border-[var(--border)] rounded-xl p-3"><span className="inline-grid w-8 h-8 rounded-full bg-[var(--text)] text-[var(--surface)] place-items-center align-middle mr-2"><AvatarIcon email={contacts.find(c=>c.name===p.n)?.email || ''} size={18} /></span><button onClick={()=>openSender(p.n, contacts.find(c=>c.name===p.n)?.email || '')} className="font-medium hover:underline">{p.n}</button><span className="text-[var(--text-3)] font-normal"> · {p.c}</span><p className="text-[13px] mt-1"><span className="font-medium">{p.v}</span> · {p.d}</p></div>))}</div>}
+            <p className="font-medium">{assistantTab==='summary'?'Inbox summary':assistantTab==='drafts'?'AI reply suggestions':assistantTab==='cleanup'?'Cleanup review':'Priority messages'}</p>
+            <p className="whitespace-pre-line text-[14px] leading-relaxed text-[var(--text-2)] mt-2 min-h-[90px]">{assistantResult||'Choose an action above to analyze your connected mailbox.'}</p>
+            {assistantTab==='drafts' && <div className="space-y-2 mt-3">{allEmails.filter(e=>e.folder==='inbox'&&!deleted.has(e.id)).slice(0,20).map(e=><div key={e.id} className="border border-[var(--border)] rounded-xl p-3 flex flex-wrap items-center gap-3"><div className="min-w-0 flex-1"><p className="font-medium truncate">{e.sender}</p><p className="text-[13px] text-[var(--text-3)] truncate">{e.subject}</p></div><button disabled={busy} onClick={()=>suggestReplyFor(e)} className="px-4 py-2 rounded-full bg-[var(--text)] text-[var(--surface)] text-[13px] disabled:opacity-50">{busy?'Preparing…':'Suggest reply'}</button></div>)}</div>}
+            {assistantTab==='cleanup' && <div className="mt-3"><button disabled={busy} onClick={applyCleanup} className="px-4 py-2 rounded-full bg-[var(--text)] text-[var(--surface)] text-[13px] disabled:opacity-50">Archive eligible read messages</button>{cleanupApplied&&<span className="ml-3 text-[13px]">Archive requests processed</span>}</div>}
+            {assistantTab==='priority' && <div className="space-y-2 mt-3">{allEmails.filter(e=>e.folder==='inbox'&&!deleted.has(e.id)).sort((a,b)=>Number(starred.has(b.id))-Number(starred.has(a.id))||Number(!readIds.has(b.id))-Number(!readIds.has(a.id))).slice(0,12).map(e=><button key={e.id} onClick={()=>openMessage(e.id)} className="w-full text-left border border-[var(--border)] rounded-xl p-3"><span className="font-medium">{starred.has(e.id)?'★ ':''}{e.sender}</span><span className="text-[13px] text-[var(--text-3)]"> · {e.subject}{readIds.has(e.id)?'':' · Unread'}</span></button>)}</div>}
           </div>
         </div>
       )}
