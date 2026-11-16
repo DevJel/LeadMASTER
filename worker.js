@@ -63,6 +63,13 @@ function equal(a, b) {
 function json(body, status = 200, headers = {}) {
   return Response.json(body, { status, headers: { "cache-control": "no-store", "x-content-type-options": "nosniff", ...headers } });
 }
+function systemIssue(code = "342322", status = 503) {
+  const safeCode = /^342\\d{3}$/.test(String(code)) ? String(code) : "342322";
+  return json({
+    errorCode: safeCode,
+    error: "We couldn't complete this action due to a system issue (Error " + safeCode + "). Please contact the LeadMASTER support team for further assistance at cs@leadmaster.jelvan.space."
+  }, status);
+}
 function cookieValue(request, name) {
   const raw = request.headers.get("Cookie") || "";
   const item = raw.split(";").map(x => x.trim()).find(x => x.startsWith(name + "="));
@@ -181,7 +188,7 @@ async function sessionFor(request, env) {
 async function authConfig(request, env) {
   if (request.method !== "GET") return json({ error: "Method not allowed" }, 405, { allow: "GET" });
   const siteKey = await secret(env.TURNSTILE_SITE_KEY);
-  if (!siteKey || !/^0x4[A-Za-z0-9_-]{20,}$/.test(siteKey)) return json({ error: "Security verification is not configured" }, 503);
+  if (!siteKey || !/^0x4[A-Za-z0-9_-]{20,}$/.test(siteKey)) return systemIssue("342101");
   return json({ turnstileSiteKey: siteKey });
 }
 // The current product provisions one primary administrator. That identity is intentionally exempt from
@@ -227,13 +234,13 @@ async function login(request, env) {
       }, 202);
     }
     await env.AUTH_DB.prepare("DELETE FROM auth_challenges WHERE id = ?").bind(id).run();
-    return json({ error: "Email verification is temporarily unavailable" }, 503);
+    return systemIssue("342200");
   }
   return json({ next: "verify_email" });
 }
 async function verifyOtp(request, env, ctx) {
   const adminEmail = await configuredAdminEmail(env);
-  if (!adminEmail) return json({ errorCode: "342322", error: "We couldn't complete this action due to a system issue (Error 342322). Please contact the LeadMASTER support team for further assistance at cs@leadmaster.jelvan.space." }, 503);
+  if (!adminEmail) return systemIssue("342301");
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405, { allow: "POST" });
   if (!sameOrigin(request)) return json({ error: "Invalid request" }, 403);
   let body;
@@ -245,7 +252,7 @@ async function verifyOtp(request, env, ctx) {
   if (row.expires_at <= Date.now()) return json({ error: "This code has expired. Return to sign in and request a new one." }, 401);
   if (row.attempts >= 5) return json({ error: "Too many incorrect codes. Return to sign in and request a new code." }, 429);
   const sessionSecret = await secret(env.SESSION_SECRET);
-  if (!sessionSecret) return json({ error: "Service unavailable" }, 503);
+  if (!sessionSecret) return systemIssue("342100");
   const candidate = await hmac(sessionSecret, "otp:" + row.id + ":" + code);
   if (!equal(candidate, row.code_hash)) {
     await env.AUTH_DB.prepare("UPDATE auth_challenges SET attempts = attempts + 1 WHERE id = ? AND attempts < 5").bind(row.id).run();
@@ -531,7 +538,7 @@ async function adminSendRoute(request,env,session){
  if(session.email!==await configuredAdminEmail(env))return json({error:"Forbidden"},403);
  if(request.method!=="POST")return json({error:"Method not allowed"},405,{allow:"POST"});
  if(!sameOrigin(request))return json({error:"Invalid request"},403);
- if(!env.MAIL_SEND_QUEUE)return json({error:"Sending is temporarily unavailable"},503);
+ if(!env.MAIL_SEND_QUEUE)return systemIssue("342200");
  let b;try{b=await readBoundedJson(request,1000000)}catch{return json({error:"Invalid request"},400)}
  const toList=Array.isArray(b.recipients)?b.recipients:(typeof b.to==="string"?b.to.split(/[\s,;]+/):[]);
  const recipients=[...new Set(toList.map(x=>String(x||"").trim().toLowerCase()).filter(Boolean))];
@@ -577,7 +584,7 @@ async function adminSendRoute(request,env,session){
  }
  const operations=[()=>env.MAIL_SEND_QUEUE.send({id:batchId,source:"admin",batch:true})];
  const submission=await submitInOrder(operations);
- if(submission.status!=="queued")return json({batch_id:batchId,status:"submission_unconfirmed",error:"The sending result is uncertain: some messages may be queued or sent. Do not resend; contact an administrator to reconcile this batch."},503);
+ if(submission.status!=="queued")return json({batch_id:batchId,status:"submission_unconfirmed",errorCode:"342203",error:"We couldn't confirm whether your message was accepted. Please contact the LeadMASTER support team for further assistance at cs@leadmaster.jelvan.space."},503);
  await writeBestEffort([
   ()=>env.AUTH_DB.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at) VALUES (?,?,'email_queued',?,?,?)").bind(crypto.randomUUID(),session.email,ids.length===1?"Queued an email to "+recipients[0]:"Queued "+ids.length+" emails for sending",batchId,now).run(),
   ()=>env.AUTH_DB.prepare("INSERT INTO mail_notifications (id,type,title,message,target_id,created_at) VALUES (?,'queued','Messages queued',?,?,?)").bind(crypto.randomUUID(),ids.length+" messages were added to the sending list.",batchId,now).run()
@@ -657,7 +664,7 @@ async function handle(request, env, ctx) {
     const currentHtml = typeof input.html === "string" ? input.html.slice(0, 12000) : "";
     const subject = typeof input.subject === "string" ? input.subject.slice(0, 240) : "";
     if (!prompt || prompt.length > 3000) return json({ errorCode: "LM-USR-3001", error: "Add a short description of the email you want to create." }, 400);
-    if (!env.AI || typeof env.AI.run !== "function") return json({ errorCode: "342322", error: "We couldn't complete this action due to a system issue (Error 342322). Please contact the LeadMASTER support team for further assistance at cs@leadmaster.jelvan.space." }, 503);
+    if (!env.AI || typeof env.AI.run !== "function") return systemIssue("342300");
     const requestId = crypto.randomUUID();
     try {
       const output = await env.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast", {
