@@ -1,4 +1,8 @@
 name: LeadMASTER CI
+
+concurrency:
+  group: leadmaster-ci-${{ github.ref }}
+  cancel-in-progress: true
 on:
   push:
     branches:
@@ -24,7 +28,7 @@ jobs:
       - run: npm ci
       - run: npm run build:assets
       - name: Commit generated asset bundle
-        if: (github.event_name == 'push' || github.event_name == 'pull_request') && github.actor != 'github-actions[bot]'
+        if: github.event_name == 'push' && github.actor != 'github-actions[bot]'
         run: |
           if ! git diff --quiet -- src/static-assets.mjs; then
             git config user.name "github-actions[bot]"
