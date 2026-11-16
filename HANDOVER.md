@@ -264,8 +264,8 @@ Before deployment:
 6. Verify email idempotency and status lookups are key- and account-scoped.
 7. Verify webhook create/list/revoke/delivery history and dispatch are account-scoped.
 8. Verify webhook HMAC, timestamp, raw-body and duplicate-event handling.
-9. Run the complete test suite.
-10. Rebuild static assets and check the generated bundle.
+9. Rebuild static assets.
+10. Run the complete test suite and check the generated dashboard bundle.
 11. Deploy and smoke-test public pages, account API, security boundaries and MCP 404 behavior.
 12. Perform controlled authenticated email and webhook callback acceptance tests.
 13. Capture genuine landing, login, authenticated dashboard and dashboard-tab screenshots. Do not fabricate them or claim a protected view was captured without an authorized session.
@@ -299,8 +299,8 @@ Tests and source inspection do not prove live Turnstile, OTP receipt, browser lo
 1. Confirm repository `DevJel/LeadMASTER`, branch `main`, Cloudflare account and Worker.
 2. Inspect `wrangler.jsonc`, bindings, Secrets Store references and D1 migrations.
 3. Update canonical `public/` files.
-4. Run `npm run build:assets`; inspect asset paths/MIME types.
-5. Run `npm ci --ignore-scripts` and `npm test`.
+4. Run `npm ci --ignore-scripts`, then `npm run build:assets`; inspect asset paths/MIME types.
+5. Run `npm test` and `npm run check:dashboard`.
 6. Review complete diff and `git diff --check`.
 7. Deploy with `npx wrangler deploy` from the verified repository/account.
 8. Verify `/`, `/index.html`, `/#documentation`, legacy redirects, `/api/auth/config`, unauthenticated protection, API method/auth behavior and active Worker version.

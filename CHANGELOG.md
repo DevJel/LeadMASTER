@@ -1,3 +1,10 @@
+## 2026-11-16 — Dashboard validation CI repair (not deployed)
+
+- Repaired the staged dashboard bundle validation script after a malformed recent edit, retaining JavaScript, component CSS and shared sending-indicator stylesheet checks.
+- Added a regression test that runs the validator and documented the asset-build prerequisite for local checks.
+- No runtime, API, data, authentication, dashboard UI or Android behavior changed; Android shares the unchanged web workspace.
+- Local validation only; PR checks and production deployment are separate.
+
 ## 2026-11-16 — Clean extensionless page URLs (not deployed)
 
 - Added canonical browser routes for the landing page, login, dashboard, Help Center, documentation, privacy, terms and developer API-key console while continuing to serve the existing HTML assets internally.
