@@ -129,6 +129,36 @@ test('temporary verification read failures recover without consuming the code tw
  assert.equal(sql.prepare('SELECT count(*) n FROM auth_challenges').get().n,0);
 });
 
+test('D1 daily read exhaustion returns a specific non-retryable OTP response and preserves the challenge',async()=>{
+ const {env,sql}=setup();await seedOtp(sql,'123456');
+ const prepare=env.AUTH_DB.prepare.bind(env.AUTH_DB);
+ env.AUTH_DB.prepare=query=>{
+  const stmt=prepare(query);
+  if(query.startsWith('SELECT id,code_hash,expires_at,attempts FROM auth_challenges')){
+   stmt.first=async()=>{throw new Error("D1_ERROR 7500: Your account has exceeded D1's free tier daily row read limit.");};
+  }
+  return stmt;
+ };
+ const result=await call(env,'/api/auth/verify',{method:'POST',body:{code:'123456'}});
+ assert.equal(result.status,503);
+ const body=await result.json();
+ assert.equal(body.errorCode,'LM-AUTH-D1-LIMIT');
+ assert.equal(body.retryable,false);
+ assert.match(body.error,/after 00:00 UTC/);
+ assert.equal(sql.prepare('SELECT attempts FROM auth_challenges').get().attempts,0);
+ assert.equal(sql.prepare('SELECT count(*) n FROM auth_sessions').get().n,0);
+});
+test('existing session restores do not repeat account membership or legacy-adoption writes',async()=>{
+ const {env,sql}=setup();await session(sql,'no-repeat-writes');
+ const writes=[];const prepare=env.AUTH_DB.prepare.bind(env.AUTH_DB);
+ env.AUTH_DB.prepare=query=>{
+  if(/^(INSERT OR IGNORE INTO account_members|UPDATE developer_api_keys|UPDATE developer_email_requests|UPDATE developer_webhooks)/i.test(query.trim()))writes.push(query);
+  return prepare(query);
+ };
+ const result=await call(env,'/dashboard',{token:'no-repeat-writes'});
+ assert.equal(result.status,200);
+ assert.deepEqual(writes,[]);
+});
 test('persistent verification read failure preserves the code for a later retry',async()=>{
  const {env,sql}=setup();await seedOtp(sql);env.SESSION_SECRET={get:async()=>{throw Error('synthetic unavailable')}};
  const failure=await call(env,'/api/auth/verify',{method:'POST',body:{code:'123456'}});
