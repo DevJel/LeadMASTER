@@ -40,21 +40,21 @@ try {
   // Suppress the unrelated periodic background poll so refresh request counts are deterministic.
   await page.addInitScript(() => Object.defineProperty(document, 'visibilityState', { get: () => 'hidden' }));
   await page.goto(`http://127.0.0.1:${server.address().port}/dashboard.html`, { waitUntil: 'domcontentloaded' });
-  await page.getByText('Loading primary', { exact: false }).first().waitFor({ timeout: 5000 });
-  assert.equal(await page.getByText('Nothing in Primary').isVisible(), false, 'empty state during loading');
+  await page.getByText('Loading inbox', { exact: false }).first().waitFor({ timeout: 5000 });
+  assert.equal(await page.getByText('Nothing in Inbox').isVisible(), false, 'empty state during loading');
   await page.getByRole('heading', { name: 'Something went wrong' }).waitFor({ timeout: 5000 });
-  assert.equal(await page.getByText('Nothing in Primary').isVisible(), false, 'empty state after load failure');
+  assert.equal(await page.getByText('Nothing in Inbox').isVisible(), false, 'empty state after load failure');
   fail = false;
   await page.getByRole('button', { name: 'Retry', exact: true }).click();
-  await page.getByText('Nothing in Primary').waitFor({ timeout: 5000 });
+  await page.getByText('Nothing in Inbox').waitFor({ timeout: 5000 });
   const before = requestCount;
   await page.getByRole('button', { name: 'Refresh', exact: true }).click();
-  await page.getByText('Loading primary', { exact: false }).first().waitFor({ timeout: 5000 });
-  await page.getByText('Nothing in Primary').waitFor({ timeout: 5000 });
+  await page.getByText('Loading inbox', { exact: false }).first().waitFor({ timeout: 5000 });
+  await page.getByText('Nothing in Inbox').waitFor({ timeout: 5000 });
   assert.equal(requestCount - before, 11, 'refresh must request one workspace snapshot');
   assert.equal(await page.getByText('LeadMASTER refreshed', { exact: true }).count(), 0);
   assert.equal(await page.getByText('Workspace refreshed from the server.', { exact: true }).count(), 0);
-  assert.equal(await page.getByRole('button', { name: 'Go to Inbox' }).locator('img').getAttribute('src'), '/assets/brand/favicon-gray.svg');
+  assert.equal(await page.getByRole('button', { name: 'Go to Inbox' }).locator('img').getAttribute('src'), '/assets/brand/leadmaster-full.svg');
   console.log('Synthetic local dashboard: loading, error, retry, empty and single refresh passed.');
 } finally {
   if (browser) await browser.close();
