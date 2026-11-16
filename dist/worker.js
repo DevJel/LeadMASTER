@@ -15181,10 +15181,12 @@ async function executeTool(name, args, env, history, prepared) {
   if (name === "get_message") {
     const id = typeof args.message_id === "string" ? args.message_id : "";
     if (!/^[0-9a-f-]{36}$/i.test(id)) return { error: "Invalid message ID." };
-    const row = await env.AUTH_DB.prepare("SELECT id,from_address,subject,received_at,r2_key FROM inbound_mail WHERE id=? AND deleted_at IS NULL").bind(id).first();
+    const row = await env.AUTH_DB.prepare("SELECT id,from_address,subject,received_at,r2_key,size_bytes FROM inbound_mail WHERE id=? AND deleted_at IS NULL").bind(id).first();
     if (!row) return { error: "Message not found." };
+    if (Number(row.size_bytes || 0) > 25e4) return { error: "This message is too large for AI reading. Open it in the normal message viewer instead." };
     const object4 = await env.INBOUND_MAIL?.get(row.r2_key);
     if (!object4) return { error: "Message content is unavailable." };
+    if (Number(object4.size || 0) > 25e4) return { error: "This message is too large for AI reading. Open it in the normal message viewer instead." };
     return { id: row.id, from: row.from_address, subject: row.subject, received_at: row.received_at, body: plainTextFromEml(await object4.text()) };
   }
   if (name === "prepare_email") {
