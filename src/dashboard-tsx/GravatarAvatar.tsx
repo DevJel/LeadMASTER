@@ -11,7 +11,7 @@ type Props = {
 
 function initials(name: string, email: string) {
   const label = (name || email.split('@')[0] || '?').replace(/[._-]+/g, ' ').trim();
-  return label.split(/\\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || '?';
+  return label.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || '?';
 }
 
 /** Graceful, privacy-conscious Gravatar image with a local fallback. */
