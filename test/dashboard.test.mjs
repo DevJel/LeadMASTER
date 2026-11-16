@@ -63,7 +63,14 @@ test('design CSS retains the monochrome palette and responsive workspace layout'
  assert.match(app, /<aside/);
  assert.match(app, /<main/);
  assert.match(app, /md:hidden/);
- assert.match(app, /rightPanel/);
+ assert.doesNotMatch(app, /rightPanel/);
+ assert.match(app, /lg:h-screen lg:min-h-0 lg:overflow-hidden/);
+ assert.match(app, /lm-main-scroll/);
+ assert.match(app, /window.setInterval\(\(\)=>\{ void poll\(\); \},3000\)/);
+ assert.match(app, /target="_blank" rel="noopener noreferrer"/);
+ assert.match(app, /Currency Conversion/);
+ assert.match(app, /Email HTML Playground/);
+ assert.match(app, /<ActionConfirmation request=\{confirmation\}/);
 });
 
 test('Android companion keeps the authenticated responsive dashboard as its single source', async () => {
