@@ -336,8 +336,9 @@ async function checkCloudflareControlPlane(env, checks) {
   }
   const account = String(env.REPORTER_CF_ACCOUNT_ID || DEFAULT_CF_ACCOUNT);
   try {
-    const [scripts, queues, buckets, schedules, deployments] = await Promise.all([
+    const [scripts, workerSettings, queues, buckets, schedules, deployments] = await Promise.all([
       cloudflareApi("/accounts/" + account + "/workers/scripts", token),
+      cloudflareApi("/accounts/" + account + "/workers/scripts/leadmaster/settings", token),
       cloudflareApi("/accounts/" + account + "/queues", token),
       cloudflareApi("/accounts/" + account + "/r2/buckets", token),
       cloudflareApi("/accounts/" + account + "/workers/scripts/leadmaster/schedules", token),
@@ -347,7 +348,7 @@ async function checkCloudflareControlPlane(env, checks) {
     checks.push(makeCheck("Cloudflare", "LeadMASTER Worker deployment", worker ? "Healthy" : "Unable to Fix",
       worker ? "Worker exists; deployed tag " + safeString(worker.tag || "unknown", 80) + "; handlers: " + (worker.handlers || []).join(", ") + "." : "The leadmaster Worker script is missing.",
       worker ? "" : "Restore the LeadMASTER Worker from the main branch after reviewing deployment history."));
-    const workerBindings = Array.isArray(worker?.bindings) ? worker.bindings : [];
+    const workerBindings = Array.isArray(workerSettings?.bindings) ? workerSettings.bindings : [];
     const d1Bindings = workerBindings.filter(binding => binding.type === "d1");
     const tursoConfigured = workerBindings.some(binding => binding.name === "TURSO_AUTH_TOKEN" && binding.type === "secrets_store_secret") && workerBindings.some(binding => binding.name === "TURSO_URL" && binding.type === "plain_text");
     checks.push(makeCheck("Cloudflare", "Turso production database configuration", tursoConfigured && d1Bindings.length === 0 ? "Healthy" : "Needs Attention",
