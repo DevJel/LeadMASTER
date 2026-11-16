@@ -30,6 +30,7 @@ await new Promise(r=>server.listen(0,'127.0.0.1',r));let browser;
 try{
  browser=await chromium.launch({headless:true,...(process.env.LOCAL_CHROMIUM?{executablePath:process.env.LOCAL_CHROMIUM}:{}),args:['--no-sandbox']});
  const page=await browser.newPage();
+ const waitForLoadingOverlayToFinish=()=>page.locator('section[aria-label="Loading status"],section[aria-label="Sending status"]').waitFor({state:'detached',timeout:5000});
  await page.addInitScript(()=>{
   window.__notes=[];
   window.AudioContext=class{constructor(){this.state='running';this.currentTime=0;this.destination={}} createOscillator(){return {frequency:{set value(v){window.__notes.push(v)}},connect(){},start(){},stop(){}}}createGain(){return {gain:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){}}}close(){return Promise.resolve()}};
