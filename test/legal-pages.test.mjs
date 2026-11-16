@@ -5,12 +5,12 @@ const read=path=>readFile(new URL('../public/'+path,import.meta.url),'utf8');
 
 test('published legal notices are linked from the landing page and crawlable',async()=>{
   const [home,docs,privacy,terms]=await Promise.all(['index.html','docs.html','privacy.html','terms.html'].map(read));
-  assert.ok(home.includes('href="./privacy.html"'));
-  assert.ok(home.includes('href="./terms.html"'));
+  assert.ok(home.includes('href="/privacy"'));
+  assert.ok(home.includes('href="/terms"'));
   assert.ok(home.includes('Data Privacy Notice'));
   assert.ok(home.includes('Terms and Conditions'));
   assert.ok(docs.includes('Documentation moved'));
-  assert.ok(docs.includes('index.html#documentation'));
+  assert.ok(docs.includes('/#documentation'));
   for(const page of [privacy,terms]){
     assert.ok(page.includes('name="robots" content="index,follow"'));
     assert.ok(page.includes('Effective date:'));
@@ -35,6 +35,6 @@ test('terms identify the operator and govern current service capabilities',async
 
 test('privacy and terms cross-link to each other',async()=>{
   const [privacy,terms]=await Promise.all(['privacy.html','terms.html'].map(read));
-  assert.ok(privacy.includes('href="./terms.html"'));
-  assert.ok(terms.includes('href="./privacy.html"'));
+  assert.ok(privacy.includes('href="/terms"'));
+  assert.ok(terms.includes('href="/privacy"'));
 });
