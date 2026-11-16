@@ -53,10 +53,11 @@ function getLocalDate(timestamp, timeZone) {
 }
 function formatReportDate(dateString) {
   const [year, month, day] = dateString.split("-").map(Number);
-  return new Intl.DateTimeFormat("en", {
+  const formatted = new Intl.DateTimeFormat("en", {
     weekday: "long", month: "short", day: "numeric", year: "numeric",
     timeZone: "UTC"
-  }).format(new Date(Date.UTC(year, month - 1, day, 12))).replace(/(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (\\d)/, "$1. $2");
+  }).format(new Date(Date.UTC(year, month - 1, day, 12)));
+  return formatted.replace("Jan ", "Jan. ").replace("Feb ", "Feb. ").replace("Mar ", "Mar. ").replace("Apr ", "Apr. ").replace("Jun ", "Jun. ").replace("Jul ", "Jul. ").replace("Aug ", "Aug. ").replace("Sep ", "Sep. ").replace("Oct ", "Oct. ").replace("Nov ", "Nov. ").replace("Dec ", "Dec. ");
 }
 function timeoutSignal(ms) {
   const controller = new AbortController();
@@ -128,13 +129,17 @@ async function checkApplication(env, checks) {
     ["/api/auth/session", 200, "Session endpoint"],
     ["/dashboard", 302, "Protected dashboard gate"],
     ["/api/workspace/actions", 401, "Workspace records authorization"],
-    ["/api/admin/mail", 401, "Mailbox authorization"],
+    ["/api/admin/mail?folder=inbox", 401, "Inbox feed authorization"],
+    ["/api/admin/mail?folder=sent", 401, "Sent mail feed authorization"],
+    ["/api/admin/mail?folder=deleted", 401, "Deleted mail feed authorization"],
+    ["/api/admin/unsubscribes", 401, "Unsubscribe management authorization"],
     ["/api/admin/templates", 401, "Template management authorization"],
     ["/api/admin/send", 401, "Email sending authorization"],
     ["/api/admin/send-batches", 401, "Sending batch authorization"],
     ["/api/admin/activity", 401, "Activity authorization"],
     ["/api/admin/notifications", 401, "Notification authorization"],
     ["/api/admin/audience", 401, "Audience management authorization"],
+    ["/api/admin/webhooks", 401, "Webhook management authorization"],
     ["/api/account/profile", 401, "Admin profile authorization"],
     ["/api/developer/keys", 401, "Developer key authorization"]
   ];
