@@ -51,3 +51,18 @@ test('send outcomes remain truthful and uncertain sends are never labelled deliv
   assert.match(app, /Queue acceptance is not delivery confirmation/);
   assert.match(app, /Check Outbox before trying again/);
 });
+
+
+test('message detail and utility app loading are viewport overlays, not panel indicators', async () => {
+  const [app, utilities] = await Promise.all([
+    readFile(new URL('../required-componets-design/App.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../required-componets-design/UtilityApps.tsx', import.meta.url), 'utf8')
+  ]);
+  assert.match(app, /detailState\?\.status === 'loading'/);
+  assert.doesNotMatch(app, /<LoadingIndicator compact/);
+  assert.match(utilities, /loadingOverlayActive=loading\|\|saving\|\|currencyBusy\|\|aiBusy/);
+  assert.match(utilities, /fixed inset-0 z-\[120\] grid place-items-center/);
+  assert.match(utilities, /backdrop-blur-md/);
+  assert.match(utilities, /aria-label="Dismiss loading overlay"/);
+  assert.doesNotMatch(utilities, /<LoadingIndicator[^>]*compact/);
+});
