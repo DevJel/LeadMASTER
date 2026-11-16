@@ -49,8 +49,12 @@ try {
   await page.getByText('Nothing in Primary').waitFor({ timeout: 5000 });
   const before = requestCount;
   await page.getByRole('button', { name: 'Refresh', exact: true }).click();
-  await page.getByText('LeadMASTER refreshed', { exact: true }).waitFor({ timeout: 5000 });
+  await page.getByText('Loading primary', { exact: false }).first().waitFor({ timeout: 5000 });
+  await page.getByText('Nothing in Primary').waitFor({ timeout: 5000 });
   assert.equal(requestCount - before, 11, 'refresh must request one workspace snapshot');
+  assert.equal(await page.getByText('LeadMASTER refreshed', { exact: true }).count(), 0);
+  assert.equal(await page.getByText('Workspace refreshed from the server.', { exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: 'Go to Inbox' }).locator('img').getAttribute('src'), '/assets/brand/favicon-gray.svg');
   console.log('Synthetic local dashboard: loading, error, retry, empty and single refresh passed.');
 } finally {
   if (browser) await browser.close();

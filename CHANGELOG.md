@@ -3,6 +3,7 @@
 - Show the existing loading view during real workspace fetches and show a retryable error instead of an empty workspace when loading fails.
 - Removed the duplicate refresh request and report refresh success only after a complete server snapshot.
 - Added source and synthetic local browser regression checks for loading, failure, retry, empty and refresh states.
+- Successful refreshes no longer display a confirmation notice; failures remain visible. The header uses the existing favicon without a wordmark.
 - The shared web layout and Android WebView use the same dashboard; no native Android source, API, authentication or data schema changes. Device and authenticated production checks remain outstanding.
 
 ## 2026-11-16 — Dashboard validation CI repair (not deployed)
