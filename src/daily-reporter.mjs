@@ -425,9 +425,12 @@ export async function runDailyReporter(env, scheduledTime = Date.now(), options 
   const timeZone = String(env.REPORTER_TIME_ZONE || DEFAULT_TIME_ZONE);
   const reportDate = getLocalDate(Number(scheduledTime) || Date.now(), timeZone);
   const dateLabel = formatReportDate(reportDate);
-  const reportId = "leadmaster-daily-report-" + reportDate;
+  const reportKey = options.incidentId
+    ? reportDate + "-incident-" + safeString(options.incidentId, 48).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 48)
+    : options.sample ? reportDate + "-sample-" + safeString(options.sampleId || crypto.randomUUID(), 36).replace(/[^A-Za-z0-9_-]/g, "") : reportDate;
+  const reportId = "leadmaster-" + (options.incidentId ? "incident-" : options.sample ? "sample-" : "daily-report-") + reportKey;
   const now = Date.now();
-  const existing = await env.AUTH_DB.prepare("SELECT status,email_status,started_at FROM leadmaster_reporter_runs WHERE report_date=?").bind(reportDate).first();
+  const existing = await env.AUTH_DB.prepare("SELECT status,email_status,started_at FROM leadmaster_reporter_runs WHERE report_date=?").bind(reportKey).first();
   if (existing?.email_status === "accepted" || existing?.email_status === "unknown" || existing?.status === "running") {
     return { skipped: true, reason: "already_attempted", reportDate, emailStatus: existing.email_status };
   }
@@ -436,11 +439,18 @@ export async function runDailyReporter(env, scheduledTime = Date.now(), options 
   }
   await env.AUTH_DB.prepare(
     "INSERT INTO leadmaster_reporter_runs (id,report_date,status,started_at,email_status,report_json) VALUES (?,?, 'running', ?, 'not_attempted', '{}') ON CONFLICT(report_date) DO UPDATE SET status='running',started_at=excluded.started_at,completed_at=NULL,error_summary=NULL WHERE leadmaster_reporter_runs.email_status='not_accepted'"
-  ).bind(reportId, reportDate, now).run();
-  const current = await env.AUTH_DB.prepare("SELECT status,email_status,started_at FROM leadmaster_reporter_runs WHERE report_date=?").bind(reportDate).first();
+  ).bind(reportId, reportKey, now).run();
+  const current = await env.AUTH_DB.prepare("SELECT status,email_status,started_at FROM leadmaster_reporter_runs WHERE report_date=?").bind(reportKey).first();
   if (!current || current.status !== "running" || Number(current.started_at) !== now) return { skipped: true, reason: "another_run_in_progress", reportDate };
   const checks = [];
   try {
+    if (options.incident) {
+      checks.push(makeCheck("Incident", "Triggered event", options.incident.status === "pr_opened" ? "Needs Manual Action" : "Needs Attention",
+        "Event: " + safeString(options.incident.eventType || "GitHub incident") + ". Result: " + safeString(options.incident.status || "investigated") + ". " + safeString(options.incident.reason || options.incident.prUrl || "The event was investigated by the bounded auto-heal worker.", 450),
+        options.incident.prUrl ? "Review the draft pull request; it cannot merge or deploy itself." : "Review the linked issue and apply a manual fix if required.",
+        options.incident.prUrl || options.incident.issueUrl || ""));
+    }
+    if (options.sample) checks.push(makeCheck("Reporter", "Sample report", "Healthy", "This is a one-time sample of the configured daily report layout and checks."));
     await checkApplication(env, checks);
     await Promise.all([
       checkDatabase(env, checks),
@@ -462,7 +472,7 @@ export async function runDailyReporter(env, scheduledTime = Date.now(), options 
     }
     const summary = summarize(checks);
     const report = { reportDate, timeZone, generatedAt: new Date().toISOString(), overall: summary.overall, summary, checks };
-    await persistRun(env, reportDate, { status: "ready_to_send", completedAt: Date.now(), summary, report, emailStatus: "not_attempted", messageId: reportId });
+    await persistRun(env, reportKey, { status: "ready_to_send", completedAt: Date.now(), summary, report, emailStatus: "not_attempted", messageId: reportId });
     if (!admin) return { reportDate, status: "not_sent", summary };
     const html = renderHtml(dateLabel, checks, summary);
     const text = renderText(dateLabel, checks, summary);
@@ -472,12 +482,12 @@ export async function runDailyReporter(env, scheduledTime = Date.now(), options 
         messageId: reportId,
         to: admin,
         fromName: "LeadMASTER Reporter/Worker",
-        subject: "REPORT OF THE DAY — " + dateLabel + " — " + summary.overall,
+        subject: (options.incident ? "LEADMASTER INCIDENT REPORT — " : options.sample ? "LEADMASTER REPORT SAMPLE — " : "REPORT OF THE DAY — ") + dateLabel + " — " + summary.overall,
         text,
         html
       });
       const accepted = sent?.status === "accepted";
-      await persistRun(env, reportDate, {
+      await persistRun(env, reportKey, {
         status: accepted ? "sent" : "failed",
         completedAt: Date.now(), summary, report,
         emailStatus: accepted ? "accepted" : "unknown",
@@ -486,7 +496,7 @@ export async function runDailyReporter(env, scheduledTime = Date.now(), options 
       return { reportDate, status: accepted ? "sent" : "unknown", recipient: admin, summary };
     } catch (error) {
       const outcome = error?.deliveryOutcome === "not_accepted" ? "not_accepted" : "unknown";
-      await persistRun(env, reportDate, {
+      await persistRun(env, reportKey, {
         status: "failed", completedAt: Date.now(), summary, report,
         emailStatus: outcome, messageId: reportId, error: safeString(error?.message || error, 500)
       });
@@ -495,7 +505,7 @@ export async function runDailyReporter(env, scheduledTime = Date.now(), options 
   } catch (error) {
     const summary = summarize(checks);
     const report = { reportDate, timeZone, generatedAt: new Date().toISOString(), overall: summary.overall, summary, checks };
-    await persistRun(env, reportDate, {
+    await persistRun(env, reportKey, {
       status: "failed", completedAt: Date.now(), summary, report,
       emailStatus: "not_attempted", messageId: reportId, error: safeString(error?.message || error, 800)
     });
