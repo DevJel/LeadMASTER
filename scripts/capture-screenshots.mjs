@@ -117,6 +117,10 @@ try {
     await page.screenshot({path:output+"/dashboard-"+slug+".png",fullPage:true});
   }
 
+  await page.getByRole("button",{name:"Refresh workspace"}).click();
+  await page.getByText("Workspace refreshed from the server.",{exact:true}).waitFor({timeout:5000});
+  await page.screenshot({path:output+"/dashboard-refresh-verified.png",fullPage:true});
+
   await page.getByRole("button",{name:"Templates",exact:true}).first().click();
   await page.getByRole("button",{name:/New Template/}).first().click();
   await page.getByLabel("Name").fill("Preview template");
