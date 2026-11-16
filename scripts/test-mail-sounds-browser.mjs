@@ -67,8 +67,8 @@ try{
  await page.waitForFunction(()=>window.__notes.length===2);
   await waitForLoadingOverlayToFinish();
  assert.deepEqual(await page.evaluate(()=>window.__notes.slice(-2)),[520,390],'confirmed delete cue');
- await page.getByRole('button',{name:'Open profile and settings'}).click();
- await page.getByRole('button',{name:'Profile, settings & configurations'}).click();
+ await page.locator('button[aria-label="Open profile and settings"]').first().click({force:true});
+ await page.getByRole('button',{name:'Profile, settings & configurations'}).click({force:true});
  await page.getByRole('checkbox',{name:/Sounds/}).uncheck();
  await page.waitForTimeout(100);
  await page.getByRole('navigation',{name:'LeadMASTER navigation'}).getByRole('button',{name:'Inbox',exact:true}).click();
