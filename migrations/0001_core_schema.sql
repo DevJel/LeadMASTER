@@ -1,4 +1,5 @@
 -- Fresh LeadMASTER core schema for Turso. No D1 data is imported.
+CREATE TABLE IF NOT EXISTS leadmaster_schema_migrations (version TEXT PRIMARY KEY, applied_at INTEGER NOT NULL);
 CREATE TABLE auth_challenges (
   id TEXT PRIMARY KEY,
   email TEXT NOT NULL,
