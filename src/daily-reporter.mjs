@@ -3,7 +3,7 @@ import { sendThroughEmailCoordinator } from "./email-coordinator-client.mjs";
 const DEFAULT_APP_URL = "https://leadmaster.jelvan.space";
 const DEFAULT_REPOSITORY = "DevJel/LeadMASTER";
 const DEFAULT_CF_ACCOUNT = "967aa086112f862ba9f50ccf7aa09246";
-const DEFAULT_TIME_ZONE = "Asia/Kuala_Lumpur";
+const DEFAULT_TIME_ZONE = "Asia/Manila";
 const EXPECTED_TABLES = [
   "accounts", "account_members", "auth_challenges", "auth_sessions",
   "admin_sent_mail", "mail_notifications", "email_templates", "inbound_mail",
@@ -214,8 +214,11 @@ async function checkR2AndBindings(env, checks) {
   checks.push(makeCheck("Cloudflare Runtime", "Email send Queue binding", env.MAIL_SEND_QUEUE && typeof env.MAIL_SEND_QUEUE.send === "function" ? "Healthy" : "Unable to Fix",
     env.MAIL_SEND_QUEUE && typeof env.MAIL_SEND_QUEUE.send === "function" ? "The production send-queue producer binding is available. Queue consumer wiring and backlog are checked through the Cloudflare API audit." : "MAIL_SEND_QUEUE binding is missing.",
     env.MAIL_SEND_QUEUE ? "" : "Restore the leadmaster-mail-send producer binding."));
-  checks.push(makeCheck("Cloudflare Runtime", "Workers AI binding", env.AI ? "Healthy" : "Moderate",
-    env.AI ? "Workers AI binding is configured. No billable model inference was executed during this health check." : "AI binding is not available in the Worker runtime.",
+  checks.push(makeCheck("Cloudflare Runtime", "Auto-Heal KV binding", env.AUTO_HEAL_KV && typeof env.AUTO_HEAL_KV.get === "function" && typeof env.AUTO_HEAL_KV.put === "function" ? "Healthy" : "Unable to Fix",
+    env.AUTO_HEAL_KV && typeof env.AUTO_HEAL_KV.get === "function" && typeof env.AUTO_HEAL_KV.put === "function" ? "The error-hash deduplication and rejected-fix KV namespace is bound." : "AUTO_HEAL_KV binding is missing.",
+    env.AUTO_HEAL_KV ? "" : "Restore the leadmaster-auto-heal KV namespace binding."));
+  checks.push(makeCheck("Cloudflare Runtime", "Workers AI binding", env.AI && typeof env.AI.run === "function" ? "Healthy" : "Moderate",
+    env.AI && typeof env.AI.run === "function" ? "Workers AI binding is configured. No model inference is executed by the scheduled health check." : "AI binding is not available in the Worker runtime.",
     env.AI ? "" : "If AI reply suggestions are expected to be active, restore the existing AI binding."));
 }
 function githubHeaders(env) {
@@ -350,9 +353,9 @@ async function checkCloudflareControlPlane(env, checks) {
       bucket ? "leadmaster-inbound-mail bucket exists." : "The expected inbound-mail bucket was not found.",
       bucket ? "" : "Restore the inbound-mail bucket and its binding."));
     const cronList = schedules?.schedules || [];
-    const cronOk = cronList.some(item => item.cron === "0 0 * * *");
+    const cronOk = cronList.some(item => item.cron === "0 9 * * *");
     checks.push(makeCheck("Cloudflare", "Daily Reporter Cron Trigger", cronOk ? "Healthy" : "Needs Attention",
-      cronOk ? "Daily report trigger is configured for 00:00 UTC (08:00 Asia/Kuala_Lumpur)." : "The expected daily 00:00 UTC cron trigger is missing.",
+      cronOk ? "Mandatory daily report is configured for 09:00 UTC (17:00 Asia/Manila)." : "The expected daily 09:00 UTC / 17:00 Asia/Manila cron trigger is missing.",
       cronOk ? "" : "Deploy the latest main branch configuration with the daily reporter cron."));
     const latest = deployments?.deployments?.[0];
     checks.push(makeCheck("Cloudflare", "Latest Worker deployment", latest ? "Healthy" : "Moderate",
@@ -393,10 +396,10 @@ function renderHtml(dateLabel, checks, summary) {
   const runtime = checks.filter(x => x.area === "Cloudflare Runtime");
   const action = checks.filter(x => statusRank(x.status) >= statusRank("Needs Attention"));
   const actionsHtml = action.length ? '<div style="margin:20px 0;padding:16px 18px;border-left:4px solid #c62828;background:#fff7f7"><strong style="display:block;margin-bottom:8px;color:#991b1b">Actions requiring attention</strong><ul style="margin:0;padding-left:18px;color:#374151;font-size:13px;line-height:1.65">' + action.map(x => '<li><strong>' + escapeHtml(x.name) + ' — ' + escapeHtml(x.status) + ':</strong> ' + escapeHtml(x.action || x.detail) + '</li>').join("") + '</ul></div>' : '<div style="margin:20px 0;padding:14px 16px;border-left:4px solid #16834a;background:#f0fdf4;color:#166534;font-size:13px">No unresolved critical or manual-action findings were recorded.</div>';
-  return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>REPORT OF THE DAY — ' + escapeHtml(dateLabel) + '</title></head><body style="margin:0;padding:0;background:#f3f4f6;color:#111827;font-family:Arial,Helvetica,sans-serif"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="760" cellpadding="0" cellspacing="0" style="width:100%;max-width:760px;background:#fff;border-top:4px solid #111827"><tr><td style="padding:26px 30px 18px;border-bottom:1px solid #e5e7eb"><div style="font-size:20px;font-weight:800;letter-spacing:.06em;color:#111827">LeadMASTER</div><div style="margin-top:7px;font-size:11px;letter-spacing:.16em;font-weight:700;color:#d97706">REPORTER / WORKER · DAILY OPERATIONS</div></td></tr><tr><td style="padding:28px 30px 8px"><div style="font-size:11px;letter-spacing:.12em;font-weight:700;color:#d97706">REPORT OF THE DAY</div><h1 style="margin:7px 0 16px;font-size:26px;line-height:1.25;color:#111827">' + escapeHtml(dateLabel) + '</h1><p style="margin:0 0 12px;font-size:15px;color:#111827">Hi Admin,</p><p style="margin:0;font-size:14px;line-height:1.7;color:#475569">This is LEADMASTER Reporter/Worker. Below is the daily operational review of the app functions, GitHub repository, Cloudflare resources and backend services. Findings are based on read-only checks unless a safe automatic retry is explicitly recorded.</p><div style="margin:20px 0;padding:15px 17px;background:#f8fafc;border:1px solid #e5e7eb"><div style="font-size:11px;letter-spacing:.1em;color:#64748b;font-weight:700">OVERALL STATUS</div><div style="margin-top:6px;font-size:18px;font-weight:800;color:' + color + '">' + escapeHtml(summary.overall) + '</div><div style="margin-top:4px;font-size:12px;color:#64748b">' + summary.total + ' checks completed · ' + summary.failed.length + ' require attention or manual action</div></div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>' + metrics + '</tr></table>' + actionsHtml + renderTable("GITHUB — REPOSITORY AND ACTIONS", github) + renderTable("CLOUDFLARE — ACCOUNT AND RUNTIME", [...cloudflare, ...runtime]) + renderTable("APP FUNCTIONS AFFECTED", app) + '<h2 style="margin:28px 0 10px;font-size:17px;color:#111827">Status legend</h2><p style="margin:0;color:#475569;font-size:12px;line-height:1.8"><span style="color:#16834a;font-weight:700">Green — Healthy / Fixed</span> &nbsp; <span style="color:#c58a12;font-weight:700">Yellow — Moderate</span> &nbsp; <span style="color:#e36b25;font-weight:700">Orange — Needs Attention</span> &nbsp; <span style="color:#c62828;font-weight:700">Red — Needs Manual Action</span> &nbsp; <span style="color:#991b1b;font-weight:700">Dark red — Unable to Fix</span></p><p style="margin:24px 0 0;font-size:13px;line-height:1.7;color:#475569">Please review the actions above and make changes where applicable. The Reporter/Worker retries transient checks and verifies the result; it does not silently change application code, production data, account security settings or deployments.</p><p style="margin:20px 0 0;color:#111827;font-size:13px">Reporter/Worker,<br><strong>LeadMASTER</strong></p></td></tr><tr><td style="padding:18px 30px;background:#f8fafc;border-top:1px solid #e5e7eb;color:#64748b;font-size:11px;line-height:1.6">This is an automatically generated operational email by the LeadMASTER Reporter/Worker. It is sent only to the configured primary administrator. It does not include credentials, passwords, OTPs, private message contents or SMTP secrets. A green infrastructure check is not a guarantee of email inbox placement or end-user experience. Please do not reply to this automated report.<br><br>© ' + new Date().getUTCFullYear() + ' LeadMASTER · Operational monitoring</td></tr></table></td></tr></table></body></html>';
+  return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>REPORT OF THE DAY — ' + escapeHtml(dateLabel) + '</title></head><body style="margin:0;padding:0;background:#f3f4f6;color:#111827;font-family:Arial,Helvetica,sans-serif"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6"><tr><td align="center" style="padding:28px 12px"><table role="presentation" width="760" cellpadding="0" cellspacing="0" style="width:100%;max-width:760px;background:#fff;border-top:4px solid #111827"><tr><td style="padding:26px 30px 18px;border-bottom:1px solid #e5e7eb"><div style="font-size:20px;font-weight:800;letter-spacing:.06em;color:#111827">LeadMASTER</div><div style="margin-top:7px;font-size:11px;letter-spacing:.16em;font-weight:700;color:#d97706">REPORTER / WORKER · DAILY OPERATIONS</div></td></tr><tr><td style="padding:28px 30px 8px"><div style="font-size:11px;letter-spacing:.12em;font-weight:700;color:#d97706">REPORT OF THE DAY</div><h1 style="margin:7px 0 16px;font-size:26px;line-height:1.25;color:#111827">' + escapeHtml(dateLabel) + '</h1><p style="margin:0 0 12px;font-size:15px;color:#111827">Hi Admin,</p><p style="margin:0;font-size:14px;line-height:1.7;color:#475569">This is LEADMASTER Reporter/Worker. Below is the daily operational review of the app functions, GitHub repository, Cloudflare resources and backend services. Findings are based on read-only checks unless a safe automatic retry is explicitly recorded.</p><div style="margin:20px 0;padding:15px 17px;background:#f8fafc;border:1px solid #e5e7eb"><div style="font-size:11px;letter-spacing:.1em;color:#64748b;font-weight:700">OVERALL STATUS</div><div style="margin-top:6px;font-size:18px;font-weight:800;color:' + color + '">' + escapeHtml(summary.overall) + '</div><div style="margin-top:4px;font-size:12px;color:#64748b">' + summary.total + ' checks completed · ' + summary.failed.length + ' require attention or manual action</div></div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>' + metrics + '</tr></table>' + actionsHtml + renderTable("GITHUB — REPOSITORY AND ACTIONS", github) + renderTable("CLOUDFLARE — ACCOUNT AND RUNTIME", [...cloudflare, ...runtime]) + renderTable("APP FUNCTIONS AFFECTED", app) + renderTable("INCIDENT AND REPORTER", checks.filter(x => x.area === "Incident" || x.area === "Reporter")) + '<h2 style="margin:28px 0 10px;font-size:17px;color:#111827">Status legend</h2><p style="margin:0;color:#475569;font-size:12px;line-height:1.8"><span style="color:#16834a;font-weight:700">Green — Healthy / Fixed</span> &nbsp; <span style="color:#c58a12;font-weight:700">Yellow — Moderate</span> &nbsp; <span style="color:#e36b25;font-weight:700">Orange — Needs Attention</span> &nbsp; <span style="color:#c62828;font-weight:700">Red — Needs Manual Action</span> &nbsp; <span style="color:#991b1b;font-weight:700">Dark red — Unable to Fix</span></p><p style="margin:24px 0 0;font-size:13px;line-height:1.7;color:#475569">Please review the actions above and make changes where applicable. The Reporter/Worker retries transient checks and verifies the result; it does not silently change application code, production data, account security settings or deployments.</p><p style="margin:20px 0 0;color:#111827;font-size:13px">Reporter/Worker,<br><strong>LeadMASTER</strong></p></td></tr><tr><td style="padding:18px 30px;background:#f8fafc;border-top:1px solid #e5e7eb;color:#64748b;font-size:11px;line-height:1.6">This is an automatically generated operational email by the LeadMASTER Reporter/Worker. It is sent only to the configured primary administrator. It does not include credentials, passwords, OTPs, private message contents or SMTP secrets. A green infrastructure check is not a guarantee of email inbox placement or end-user experience. Please do not reply to this automated report.<br><br>© ' + new Date().getUTCFullYear() + ' LeadMASTER · Operational monitoring</td></tr></table></td></tr></table></body></html>';
 }
 function renderText(dateLabel, checks, summary) {
-  const sections = ["GitHub", "GitHub Actions", "Cloudflare", "Cloudflare Runtime", "App Functions"];
+  const sections = ["GitHub", "GitHub Actions", "Cloudflare", "Cloudflare Runtime", "App Functions", "Incident", "Reporter"];
   const lines = ["REPORT OF THE DAY — " + dateLabel, "", "Hi Admin,", "", "This is LEADMASTER Reporter/Worker. Please review the app functions, GitHub and Cloudflare checks below.", "", "OVERALL: " + summary.overall, "Checks: " + summary.total, ...Object.entries(summary.counts).map(([name, count]) => name + ": " + count), ""];
   for (const section of sections) {
     const items = checks.filter(x => x.area === section || (section === "GitHub" && x.area === "GitHub") || (section === "Cloudflare" && x.area === "Cloudflare"));
@@ -425,9 +428,12 @@ export async function runDailyReporter(env, scheduledTime = Date.now(), options 
   const timeZone = String(env.REPORTER_TIME_ZONE || DEFAULT_TIME_ZONE);
   const reportDate = getLocalDate(Number(scheduledTime) || Date.now(), timeZone);
   const dateLabel = formatReportDate(reportDate);
-  const reportId = "leadmaster-daily-report-" + reportDate;
+  const reportKey = options.incidentId
+    ? reportDate + "-incident-" + safeString(options.incidentId, 48).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 48)
+    : options.sample ? reportDate + "-sample-" + safeString(options.sampleId || crypto.randomUUID(), 36).replace(/[^A-Za-z0-9_-]/g, "") : reportDate;
+  const reportId = "leadmaster-" + (options.incidentId ? "incident-" : options.sample ? "sample-" : "daily-report-") + reportKey;
   const now = Date.now();
-  const existing = await env.AUTH_DB.prepare("SELECT status,email_status,started_at FROM leadmaster_reporter_runs WHERE report_date=?").bind(reportDate).first();
+  const existing = await env.AUTH_DB.prepare("SELECT status,email_status,started_at FROM leadmaster_reporter_runs WHERE report_date=?").bind(reportKey).first();
   if (existing?.email_status === "accepted" || existing?.email_status === "unknown" || existing?.status === "running") {
     return { skipped: true, reason: "already_attempted", reportDate, emailStatus: existing.email_status };
   }
@@ -436,11 +442,18 @@ export async function runDailyReporter(env, scheduledTime = Date.now(), options 
   }
   await env.AUTH_DB.prepare(
     "INSERT INTO leadmaster_reporter_runs (id,report_date,status,started_at,email_status,report_json) VALUES (?,?, 'running', ?, 'not_attempted', '{}') ON CONFLICT(report_date) DO UPDATE SET status='running',started_at=excluded.started_at,completed_at=NULL,error_summary=NULL WHERE leadmaster_reporter_runs.email_status='not_accepted'"
-  ).bind(reportId, reportDate, now).run();
-  const current = await env.AUTH_DB.prepare("SELECT status,email_status,started_at FROM leadmaster_reporter_runs WHERE report_date=?").bind(reportDate).first();
+  ).bind(reportId, reportKey, now).run();
+  const current = await env.AUTH_DB.prepare("SELECT status,email_status,started_at FROM leadmaster_reporter_runs WHERE report_date=?").bind(reportKey).first();
   if (!current || current.status !== "running" || Number(current.started_at) !== now) return { skipped: true, reason: "another_run_in_progress", reportDate };
   const checks = [];
   try {
+    if (options.incident) {
+      checks.push(makeCheck("Incident", "Triggered event", options.incident.status === "pr_opened" ? "Needs Manual Action" : "Needs Attention",
+        "Event: " + safeString(options.incident.eventType || "GitHub incident") + ". Result: " + safeString(options.incident.status || "investigated") + ". " + safeString(options.incident.reason || options.incident.prUrl || "The event was investigated by the bounded auto-heal worker.", 450),
+        options.incident.prUrl ? "Review the draft pull request; it cannot merge or deploy itself." : "Review the linked issue and apply a manual fix if required.",
+        options.incident.prUrl || options.incident.issueUrl || ""));
+    }
+    if (options.sample) checks.push(makeCheck("Reporter", "Sample report", "Healthy", "This is a one-time sample of the configured daily report layout and checks."));
     await checkApplication(env, checks);
     await Promise.all([
       checkDatabase(env, checks),
@@ -462,7 +475,7 @@ export async function runDailyReporter(env, scheduledTime = Date.now(), options 
     }
     const summary = summarize(checks);
     const report = { reportDate, timeZone, generatedAt: new Date().toISOString(), overall: summary.overall, summary, checks };
-    await persistRun(env, reportDate, { status: "ready_to_send", completedAt: Date.now(), summary, report, emailStatus: "not_attempted", messageId: reportId });
+    await persistRun(env, reportKey, { status: "ready_to_send", completedAt: Date.now(), summary, report, emailStatus: "not_attempted", messageId: reportId });
     if (!admin) return { reportDate, status: "not_sent", summary };
     const html = renderHtml(dateLabel, checks, summary);
     const text = renderText(dateLabel, checks, summary);
@@ -472,12 +485,12 @@ export async function runDailyReporter(env, scheduledTime = Date.now(), options 
         messageId: reportId,
         to: admin,
         fromName: "LeadMASTER Reporter/Worker",
-        subject: "REPORT OF THE DAY — " + dateLabel + " — " + summary.overall,
+        subject: (options.incident ? "LEADMASTER INCIDENT REPORT — " : options.sample ? "LEADMASTER REPORT SAMPLE — " : "REPORT OF THE DAY — ") + dateLabel + " — " + summary.overall,
         text,
         html
       });
       const accepted = sent?.status === "accepted";
-      await persistRun(env, reportDate, {
+      await persistRun(env, reportKey, {
         status: accepted ? "sent" : "failed",
         completedAt: Date.now(), summary, report,
         emailStatus: accepted ? "accepted" : "unknown",
@@ -486,7 +499,7 @@ export async function runDailyReporter(env, scheduledTime = Date.now(), options 
       return { reportDate, status: accepted ? "sent" : "unknown", recipient: admin, summary };
     } catch (error) {
       const outcome = error?.deliveryOutcome === "not_accepted" ? "not_accepted" : "unknown";
-      await persistRun(env, reportDate, {
+      await persistRun(env, reportKey, {
         status: "failed", completedAt: Date.now(), summary, report,
         emailStatus: outcome, messageId: reportId, error: safeString(error?.message || error, 500)
       });
@@ -495,7 +508,7 @@ export async function runDailyReporter(env, scheduledTime = Date.now(), options 
   } catch (error) {
     const summary = summarize(checks);
     const report = { reportDate, timeZone, generatedAt: new Date().toISOString(), overall: summary.overall, summary, checks };
-    await persistRun(env, reportDate, {
+    await persistRun(env, reportKey, {
       status: "failed", completedAt: Date.now(), summary, report,
       emailStatus: "not_attempted", messageId: reportId, error: safeString(error?.message || error, 800)
     });

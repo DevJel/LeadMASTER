@@ -131,6 +131,19 @@ test("daily reporter creates a branded report and sends only to the configured a
   } finally { f.restore(); }
 });
 
+test("sample report uses a separate idempotency key and the same admin-only SES route", async () => {
+  const f = createEnv();
+  try {
+    const result = await runDailyReporter(f.env, Date.UTC(2026, 10, 16, 9, 0, 0), { sample: true, sampleId: "sample-check-1" });
+    assert.equal(result.status, "sent");
+    assert.equal(f.sent.length, 1);
+    assert.equal(f.sent[0].to, "admin@example.com");
+    assert.match(f.sent[0].subject, /LEADMASTER REPORT SAMPLE/);
+    assert.equal(f.db.state.run.email_status, "accepted");
+    assert.match(f.db.state.run.report_date, /-sample-sample-check-1$/);
+  } finally { f.restore(); }
+});
+
 test("reporter is idempotent and never sends a second daily email after acceptance", async () => {
   const f = createEnv();
   try {

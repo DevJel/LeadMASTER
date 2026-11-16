@@ -4,8 +4,8 @@ The daily Reporter/Worker runs inside the production LeadMASTER Worker so it can
 
 ## Schedule and recipient
 
-- Cron: `0 0 * * *` (00:00 UTC / 08:00 Asia/Kuala_Lumpur).
-- Report date and display date use `REPORTER_TIME_ZONE`, currently `Asia/Kuala_Lumpur`.
+- Cron: `0 0 * * *` (09:00 UTC / 17:00 Asia/Manila).
+- Report date and display date use `REPORTER_TIME_ZONE`, currently `Asia/Manila`.
 - Recipient: the configured `ADMIN_EMAIL` secret-store binding only.
 - Sender: existing LeadMASTER SES coordinator and existing `SES_FROM_EMAIL` sender configuration.
 - No CC, BCC, SMTP fallback, second provider, or recipient override.
@@ -63,3 +63,6 @@ Both endpoints require the authenticated primary administrator session:
 ## D1 ledger
 
 Migration `0020_leadmaster_daily_reporter.sql` creates `leadmaster_reporter_runs`, which stores report date, counts, safe check summaries, send outcome and error summary. It does not store SMTP secrets or mailbox content.
+
+
+For issue-triggered repair and incident reports, see [REPORTER_AUTO_HEAL.md](REPORTER_AUTO_HEAL.md). The mandatory daily report remains scheduled for 5:00 PM Philippine Standard Time; incident reports are additional and do not replace it.
