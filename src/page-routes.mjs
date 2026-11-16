@@ -29,7 +29,11 @@ const PROTECTED_ASSETS = new Set([
   "/assets/vendor/dompurify.min.js"
 ]);
 
-export function isProtectedPageAsset(pathname) {\n  return PROTECTED_ASSETS.has(String(pathname || "").toLowerCase());\n}\n\nexport function resolvePageRoute(pathname) {
+export function isProtectedPageAsset(pathname) {
+  return PROTECTED_ASSETS.has(String(pathname || "").toLowerCase());
+}
+
+export function resolvePageRoute(pathname) {
   const normalizedPath = String(pathname || "/").toLowerCase().replace(/\/+$/, "") || "/";
   const cleanRoute = CLEAN_PAGE_ROUTES[normalizedPath];
   if (cleanRoute) {
