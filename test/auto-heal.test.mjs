@@ -162,3 +162,36 @@ test("incident callback queues findings for the daily report and sends no immedi
   assert.match(afterProcessing, /queued_for_daily_report/);
   assert.doesNotMatch(afterProcessing, /runDailyReporter/);
 });
+
+
+test("repeated no-stacktrace CI incidents deduplicate by stable event fingerprint", async () => {
+  const original = globalThis.fetch;
+  const values = new Map();
+  const authorizations = [];
+  const secret = "dedupe-fixture-token";
+  const env = {
+    GITHUB_TOKEN: { get: async () => secret },
+    AUTO_HEAL_KV: {
+      get: async key => values.get(key) || null,
+      put: async (key, value) => { values.set(key, value); }
+    }
+  };
+  globalThis.fetch = async (_url, init) => {
+    authorizations.push(init.headers.authorization);
+    return Response.json({ html_url: "https://github.com/DevJel/LeadMASTER/issues/988" });
+  };
+  try {
+    const first = await processAutoHealEvent(env, {
+      event_type: "workflow_failure", event_id: "run-100", title: "LeadMASTER CI failed", conclusion: "failure"
+    });
+    const second = await processAutoHealEvent(env, {
+      event_type: "workflow_failure", event_id: "run-101", title: "LeadMASTER CI failed", conclusion: "failure"
+    });
+    assert.equal(first.status, "manual_action");
+    assert.equal(second.status, "already_processed");
+    assert.equal(authorizations.length, 1);
+    assert.deepEqual(authorizations, ["Bearer " + secret]);
+    assert.equal(values.size, 1);
+    assert.doesNotMatch(JSON.stringify([first, second]), /dedupe-fixture-token/);
+  } finally { globalThis.fetch = original; }
+});
