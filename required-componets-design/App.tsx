@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 type Category = 'Primary' | 'Promotions' | 'Social' | 'Updates' | 'Forums';
 type Folder = 'inbox' | 'sent' | 'drafts';
@@ -208,6 +208,13 @@ export default function App(){
   const [actionError, setActionError] = useState<string>('');
   const [viewLoading, setViewLoading] = useState(true);
   const [viewError, setViewError] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState('');
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<number|null>(null);
+  const refreshLock = useRef(false);
+  const touchStartY = useRef<number|null>(null);
+  const pointerStartY = useRef<number|null>(null);
+  const wheelDistance = useRef(0);
   const [settingsSaved, setSettingsSaved] = useState(false);
   const showLoading = isLoading || busy;
 
@@ -313,8 +320,10 @@ export default function App(){
   const allEmails = useMemo(()=> userEmails.filter(e=>!deletedForever.has(e.id)), [userEmails, deletedForever]);
   useEffect(()=>{ document.documentElement.setAttribute('data-theme','light'); },[theme]);
 
-  async function reloadRecords(){
-    setIsLoading(true); setLoadError('');
+  async function reloadRecords(options:{silent?:boolean}={}){
+    const silent = options.silent === true;
+    if(!silent){ setIsLoading(true); setLoadError(''); }
+    else setRefreshError('');
     try{
       const [prefsData, msgsData, tplData, ruleData, schedData, contactsData, remindersData, notesData, inboxData, sentData, deletedData] = await Promise.all([
         api("records.list", {collection:'leadmaster_prefs'}),
@@ -329,6 +338,7 @@ export default function App(){
         fetch('/api/admin/mail?folder=sent', {credentials:'same-origin'}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`Sent request failed (${r.status})`);return j;}),
         fetch('/api/admin/mail?folder=deleted', {credentials:'same-origin'}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`Deleted request failed (${r.status})`);return j;}),
       ]);
+      if(!Array.isArray(prefsData?.records) || !Array.isArray(msgsData?.records) || !Array.isArray(tplData?.records) || !Array.isArray(ruleData?.records) || !Array.isArray(schedData?.records) || !Array.isArray(contactsData?.records) || !Array.isArray(remindersData?.records) || !Array.isArray(notesData?.records) || !Array.isArray(inboxData?.items) || !Array.isArray(sentData?.items) || !Array.isArray(deletedData?.items)) throw new Error('The server returned an incomplete workspace snapshot.');
       const prefsRec = prefsData?.records?.[0];
       if(prefsRec){
         setPrefsId(prefsRec.id); const v = prefsRec.value||{};
@@ -351,16 +361,67 @@ export default function App(){
       setReadIds(new Set([...inboxRows.filter((m:any)=>!m.unread).map((m:any)=>m.id), ...((prefsRec?.value?.read||[]) as string[])]));
       setDeleted(new Set(deletedRows.map((m:any)=>m.id)));
       setOutbox((sentData?.items||[]).filter((m:any)=>['queued','processing','retrying','sending','failed','unknown'].includes(String(m.queue_status||m.status||'').toLowerCase()) || ['bounced','rejected','failed'].includes(String(m.delivery_status||'').toLowerCase())).map((m:any)=>({id:m.id,to:m.recipient||'',subject:m.subject||'(no subject)',body:m.text_body||'',status:(['failed','unknown','bounced','rejected'].includes(String(m.delivery_status||m.status||'').toLowerCase())?'Failed':String(m.queue_status||'').toLowerCase()==='processing'?'Sending':'Queued') as OutboxItem['status'],error:m.error_code||undefined,attempt:`${m.queue_status||m.delivery_status||m.status||'Status pending'} · ${formatMailTime(m.updated_at||m.created_at)}`})));
-      if((tplData?.records||[]).length){ setTemplates(tplData.records.map((r:any)=>({...r.value, id:r.value?.id||r.id, recordId:r.id}))); }
-      if((ruleData?.records||[]).length){ setRules(ruleData.records.map((r:any)=>({...r.value, id:r.value?.id||r.id, recordId:r.id}))); }
-      if((schedData?.records||[]).length){ setScheduled(schedData.records.map((r:any)=>({...r.value, id:r.value?.id||r.id, recordId:r.id}))); }
-      if((contactsData?.records||[]).length){ setContacts(contactsData.records.map((r:any)=>({...r.value, id:r.value?.id||r.id, recordId:r.id}))); }
-      if((remindersData?.records||[]).length){ setReminders(remindersData.records.map((r:any)=>({...r.value, id:r.value?.id||r.id, recordId:r.id}))); }
-      if((notesData?.records||[]).length){ setNotes(notesData.records.map((r:any)=>({...r.value, id:r.value?.id||r.id, recordId:r.id}))); }
-    }catch(e){ const msg = e instanceof Error? e.message : String(e); setLoadError(`Couldn’t load production mailbox data — ${msg}. Retry after checking your admin session and mailbox connection.`); }
-    finally{ setIsLoading(false); }
+      setTemplates(tplData.records.map((r:any)=>({...r.value, id:r.value?.id||r.id, recordId:r.id})));
+      setRules(ruleData.records.map((r:any)=>({...r.value, id:r.value?.id||r.id, recordId:r.id})));
+      setScheduled(schedData.records.map((r:any)=>({...r.value, id:r.value?.id||r.id, recordId:r.id})));
+      setContacts(contactsData.records.map((r:any)=>({...r.value, id:r.value?.id||r.id, recordId:r.id})));
+      setReminders(remindersData.records.map((r:any)=>({...r.value, id:r.value?.id||r.id, recordId:r.id})));
+      setNotes(notesData.records.map((r:any)=>({...r.value, id:r.value?.id||r.id, recordId:r.id})));
+      setLastRefreshedAt(Date.now());
+      return true;
+    }catch(e){
+      const msg = e instanceof Error? e.message : String(e);
+      if(silent) setRefreshError(`Could not verify the latest workspace data — ${msg}. Your previously loaded content is still available.`);
+      else setLoadError(`Couldn’t load production mailbox data — ${msg}. Retry after checking your admin session and mailbox connection.`);
+      return false;
+    }finally{ if(!silent) setIsLoading(false); }
   }
   useEffect(()=>{ reloadRecords(); },[]);
+  async function refreshWorkspace(){
+    if(refreshLock.current) return;
+    refreshLock.current = true;
+    setIsRefreshing(true);
+    setRefreshError('');
+    const startedAt = Date.now();
+    try{
+      while(Date.now() - startedAt < 12000){
+        const verified = await reloadRecords({silent:true});
+        if(verified){ setRefreshError(''); setStatus('Workspace refreshed from the server.'); return; }
+        const remaining = 12000 - (Date.now() - startedAt);
+        if(remaining <= 0) break;
+        await new Promise(resolve=>setTimeout(resolve,Math.min(1500,remaining)));
+      }
+      setRefreshError('The server did not confirm a complete workspace snapshot within 12 seconds. Your previously loaded content is still available. Try again.');
+    }finally{
+      setIsRefreshing(false);
+      refreshLock.current = false;
+    }
+  }
+  function currentScrollTop(){ return window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0; }
+  function handleRefreshTouchStart(event:React.TouchEvent<HTMLDivElement>){
+    touchStartY.current = currentScrollTop() <= 0 && event.touches.length === 1 ? event.touches[0].clientY : null;
+  }
+  function handleRefreshTouchEnd(event:React.TouchEvent<HTMLDivElement>){
+    const startY = touchStartY.current;
+    touchStartY.current = null;
+    if(startY !== null && currentScrollTop() <= 0 && event.changedTouches[0] && event.changedTouches[0].clientY - startY >= 72) void refreshWorkspace();
+  }
+  function handleRefreshPointerDown(event:React.PointerEvent<HTMLDivElement>){
+    pointerStartY.current = event.pointerType === 'mouse' && event.button === 0 && currentScrollTop() <= 0 ? event.clientY : null;
+  }
+  function handleRefreshPointerUp(event:React.PointerEvent<HTMLDivElement>){
+    const startY = pointerStartY.current;
+    pointerStartY.current = null;
+    if(startY !== null && currentScrollTop() <= 0 && event.clientY - startY >= 84) void refreshWorkspace();
+  }
+  function handleRefreshWheel(event:React.WheelEvent<HTMLDivElement>){
+    if(currentScrollTop() > 0){ wheelDistance.current = 0; return; }
+    if(event.deltaY < 0){
+      wheelDistance.current += Math.abs(event.deltaY);
+      if(wheelDistance.current >= 120){ wheelDistance.current = 0; void refreshWorkspace(); }
+    }else wheelDistance.current = 0;
+  }
+
   async function handleRetry(){ await reloadRecords(); }
 
   async function savePrefs(next?:any){
@@ -1020,7 +1081,7 @@ export default function App(){
   ); })() : null;
 
   return (
-    <div data-safe-area-inset-root className="min-h-screen w-full bg-[var(--background)] overflow-x-clip" style={{boxSizing:'border-box', paddingTop:'var(--safe-area-inset-top)'}}>
+    <div data-safe-area-inset-root className="min-h-screen w-full bg-[var(--background)] overflow-x-clip" style={{boxSizing:'border-box', paddingTop:'var(--safe-area-inset-top)'}} onTouchStart={handleRefreshTouchStart} onTouchEnd={handleRefreshTouchEnd} onPointerDown={handleRefreshPointerDown} onPointerUp={handleRefreshPointerUp} onWheel={handleRefreshWheel}>
       <header data-safe-area-sticky-top className="sticky z-40 bg-[var(--background)] border-b border-[var(--border)]" style={{top:'var(--safe-area-inset-top)'}}>
         <div className="flex items-center gap-1 sm:gap-3 px-2 sm:px-4 h-[64px]">
           <button onClick={()=>{ if(window.innerWidth<768) setMobileSidebar(true); else setSidebarOpen(!sidebarOpen); }} className="p-2.5 rounded-full hover:bg-[var(--surface-3)]" aria-label="Show or hide navigation"><UniformIcon name="menu" size={20}/></button>
@@ -1032,6 +1093,7 @@ export default function App(){
           <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
             <button onClick={()=>setRightPanelOpen(!rightPanelOpen)} className={`px-3 py-2 rounded-full hover:bg-[var(--surface-3)] text-[13px] font-medium whitespace-nowrap ${rightPanelOpen?'bg-[var(--text)] text-[var(--surface)]':'border border-[var(--border)]'}`} aria-label="Show or hide Workspace panel" title="Show or hide Contacts, Calendar and Notes panel">Workspace</button>
             <button onClick={()=>setShowHelp(!showHelp)} className="p-2.5 rounded-full hover:bg-[var(--surface-3)] hidden sm:block" aria-label="Help"><UniformIcon name="help" size={21}/></button>
+            <button onClick={()=>void refreshWorkspace()} disabled={isRefreshing} className="p-2.5 rounded-full hover:bg-[var(--surface-3)] disabled:opacity-50" aria-label="Refresh workspace" title="Refresh workspace"><UniformIcon name="refresh" size={20}/></button>
             <button onClick={()=>goView('settings')} className="p-2.5 rounded-full hover:bg-[var(--surface-3)]" aria-label="Settings"><UniformIcon name="settings" size={21}/></button>
             <button onClick={()=>setShowApps(!showApps)} className="p-2.5 rounded-full hover:bg-[var(--surface-3)]" aria-label="Apps"><UniformIcon name="apps" size={20}/></button>
             <button onClick={()=>setShowProfile(!showProfile)} className="ml-1 w-9 h-9 rounded-full bg-[var(--text)] text-[var(--surface)] grid place-items-center font-medium" aria-label="Profile">A</button>
@@ -1052,6 +1114,8 @@ export default function App(){
         {mobileSidebar && <div className="fixed inset-0 z-50 md:hidden"><div className="absolute inset-0 bg-black/40" onClick={()=>setMobileSidebar(false)}/><div className="absolute left-0 top-0 bottom-0 w-[280px] bg-[var(--background)] p-2 pt-4 overflow-y-auto">{sidebar}</div></div>}
 
         <main className="flex-1 min-w-0 px-1 sm:px-3 pb-6">
+          {isRefreshing && <div role="status" aria-live="polite" className="mx-2 mt-2 mb-1 flex items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[13px] text-[var(--text-2)]"><Spinner size={16}/> Refreshing and verifying workspace data…</div>}
+          {refreshError && <div role="alert" className="mx-2 mt-2 mb-1 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-[13px]"><span className="flex-1 min-w-[180px]">{refreshError}</span><button onClick={()=>void refreshWorkspace()} disabled={isRefreshing} className="rounded-full border border-[var(--text)] px-4 py-2 font-medium disabled:opacity-50">Retry refresh</button></div>}
           {stateBar}
           {viewError ? ErrorState : viewLoading ? LoadingState : mainContent}
         </main>
