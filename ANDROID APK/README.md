@@ -208,8 +208,8 @@ The Android module currently declares:
 |---|---|
 | Application ID | `pro.leadmaster.app` |
 | Namespace | `pro.leadmaster.app` |
-| Version name | `1.6.0` |
-| Version code | `7` |
+| Version name | `1.7.0` |
+| Version code | `8` |
 | Minimum SDK | API 26 (Android 8.0) |
 | Compile SDK | API 35 |
 | Target SDK | API 35 |
