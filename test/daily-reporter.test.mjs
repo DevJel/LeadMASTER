@@ -252,6 +252,10 @@ test("reporter reads Cloudflare Secret Store bindings and authenticates GitHub a
           { name: "TURSO_URL", type: "plain_text" }
         ]
       }];
+      else if (path.endsWith("/workers/scripts/leadmaster/settings")) result = { bindings: [
+        { name: "TURSO_AUTH_TOKEN", type: "secrets_store_secret" },
+        { name: "TURSO_URL", type: "plain_text" }
+      ] };
       else if (path.endsWith("/queues")) result = [{
         queue_name: "leadmaster-mail-send",
         producers: [{ script: "leadmaster" }],
