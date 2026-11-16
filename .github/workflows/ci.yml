@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -22,7 +24,7 @@ jobs:
       - run: npm ci
       - run: npm run build:assets
       - name: Commit generated asset bundle
-        if: github.event_name == 'push' && github.actor != 'github-actions[bot]'
+        if: (github.event_name == 'push' || github.event_name == 'pull_request') && github.actor != 'github-actions[bot]'
         run: |
           if ! git diff --quiet -- src/static-assets.mjs; then
             git config user.name "github-actions[bot]"
@@ -36,7 +38,7 @@ jobs:
       # PR builds validate asset generation. Push builds commit the generated bundle
       # to the same branch so the worker's static asset map is always in sync.
       - name: Verify generated asset bundle
-        if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+        if: (github.event_name == 'push' && github.ref != 'refs/heads/main') || github.event_name == 'pull_request'
         run: git diff --exit-code -- src/static-assets.mjs
       - name: Syntax-check account and route modules
         run: |
