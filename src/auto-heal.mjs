@@ -121,6 +121,13 @@ async function sha256(value) {
 function safe(value, max = 600) {
   return String(value || "").replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 }
+async function secretValue(binding) {
+  try {
+    const value = typeof binding?.get === "function" ? await binding.get() : binding;
+    return typeof value === "string" && value.trim() ? value.trim() : null;
+  } catch { return null; }
+}
+
 async function githubRequest(token, path, init = {}) {
   const response = await fetch("https://api.github.com" + path, {
     ...init,
@@ -170,8 +177,8 @@ async function createManualIssue(token, repo, title, body, sourceIssue) {
 }
 
 async function analyzeAndPropose(env, frame, stacktrace, sourceIssue) {
-  const token = String(env.GITHUB_TOKEN || "");
-  if (!token) throw new Error("The Worker GITHUB_TOKEN secret is not configured; safe source inspection and PR creation require a least-privilege GitHub token.");
+  const token = await secretValue(env.GITHUB_TOKEN);
+  if (!token) throw new Error("The Worker GITHUB_TOKEN Secret Store binding is unavailable; safe source inspection and PR creation require a least-privilege GitHub token.");
   const repo = String(env.REPORTER_GITHUB_REPOSITORY || "DevJel/LeadMASTER");
   const branch = await githubRequest(token, "/repos/" + repo + "/branches/main");
   const sha = branch.commit?.sha;
@@ -246,7 +253,7 @@ export async function processAutoHealEvent(env, event) {
   const repo = String(env.REPORTER_GITHUB_REPOSITORY || "DevJel/LeadMASTER");
   const stacktrace = safe(event.stacktrace || event.issue_body || "", 8000);
   const frames = parseStackFrames(stacktrace);
-  const token = String(env.GITHUB_TOKEN || "");
+  const token = await secretValue(env.GITHUB_TOKEN);
   const computedHash = await sha256((frames[0]?.file || "unknown") + ":" + (frames[0]?.line || 0) + ":" + (stacktrace || safe(event.event_id || event.issue_url || event.event_type, 1000)));
   const errorHash = event.event_type === "rejected" ? String(event.error_hash || computedHash) : computedHash;
   const kv = env.AUTO_HEAL_KV;

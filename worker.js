@@ -680,17 +680,7 @@ async function handle(request, env, ctx) {
       return json({ sample: true, report: sample }, sample.status === "sent" ? 200 : 503);
     }
     const result = await processAutoHealEvent(env, event);
-    const report = await runDailyReporter(reporterEnvironment(env, ctx), Date.now(), {
-      incidentId: result.errorHash || crypto.randomUUID(),
-      incident: {
-        status: result.status,
-        reason: result.reason || (result.prUrl ? "A strictly scoped draft fix pull request was opened." : "The event was investigated."),
-        prUrl: result.prUrl,
-        issueUrl: result.issueUrl,
-        eventType: event.event_type
-      }
-    });
-    return json({ incident: result, report: { status: report.status, reportDate: report.reportDate, emailStatus: report.emailStatus, summary: report.summary } }, report.status === "sent" ? 200 : 503);
+    return json({ incident: result, report: { status: "queued_for_daily_report" } }, 200);
   }
 
     const adminSession=await sessionFor(request,env);
