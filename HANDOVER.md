@@ -463,3 +463,5 @@ The verification endpoint retries only read-only identity, challenge and verific
 - No API key, profile API, database column, migration, scheduled task or extra D1 read is required for avatar images. Profile enrichment is intentionally not enabled.
 - The shared React dashboard covers web and the Android WebView companion; native Android business logic is unchanged.
 - Tests: `test/gravatar.test.mjs`.
+
+- Updated the Data Privacy Notice to explain Gravatar's hash-based image requests and the standard connection metadata the image provider may receive; privacy/legal review is required before production release.
