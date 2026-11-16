@@ -61,7 +61,9 @@ export function createMailConsumer({send, deliverWebhook, sleep = ms => new Prom
   // process crashes, the started claim remains: redelivery must not send again.
   await db.batch([update,db.prepare('UPDATE mail_send_claims SET state=?,completed_at=? WHERE source=? AND request_id=? AND state=\'started\'').bind(outcome,now,source,id)]);
   message.ack();
-  if(source==='developer' && outcome==='accepted')await bestEffort(()=>deliverWebhook(env,'email.accepted',{request_id:id,recipient:row.recipient,subject:row.subject},row.api_key_id,row.account_id));
+  // Notify only after the terminal state and fence have committed. These are
+  // best-effort callbacks, not durable delivery or a reason to retry SMTP.
+  if(source==='developer')await bestEffort(()=>deliverWebhook(env,'email.'+outcome,{request_id:id,recipient:row.recipient,subject:row.subject,...(errorCode?{error_code:errorCode}:{})},row.api_key_id,row.account_id));
   if(outcome==='accepted') {
    const summary='Email accepted by the sending service for '+row.recipient;
    await bestEffort(()=>db.prepare("INSERT INTO workspace_activity (id,actor_email,action,summary,target_id,created_at) VALUES (?,?,'email_sent',?,?,?)").bind(crypto.randomUUID(),row.created_by||'system',summary,id,now).run());

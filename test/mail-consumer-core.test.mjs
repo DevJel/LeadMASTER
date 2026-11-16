@@ -166,3 +166,30 @@ test('a 500-recipient batch advances per recipient through a shared capped coord
  assert.equal(s.sql.prepare("SELECT count(*) AS n FROM admin_sent_mail WHERE batch_id=? AND status='accepted'").get(batchId).n,500);
  for(const item of starts)assert.ok(starts.filter(x=>x.at>=item.at&&x.at<item.at+1000).length<=10);
 });
+
+test('developer terminal outcomes emit scoped events exactly once after status commit',async()=>{
+ for(const scenario of [
+  {name:'accepted',send:async()=>{},event:'email.accepted',code:null},
+  {name:'failed',send:async()=>{throw Object.assign(Error('rejected'),{deliveryOutcome:'not_accepted'})},event:'email.failed',code:'delivery_not_accepted'},
+  {name:'unknown',send:async()=>{throw Error('connection lost')},event:'email.unknown',code:'delivery_outcome_unknown'},
+  {name:'suppressed',send:async()=>{throw Error('must not send')},event:'email.failed',code:'suppressed_at_dispatch',suppress:true},
+ ]){
+  const s=setup('developer'),events=[];if(scenario.suppress)s.sql.prepare('INSERT INTO email_unsubscribes(email) VALUES (?)').run('recipient@example.test');
+  const c=consumer(scenario.send,async(env,type,data,key,account)=>{events.push({type,data,key,account,status:s.status(),claim:s.claim()});assert.equal(env,s.env)});
+  const first=message('developer');await c.queue({messages:[first]},s.env);
+  const second=message('developer');await c.queue({messages:[second]},s.env);
+  assert.equal(first.acks,1,scenario.name);assert.equal(second.acks,1,scenario.name);assert.equal(events.length,1,scenario.name);
+  assert.equal(events[0].type,scenario.event);assert.equal(events[0].key,'key');assert.equal(events[0].account,'account');
+  assert.equal(events[0].status,scenario.name==='suppressed'?'failed':scenario.name);assert.equal(events[0].claim,events[0].status);
+  assert.equal(events[0].data.request_id,id);assert.equal(events[0].data.error_code||null,scenario.code);
+ }
+});
+test('developer webhook callback failure never resends the email',async()=>{
+ const s=setup('developer');let sends=0,calls=0;const c=consumer(async()=>{sends++},async()=>{calls++;throw Error('endpoint unavailable')});
+ const first=message('developer');await c.queue({messages:[first]},s.env);assert.equal(first.acks,1);assert.equal(s.status(),'accepted');
+ await c.queue({messages:[message('developer')]},s.env);assert.equal(sends,1);assert.equal(calls,1);
+});
+test('terminal webhook is not emitted when the outcome transaction fails',async()=>{
+ const s=setup('developer');let calls=0;const c=consumer(async()=>{s.db.failBatch=true},async()=>{calls++});
+ const first=message('developer');await c.queue({messages:[first]},s.env);assert.equal(first.acks,0);assert.equal(first.retries.length,1);assert.equal(s.claim(),'started');assert.equal(calls,0);
+});
