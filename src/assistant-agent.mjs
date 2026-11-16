@@ -160,10 +160,10 @@ export async function assistantAgentRoute(request, env, session, adminEmail) {
   let body;
   try { body = await readBoundedJson(request, 18000); } catch { return json({ error: "Invalid request body." }, 400); }
   if (!Array.isArray(body?.messages) || !body.messages.length || body.messages.length > MAX_HISTORY) return json({ error: "Send up to 12 conversation messages." }, 400);
-  const history = body.messages.map(item => {
-    if (!item || !["user", "assistant"].includes(item.role) || typeof item.content !== "string" || !item.content.trim() || item.content.length > MAX_MESSAGE) throw new TypeError("invalid-message");
-    return { role: item.role, content: item.content.trim() };
-  });
+  if (!body.messages.every(item => item && ["user", "assistant"].includes(item.role) && typeof item.content === "string" && item.content.trim() && item.content.length <= MAX_MESSAGE)) {
+    return json({ error: "Each conversation message must contain a supported role and non-empty text within the size limit." }, 400);
+  }
+  const history = body.messages.map(item => ({ role: item.role, content: item.content.trim() }));
   if (history.at(-1)?.role !== "user") return json({ error: "The latest conversation message must be from the user." }, 400);
   const total = history.reduce((sum, item) => sum + enc.encode(item.content).length, 0);
   if (total > 14000) return json({ error: "Conversation is too large. Start a new assistant conversation." }, 413);
