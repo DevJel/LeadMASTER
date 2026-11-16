@@ -134,7 +134,7 @@ const HTML_SNIPPETS = [
   {name:'Table', html:'<table style="width:100%;border-collapse:collapse"><tr><td style="border:1px solid #000;padding:8px">Left</td><td style="border:1px solid #000;padding:8px">Right</td></tr><tr><td style="border:1px solid #000;padding:8px">Left</td><td style="border:1px solid #000;padding:8px">Right</td></tr></table>'},
   {name:'Divider', html:'<hr style="border:0;border-top:1px solid #000;margin:16px 0" />'},
   {name:'Image', html:'<p><img src="https://example.com/photo.jpg" alt="Describe this image" style="max-width:100%;border:1px solid #000;border-radius:8px" /></p>'},
-  {name:'Signature Block', html:'<p><strong>Alex Morgan</strong><br/>LeadMaster · Sales Lead<br/><a href="mailto:alex.morgan@leadmaster.com">alex.morgan@leadmaster.com</a></p>'},
+  {name:'Signature Block', html:'<p><strong>LeadMASTER</strong></p>'},
   {name:'Callout Box', html:'<div style="border:1px solid #000;padding:12px;border-radius:8px"><strong>Callout</strong><p style="margin:6px 0 0">Add your callout text here.</p></div>'},
   {name:'Callout box', html:'<div style="border:1px solid #000;padding:12px;border-radius:8px"><strong>Callout</strong><p style="margin:6px 0 0">Add your callout text here.</p></div>'},
   {name:'Two-column table', html:'<table style="width:100%;border-collapse:collapse"><tr><td style="border:1px solid #000;padding:8px">Left</td><td style="border:1px solid #000;padding:8px">Right</td></tr></table>'},
@@ -142,9 +142,9 @@ const HTML_SNIPPETS = [
   {name:'Signature block', html:'<p><strong>Alex Morgan</strong><br/>LeadMaster · Sales Lead<br/><a href="mailto:alex.morgan@leadmaster.com">alex.morgan@leadmaster.com</a></p>'},
 ];
 const COMPOSE_SIGNATURES = [
-  {name:'Alex Morgan — LeadMaster', value:'Best,\nAlex Morgan\nLeadMaster · Sales Lead\nalex.morgan@leadmaster.com'},
+  {name:'LeadMASTER', value:'Best,\nLeadMASTER'},
   {name:'Short — Thanks, Alex', value:'Thanks,\nAlex'},
-  {name:'Formal', value:'Kind regards,\nAlex Morgan\nLeadMaster · Sales Lead\nalex.morgan@leadmaster.com'},
+  {name:'Formal', value:'Kind regards,\nLeadMASTER'},
 ];
 const CANNED_RESPONSES = [
   {name:'Quick thanks', body:'Hi,\n\nThanks so much for your message — I’ll follow up shortly.\n\nBest,\nAlex'},
@@ -308,7 +308,6 @@ export default function App(){
 
   useEffect(()=>{setViewError(false);setViewLoading(false);},[view]);
   function retryCurrentView(){setViewError(false);void reloadRecords();}
-  function simulateError(){setViewLoading(false);setViewError(true);}
 
   const allEmails = useMemo(()=> userEmails.filter(e=>!deletedForever.has(e.id)), [userEmails, deletedForever]);
   useEffect(()=>{ document.documentElement.setAttribute('data-theme','light'); },[theme]);
@@ -921,7 +920,7 @@ export default function App(){
           <section className="bg-[var(--surface)] rounded-2xl gmail-shadow p-4 sm:p-5 mb-3 border border-[var(--border)]"><h3 className="font-medium">Notifications</h3><div className="space-y-3 mt-3 text-[14px]">{[[notifEmail, setNotifEmail, 'Email notifications', 'Preference saved; email alerts are not active yet'], [notifDesktop, setNotifDesktop, 'Desktop notifications', 'Preference saved; desktop alerts are not active yet'], [notifSound, setNotifSound, 'Sounds', 'Preference saved; sound alerts are not active yet']].map(([val, setter, label, desc]:any, i)=><label key={i} className="flex items-start gap-3 cursor-pointer"><input type="checkbox" disabled={viewLoading} checked={val} onChange={e=>{setter(e.target.checked); savePrefs({[i===0?'notifEmail':i===1?'notifDesktop':'notifSound']:e.target.checked});}} className="accent-black w-4 h-4 mt-0.5"/><span><span className="block">{label}</span><span className="block text-[13px] text-[var(--text-3)]">{desc}</span></span></label>)}</div></section>
           <section className="bg-[var(--surface)] rounded-2xl gmail-shadow p-4 sm:p-5 mb-3 border border-[var(--border)]"><h3 className="font-medium">Default reply behavior</h3><div className="flex flex-wrap gap-2 mt-3">{([['reply','Reply'],['reply-all','Reply all']] as const).map(([v,l])=><button key={v} disabled={viewLoading} onClick={()=>{setReplyBehavior(v); savePrefs({replyBehavior:v});}} className={`px-4 py-2 rounded-full border disabled:opacity-50 ${replyBehavior===v?'bg-[var(--text)] text-[var(--surface)]':'border-[var(--border)]'}`}>{l}</button>)}</div><p className="text-[13px] text-[var(--text-3)] mt-2">Reply buttons in email detail follow this default.</p></section>
           <section className="bg-[var(--surface)] rounded-2xl gmail-shadow p-4 sm:p-5 mb-3 border border-[var(--border)]"><div className="flex items-center justify-between gap-3"><div><h3 className="font-medium">Vacation responder</h3><p className="text-[13px] text-[var(--text-3)] mt-1">Save your out-of-office message preferences. Automatic replies are not enabled yet.</p></div><button disabled={viewLoading} onClick={()=>{const next=!vacationOn; setVacationOn(next); savePrefs({vacationOn:next});}} role="switch" aria-checked={vacationOn} className={`w-11 h-6 rounded-full relative shrink-0 border border-[var(--border)] disabled:opacity-50 ${vacationOn?'bg-[var(--text)]':'bg-[var(--surface-3)]'}`}><span className={`absolute top-0.5 w-5 h-5 rounded-full shadow transition-all ${vacationOn?'left-[22px] bg-[var(--surface)]':'left-0.5 bg-white'}`}/></button></div>{vacationOn && <div className="grid gap-3 mt-4"><label className="text-[13px]">Subject<input value={vacationSubject} onChange={e=>setVacationSubject(e.target.value)} className="w-full mt-1 border border-[var(--border)] rounded-lg px-3 py-2 bg-[var(--surface)] outline-none"/></label><label className="text-[13px]">Message<textarea value={vacationBody} onChange={e=>setVacationBody(e.target.value)} rows={4} className="w-full mt-1 border border-[var(--border)] rounded-lg px-3 py-2 bg-[var(--surface)] outline-none resize-y"/></label></div>}</section>
-          <div className="flex flex-wrap gap-2"><button disabled={viewLoading} onClick={saveSettings} className="px-6 py-2.5 rounded-full bg-[var(--text)] text-[var(--surface)] text-[14px] disabled:opacity-50">Save Settings</button><button onClick={()=>{setDensity('comfortable'); setSignature('Best,\nAlex Morgan\nLeadMaster · Sales Lead\nalex.morgan@leadmaster.com'); setStatus('Settings reset to LeadMaster defaults.');}} className="px-5 py-2.5 rounded-full border border-[var(--border)] text-[14px]">Reset to defaults</button></div>
+          <div className="flex flex-wrap gap-2"><button disabled={viewLoading} onClick={saveSettings} className="px-6 py-2.5 rounded-full bg-[var(--text)] text-[var(--surface)] text-[14px] disabled:opacity-50">Save Settings</button><button onClick={()=>{setDensity('comfortable'); setSignature('Best,\nLeadMASTER'); setStatus('Settings reset to LeadMaster defaults.');}} className="px-5 py-2.5 rounded-full border border-[var(--border)] text-[14px]">Reset to defaults</button></div>
           {settingsSaved && <p className="flex items-center gap-2 text-[13px] font-medium mt-3"><UniformIcon name="check" size={16}/> Settings saved — profile, theme, and signature are stored.</p>}
           <p className="text-[12px] text-[var(--text-3)] mt-3">Settings are saved to your LeadMaster workspace. Vacation responder only applies when turned on.</p>
         </div>
@@ -1030,14 +1029,12 @@ export default function App(){
           </div>
           <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
             <button onClick={()=>setRightPanelOpen(!rightPanelOpen)} className={`px-3 py-2 rounded-full hover:bg-[var(--surface-3)] text-[13px] font-medium whitespace-nowrap ${rightPanelOpen?'bg-[var(--text)] text-[var(--surface)]':'border border-[var(--border)]'}`} aria-label="Show or hide Workspace panel" title="Show or hide Contacts, Calendar and Notes panel">Workspace</button>
-            <button onClick={simulateError} title="Simulate error" aria-label="Simulate error" className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-full border border-[var(--border)] text-[13px] hover:bg-[var(--surface-2)]"><UniformIcon name="alert" size={16}/> <span className="hidden lg:inline">Simulate error</span></button>
             <button onClick={()=>setShowHelp(!showHelp)} className="p-2.5 rounded-full hover:bg-[var(--surface-3)] hidden sm:block" aria-label="Help"><UniformIcon name="help" size={21}/></button>
             <button onClick={()=>goView('settings')} className="p-2.5 rounded-full hover:bg-[var(--surface-3)]" aria-label="Settings"><UniformIcon name="settings" size={21}/></button>
             <button onClick={()=>setShowApps(!showApps)} className="p-2.5 rounded-full hover:bg-[var(--surface-3)]" aria-label="Apps"><UniformIcon name="apps" size={20}/></button>
             <button onClick={()=>setShowProfile(!showProfile)} className="ml-1 w-9 h-9 rounded-full bg-[var(--text)] text-[var(--surface)] grid place-items-center font-medium" aria-label="Profile">A</button>
           </div>
         </div>
-        <div className="sm:hidden px-3 pb-2"><button onClick={simulateError} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[var(--border)] text-[12px]"><UniformIcon name="alert" size={14}/> Simulate error</button></div>
         {(showHelp||showSettings||showApps||showProfile) && <div className="absolute right-2 sm:right-4 top-[64px] w-[320px] max-w-[calc(100vw-16px)] bg-[var(--surface)] rounded-2xl gmail-shadow p-4 z-50 border border-[var(--border)]">
           {showHelp && <div><p className="font-medium">Help — LeadMaster</p><p className="text-[13px] text-[var(--text-3)] mt-1 leading-relaxed">Search filters this view live. Star, archive, snooze and delete are on every row. Use Assistant for summaries, Automation for rules, Templates for fast replies, and Scheduled for send-later.</p><button onClick={()=>setShowHelp(false)} className="mt-3 text-[14px] underline underline-offset-2">Close</button></div>}
           {showSettings && <div><p className="font-medium">Quick settings</p><p className="text-[13px] text-[var(--text-3)] mt-1">Density</p><div className="flex gap-2 mt-2">{(['comfortable','compact'] as const).map(d=><button key={d} onClick={()=>{setDensity(d); savePrefs({density:d});}} className={`px-3 py-2 rounded-full border capitalize ${density===d?'bg-[var(--text)] text-[var(--surface)]':'border-[var(--border)]'}`}>{d}</button>)}</div><button onClick={()=>{setShowSettings(false); goView('settings');}} className="mt-4 text-[14px] underline underline-offset-2">Open full Settings →</button></div>}
