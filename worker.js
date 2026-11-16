@@ -269,7 +269,7 @@ async function verifyOtp(request, env, ctx) {
   try {
     row = await readAuthDependency(() => env.AUTH_DB.prepare("SELECT id,code_hash,expires_at,attempts FROM auth_challenges WHERE email = ? ORDER BY created_at DESC LIMIT 1").bind(adminEmail).first(), {deadline:readDeadline});
   } catch (error) {
-    console.error("OTP_VERIFY_CHALLENGE_READ_UNAVAILABLE", isD1DailyReadLimit(error) ? "D1_DAILY_READ_LIMIT" : "DEPENDENCY_ERROR");
+    console.error("OTP_VERIFY_CHALLENGE_READ_UNAVAILABLE", "DATABASE_OR_DEPENDENCY_ERROR");
     return authCapacityResponse(error);
   }
   if (!row) return json({ error: "No active code was found. Return to sign in and request a new code." }, 401);
@@ -622,6 +622,7 @@ function reporterEnvironment(env, ctx) {
   const base = String(env.REPORTER_APP_URL || "https://leadmaster.jelvan.space");
   return {
     ...env,
+    AUTH_DB: env.AUTH_DB,
     REPORTER_INTERNAL_PROBE: async path => {
       const target = new URL(path, base);
       const request = new Request(target, { method: "GET", headers: { accept: "application/json,text/html" } });
