@@ -71,10 +71,10 @@ function sameOrigin(request) {
   const origin = request.headers.get("Origin");
   return origin === new URL(request.url).origin;
 }
-async function readJson(request) {
+async function readJson(request, maxBytes = 12000) {
   if (!/^application\/json(?:\s*;|$)/i.test(request.headers.get("content-type") || "")) throw new Error("bad-content-type");
   const raw = await request.text();
-  if (enc.encode(raw).length > 12000) throw new Error("too-large");
+  if (enc.encode(raw).length > maxBytes) throw new Error("too-large");
   const body = JSON.parse(raw);
   if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("bad-body");
   return body;
@@ -83,10 +83,10 @@ async function readJson(request) {
 function sanitizeGeneratedEmailHtml(value) {
   return String(value || "")
     .replace(/<!--[\\s\\S]*?-->/g, "")
-    .replace(/<(script|iframe|object|embed|form|meta|link|base)\\b[\\s\\S]*?<\\/\\1\\s*>/gi, "")
-    .replace(/<(script|iframe|object|embed|form|meta|link|base)\\b[^>]*\\/?\\s*>/gi, "")
-    .replace(/\\s(?:on[a-z]+|srcdoc|formaction)\\s*=\\s*(?:"[^"]*"|'[^']*'|[^\\s>]+)/gi, "")
-    .replace(/(href|src|xlink:href)\\s*=\\s*(["'])\\s*javascript:[\\s\\S]*?\\2/gi, '$1="#"')
+    .replace(/<(script|iframe|object|embed|form|meta|link|base)\b[\s\S]*?<\/\1\s*>/gi, "")
+    .replace(/<(script|iframe|object|embed|form|meta|link|base)\b[^>]*\/?\s*>/gi, "")
+    .replace(/\s(?:on[a-z]+|srcdoc|formaction)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/(href|src|xlink:href)\s*=\s*(["'])\s*javascript:[\s\S]*?\2/gi, '$1="#"')
     .slice(0, 24000);
 }
 
@@ -660,7 +660,7 @@ async function handle(request, env, ctx) {
     if (adminSession.email !== await configuredAdminEmail(env)) return json({ errorCode: "LM-USR-1007", error: "You do not have access to this action. Ask your workspace administrator to review your role." }, 403);
     if (request.method !== "POST" || !sameOrigin(request)) return json({ errorCode: "LM-USR-2005", error: "We could not complete the connection. Try again in a moment." }, 403);
     let input;
-    try { input = await readJson(request); } catch { return json({ errorCode: "LM-USR-3001", error: "Complete the required details and try again." }, 400); }
+    try { input = await readJson(request, 16000); } catch { return json({ errorCode: "LM-USR-3001", error: "Complete the required details and try again." }, 400); }
     const prompt = typeof input.prompt === "string" ? input.prompt.trim() : "";
     const currentHtml = typeof input.html === "string" ? input.html.slice(0, 12000) : "";
     const subject = typeof input.subject === "string" ? input.subject.slice(0, 240) : "";
