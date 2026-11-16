@@ -4,6 +4,15 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 const read = path => readFile(new URL(path, import.meta.url), 'utf8');
 
+test('production asset build emits compiled Tailwind utilities and app bundle', async () => {
+ const [css,js]=await Promise.all([read('../public/dashboard-app.css'),read('../public/dashboard-app.js')]);
+ assert.ok(css.length>10000,'Tailwind utility CSS was not generated');
+ assert.match(css,/\.min-h-screen/);
+ assert.match(css,/\.rounded-2xl/);
+ assert.doesNotMatch(css,/@tailwind\s+(?:base|components|utilities)/);
+ assert.ok(js.length>10000,'React application bundle was not generated');
+});
+
 test('production dashboard mounts the required React workspace and generated mirror', async () => {
  const [canonical, deployed] = await Promise.all([read('../src/Mandatory LeadMASTER Dashboard.html'), read('../public/dashboard.html')]);
  assert.equal(deployed, canonical);
