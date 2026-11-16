@@ -1,7 +1,7 @@
 import React,{useCallback,useEffect,useMemo,useState} from 'react';
-import {LoadingIndicator} from './LoadingIndicator';
-import {ActionConfirmation,ActionConfirmationRequest} from './ActionConfirmation';
-import {mapLeadMasterError} from '../leadmaster-error-mapper.mjs';
+import {LoadingIndicator} from '../src/dashboard-tsx/LoadingIndicator';
+import {ActionConfirmation,ActionConfirmationRequest} from '../src/dashboard-tsx/ActionConfirmation';
+import {mapLeadMasterError} from '../src/leadmaster-error-mapper.mjs';
 
 type UtilityRoute='notes'|'contacts'|'calendar'|'calculator'|'currency'|'email-html-playground';
 type RecordRow<T>={id:string;value:T};
