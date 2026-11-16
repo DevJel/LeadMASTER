@@ -1,5 +1,8 @@
+import { withTursoDatabase } from '../src/turso-database.mjs';
+
 export default {
  async queue(batch,env){
+  env = await withTursoDatabase(env);
   for(const message of batch.messages){
    const body=message.body||{},id=String(body.id||''),source=body.source||'admin',now=Date.now();
    if(!/^[0-9a-f-]{36}$/i.test(id)||!['admin','developer'].includes(source)){message.ack();continue;}
