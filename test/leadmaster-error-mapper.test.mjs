@@ -31,3 +31,10 @@ test("unknown internal errors never leak technical details",()=>{
   assert.equal(result.message,SYSTEM_FALLBACK);
   assert.doesNotMatch(result.message,/SQL|SELECT|worker\.js|SMTP|password|502|var\/task/i);
 });
+
+test("explicit customer codes are preserved and internal fallback codes stay private",()=>{
+  assert.equal(mapLeadMasterError(new Error("LM-USR-4004")).code,"LM-USR-4004");
+  const unknown=mapLeadMasterError(new Error("SQL worker failed"));
+  assert.equal(unknown.code,"342322");
+  assert.doesNotMatch(unknown.message,/342322/);
+});
