@@ -4,7 +4,8 @@
 - Added permanent redirects from legacy `.html` page URLs to extensionless paths, preserving query strings and dashboard app deep links.
 - Kept dashboard pages, dashboard JavaScript/CSS bundles and developer API-key pages behind the existing authenticated session check.
 - Fixed the dashboard asset route classification so the dashboard's own JavaScript/CSS bundles are not mistaken for invalid dashboard sub-pages.
-- Updated landing, login, Help Center and utility-launcher links to use clean paths; no API endpoints, data models, email workflows or authentication semantics changed.
+- Updated landing, login, Help Center and utility links to use clean paths; no API endpoints, data models, email workflows or authentication semantics changed.
+- Corrected a pre-existing malformed JSX className expression in the Notes utility that prevented the dashboard asset build from completing.
 - Added route regression tests for clean paths, legacy redirects, protected assets, casing and trailing slashes.
 - Asset rebuild, complete CI, production deployment and live browser verification are pending.
 
