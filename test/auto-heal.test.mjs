@@ -5,7 +5,8 @@ import {
   isProtectedPath,
   parseStackFrames,
   validateSurgicalPatch,
-  verifyActionsOidc
+  verifyActionsOidc,
+  processAutoHealEvent
 } from "../src/auto-heal.mjs";
 
 test("stack parser extracts only exact application source file and line", () => {
@@ -80,4 +81,53 @@ test("OIDC verification fails closed for missing, malformed or wrong-audience to
     encode({ iss: "https://token.actions.githubusercontent.com", aud: "wrong", repository: "DevJel/LeadMASTER", workflow_ref: "DevJel/LeadMASTER/.github/workflows/incident-trigger.yml@refs/heads/main", exp: 9999999999, iat: 1, nbf: 1 }) +
     ".c2ln";
   assert.equal(await verifyActionsOidc(fake, async () => ({ ok: false })), false);
+});
+
+
+test("incident payload credentials cannot authorize GitHub calls", async () => {
+  const original = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; throw new Error("unexpected outbound request"); };
+  try {
+    const result = await processAutoHealEvent({}, {
+      event_type: "workflow_failure", event_id: "untrusted",
+      stacktrace: "Error: failure\n    at fn (/home/runner/work/LeadMASTER/LeadMASTER/src/safe-helper.mjs:12:3)",
+      github_token: "untrusted-event-token"
+    });
+    assert.equal(result.status, "manual_action");
+    assert.match(result.reason, /Worker GITHUB_TOKEN secret is not configured/);
+    assert.equal(calls, 0);
+    assert.doesNotMatch(JSON.stringify(result), /untrusted-event-token/);
+  } finally { globalThis.fetch = original; }
+});
+
+test("incident workflows never forward GitHub Actions tokens", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const incident = await readFile(new URL("../.github/workflows/incident-trigger.yml", import.meta.url), "utf8");
+  const guard = await readFile(new URL("../.github/workflows/auto-heal-guard.yml", import.meta.url), "utf8");
+  const incidentSendStep = incident.split("- name: Send verified incident to LeadMASTER Worker")[1];
+  const guardSendStep = guard.split("- name: Record the rejected hash")[1];
+  assert.ok(incidentSendStep && guardSendStep);
+  assert.doesNotMatch(incidentSendStep, /github_token|GH_TOKEN/i);
+  assert.doesNotMatch(guardSendStep, /github_token|GH_TOKEN/i);
+  assert.match(guard, /npm ci\s+npm run build:assets\s+npm test/);
+});
+
+
+test("manual issue creation uses only the server-configured credential", async () => {
+  const original = globalThis.fetch;
+  const authorizations = [];
+  globalThis.fetch = async (_url, init) => {
+    authorizations.push(init.headers.authorization);
+    return Response.json({ html_url: "https://github.com/example/test/issues/1" });
+  };
+  try {
+    const result = await processAutoHealEvent({ GITHUB_TOKEN: "server-fixture-token" }, {
+      event_type: "workflow_failure", event_id: "no-frame", title: "Test",
+      github_token: "payload-fixture-token"
+    });
+    assert.equal(result.status, "manual_action");
+    assert.deepEqual(authorizations, ["Bearer server-fixture-token"]);
+    assert.doesNotMatch(JSON.stringify(result), /fixture-token/);
+  } finally { globalThis.fetch = original; }
 });

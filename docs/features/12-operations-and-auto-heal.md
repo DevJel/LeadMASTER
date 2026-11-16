@@ -54,3 +54,5 @@ The strict guard rejects unrelated files, broad diffs, protected paths, secrets 
 ## Operational requirement
 
 Every report must distinguish a code-level check from a live provider event. Every auto-heal proposal requires normal review and release evidence. An issue created by the strict guard means “manual review required”, not that a source defect was automatically fixed.
+
+The incident workflows authenticate with short-lived OIDC and do not forward GitHub Actions tokens. Repository operations require a separately configured least-privilege Worker credential; without it, the incident falls back to manual review. See `docs/REPORTER_AUTO_HEAL.md` for staged rollout.

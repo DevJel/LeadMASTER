@@ -62,6 +62,7 @@ jobs:
       - name: Existing test suite
         run: |
           npm ci
+          npm run build:assets
           npm test
           npm run check:dashboard
 
@@ -70,19 +71,23 @@ jobs:
     needs: strict-guard
     runs-on: ubuntu-latest
     steps:
-      - name: Close rejected PR, label it, and record the hash in Worker KV
+      - name: Close and label rejected PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          HEAD_REF: ${{ github.head_ref }}
-          WORKER_URL: https://leadmaster.jelvan.space/api/auto-heal/trigger
         run: |
           set -euo pipefail
           gh api --method POST "repos/$GITHUB_REPOSITORY/labels" -f name=auto-heal-rejected -f color=991b1b -f description="Rejected by strict automated repair guard" >/dev/null 2>&1 || true
           gh pr edit "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --add-label auto-heal-rejected
           gh pr close "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --comment "Closed automatically: the strict auto-heal policy or existing tests failed. No merge or deployment was performed."
+      - name: Record the rejected hash
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_REF: ${{ github.head_ref }}
+          WORKER_URL: https://leadmaster.jelvan.space/api/auto-heal/trigger
+        run: |
+          set -euo pipefail
           ERROR_HASH="${HEAD_REF#fix/auto-heal-}"
           export ERROR_HASH
           node --input-type=module <<'NODE'
@@ -95,8 +100,7 @@ jobs:
             event_type: "rejected",
             event_id: process.env.PR_NUMBER,
             error_hash: process.env.ERROR_HASH,
-            detail: "Auto-Heal Guard failed its file/path/diff policy or existing tests. PR #" + process.env.PR_NUMBER + " was closed and labelled auto-heal-rejected.",
-            github_token: process.env.GITHUB_TOKEN
+            detail: "Auto-Heal Guard failed its file/path/diff policy or existing tests. PR #" + process.env.PR_NUMBER + " was closed and labelled auto-heal-rejected."
           };
           const response = await fetch(process.env.WORKER_URL, {
             method: "POST",
