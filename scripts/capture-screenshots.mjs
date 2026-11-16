@@ -203,10 +203,8 @@ try {
     }
     if (device === "mobile") await page.getByRole("button",{name:"Show or hide navigation"}).click();
     await page.getByRole("navigation",{name:"LeadMaster navigation"}).getByRole("button",{name:"Inbox",exact:true}).click();
-    for (const tab of ["Primary","Promotions","Social","Updates","Forums"]) {
-      await page.getByRole("button",{name:new RegExp(`^${tab}`)}).first().click();
-      await snap(`inbox-${tab.toLowerCase()}`);
-    }
+    // The current Inbox UI has no legacy category tabs; the main Inbox view was
+    // already captured above, so do not wait for removed controls here.
     for (const app of ["notes","contacts","calendar","calculator","currency","email-html-playground"]) {
       await page.goto(`http://127.0.0.1:${port}/dashboard.html?app=${app}`,{waitUntil:"domcontentloaded"});
       await page.waitForSelector("#root",{timeout:15000});
