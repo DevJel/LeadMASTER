@@ -52,7 +52,7 @@ export function mapLeadMasterError(error, context = "") {
   const normalized = (context + " " + raw).toLowerCase();
   const suppliedCode = raw.match(/LM-USR-\d{4}/)?.[0];
   let code = suppliedCode || "";
-  if (code) { const supplied = errorByCode(code); if (supplied) return { code: supplied.code, title: supplied.title, message: supplied.what + " " + supplied.steps[0] }; }
+  if (code) { const supplied = errorByCode(code); if (supplied) return { code: supplied.code, title: supplied.title, message: supplied.code + " — " + supplied.what + " " + supplied.steps[0] }; }
   if (typeof navigator !== "undefined" && navigator.onLine === false) code = "LM-USR-2001";
   else if (/popup|pop-up|new tab|blocked.*window/.test(normalized)) code = "LM-USR-2004";
   else if (/too many.*(sign.in|login|attempt)|sign.in.*attempts/.test(normalized)) code = "LM-USR-1008";
@@ -80,7 +80,7 @@ export function mapLeadMasterError(error, context = "") {
   else if (/recipient|to field/.test(normalized)) code = "LM-USR-3008";
   else if (/batch size|too many messages.*one action|recipient count.*limit/.test(normalized)) code = "LM-USR-4005";
   const entry = errorByCode(code);
-  if (entry) return { code: entry.code, title: entry.title, message: entry.what + " " + entry.steps[0] };
+  if (entry) return { code: entry.code, title: entry.title, message: entry.code + " — " + entry.what + " " + entry.steps[0] };
   return { code: "342322", title: "We couldn't complete this action", message: SYSTEM_FALLBACK };
 }
 
