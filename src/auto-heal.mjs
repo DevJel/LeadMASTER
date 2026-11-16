@@ -256,7 +256,7 @@ export async function processAutoHealEvent(env, event) {
       await recordRejectedFix(env, rejectedHash, event.detail || "Auto-heal CI rejected the proposed patch.");
       result = { status: "rejected", errorHash: rejectedHash, reason: safe(event.detail || "The strict auto-heal CI gate rejected this patch.") };
     } else if (!frames.length) {
-      result = { status: "manual_action", errorHash, reason: "No exact application stack-trace file and line could be extracted; no source changes were attempted." };
+      result = { status: "manual_action", errorHash, reason: "No exact application stack-trace file and line could be extracted; no source changes were attempted.", issueUrl: sourceIssue || "" };
     } else {
       result = await analyzeAndPropose(env, frames[0], stacktrace, sourceIssue, token);
     }
