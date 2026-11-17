@@ -9816,11 +9816,11 @@ async function checkCloudflareControlPlane(env, checks) {
   }
 }
 function summarize(checks) {
-  const counts2 = { "Healthy": 0, "Fixed": 0, "Moderate": 0, "Needs Attention": 0, "Needs Manual Action": 0, "Unable to Fix": 0 };
-  for (const check2 of checks) counts2[check2.status] = (counts2[check2.status] || 0) + 1;
+  const counts = { "Healthy": 0, "Fixed": 0, "Moderate": 0, "Needs Attention": 0, "Needs Manual Action": 0, "Unable to Fix": 0 };
+  for (const check2 of checks) counts[check2.status] = (counts[check2.status] || 0) + 1;
   const failed = checks.filter((check2) => statusRank(check2.status) >= statusRank("Needs Attention"));
-  const overall = checks.some((x) => x.status === "Unable to Fix") ? "Unable to Fix" : checks.some((x) => x.status === "Needs Manual Action") ? "Needs Manual Action" : checks.some((x) => x.status === "Needs Attention") ? "Needs Attention" : counts2.Moderate ? "Moderate" : counts2.Fixed ? "Fixed" : "Healthy";
-  return { counts: counts2, total: checks.length, overall, failed };
+  const overall = checks.some((x) => x.status === "Unable to Fix") ? "Unable to Fix" : checks.some((x) => x.status === "Needs Manual Action") ? "Needs Manual Action" : checks.some((x) => x.status === "Needs Attention") ? "Needs Attention" : counts.Moderate ? "Moderate" : counts.Fixed ? "Fixed" : "Healthy";
+  return { counts, total: checks.length, overall, failed };
 }
 function renderTable(title, checks) {
   const rows = checks.length ? checks.map((item) => {
@@ -46313,40 +46313,40 @@ async function adminMailboxRoute(request, env, session) {
   }
   if (request.method === "GET" && url2.pathname === "/api/admin/mail") {
     if (folder === "counts") {
-      const counts2 = {};
+      const counts = {};
       for (const [k, sql] of Object.entries({ inbox: "SELECT COUNT(*) n FROM inbound_mail WHERE archived_at IS NULL AND deleted_at IS NULL", archived: "SELECT COUNT(*) n FROM inbound_mail WHERE archived_at IS NOT NULL AND deleted_at IS NULL", sent: "SELECT (SELECT COUNT(*) FROM admin_sent_mail WHERE deleted_at IS NULL AND status='accepted' AND COALESCE(delivery_status,'') NOT IN ('bounced','rejected','failed'))+(SELECT COUNT(*) FROM developer_email_requests WHERE deleted_at IS NULL AND status='accepted' AND COALESCE(delivery_status,'') NOT IN ('bounced','rejected','failed')) n", queued: "SELECT (SELECT COUNT(*) FROM admin_sent_mail WHERE queue_status IN ('queued','processing','retrying'))+(SELECT COUNT(*) FROM developer_email_requests WHERE status='sending') n", deleted: "SELECT (SELECT COUNT(*) FROM inbound_mail WHERE deleted_at IS NOT NULL)+(SELECT COUNT(*) FROM admin_sent_mail WHERE deleted_at IS NOT NULL)+(SELECT COUNT(*) FROM developer_email_requests WHERE deleted_at IS NOT NULL) n", bounced: "SELECT COUNT(*) n FROM email_delivery_events WHERE status IN ('bounced','complaint')", unsuccessful: "SELECT (SELECT COUNT(*) FROM admin_sent_mail WHERE status IN ('failed','unknown') OR delivery_status IN ('bounced','rejected','failed'))+(SELECT COUNT(*) FROM developer_email_requests WHERE status IN ('failed','unknown') OR delivery_status IN ('bounced','rejected','failed')) n", unsubscribed: "SELECT COUNT(*) n FROM email_unsubscribes" })) {
         const r = await env.AUTH_DB.prepare(sql).first();
-        counts2[k] = Number(r?.n || 0);
+        counts[k] = Number(r?.n || 0);
       }
-      return json10({ counts: counts2, storage: true });
+      return json10({ counts, storage: true });
     }
     if (folder === "inbox") {
       const r = await env.AUTH_DB.prepare("SELECT id,from_address,from_name,to_address,subject,received_at,read_at,archived_at,delivery_status,size_bytes FROM inbound_mail WHERE archived_at IS NULL AND deleted_at IS NULL AND (?='' OR lower(from_address||' '||to_address||' '||subject) LIKE ?) AND (?='' OR lower(from_address) LIKE ? OR lower(to_address) LIKE ?) ORDER BY received_at DESC LIMIT 100").bind(q, q ? "%" + q.toLowerCase() + "%" : "", domain2, domain2 ? "%" + domain2 + "%" : "", domain2 ? "%" + domain2 + "%" : "").all();
-      return json10({ items: r.results || [], counts, storage: true, note: "Dedicated mailbox only. Existing forwarding routes are unchanged." });
+      return json10({ items: r.results || [], storage: true, note: "Dedicated mailbox only. Existing forwarding routes are unchanged." });
     }
     if (folder === "sent") {
       const r = await env.AUTH_DB.prepare("SELECT id,recipient,subject,status,created_at,updated_at,from_email,reply_to,delivery_status,queue_status FROM admin_sent_mail WHERE deleted_at IS NULL AND (status IN ('accepted','failed','unknown') OR queue_status IN ('queued','processing','retrying') OR delivery_status IN ('bounced','rejected','failed')) AND (?='' OR lower(recipient||' '||subject) LIKE ?) UNION ALL SELECT id,recipient,subject,status,created_at,updated_at,from_email,reply_to,delivery_status,CASE WHEN status='sending' THEN 'processing' ELSE 'complete' END AS queue_status FROM developer_email_requests WHERE deleted_at IS NULL AND (status IN ('accepted','failed','unknown','sending') OR delivery_status IN ('bounced','rejected','failed')) AND (?='' OR lower(recipient||' '||subject) LIKE ?) ORDER BY created_at DESC LIMIT 100").bind(q, q ? "%" + q.toLowerCase() + "%" : "", q, q ? "%" + q.toLowerCase() + "%" : "").all();
-      return json10({ items: r.results || [], counts, note: "Green means accepted by the sending service; red means confirmed failure. Amber or unknown means the outcome needs checking. Delivered means the recipient's mail service confirmed receipt." });
+      return json10({ items: r.results || [], note: "Green means accepted by the sending service; red means confirmed failure. Amber or unknown means the outcome needs checking. Delivered means the recipient's mail service confirmed receipt." });
     }
     if (folder === "bounced") {
       const r = await env.AUTH_DB.prepare("SELECT id,email AS recipient,subject,status,created_at AS received_at,detail FROM email_delivery_events WHERE status IN ('bounced','complaint') ORDER BY created_at DESC LIMIT 100").all();
-      return json10({ items: r.results || [], counts, note: "This folder shows messages that could not be delivered or were reported as unwanted." });
+      return json10({ items: r.results || [], note: "This folder shows messages that could not be delivered or were reported as unwanted." });
     }
     if (folder === "unsuccessful") {
       const r = await env.AUTH_DB.prepare("SELECT id,recipient,subject,status,created_at,updated_at,error_code FROM admin_sent_mail WHERE status IN ('failed','unknown') OR delivery_status IN ('bounced','rejected','failed') UNION ALL SELECT id,recipient,subject,status,created_at,updated_at,error_code FROM developer_email_requests WHERE status IN ('failed','unknown') OR delivery_status IN ('bounced','rejected','failed') UNION ALL SELECT id,email AS recipient,subject,status,created_at,created_at AS updated_at,status AS error_code FROM email_delivery_events WHERE status IN ('rejected','failed') ORDER BY created_at DESC LIMIT 100").all();
-      return json10({ items: r.results || [], counts, note: "Not sent means sending was unsuccessful. Needs checking means the final result could not be confirmed." });
+      return json10({ items: r.results || [], note: "Not sent means sending was unsuccessful. Needs checking means the final result could not be confirmed." });
     }
     if (folder === "unsubscribed") {
       const r = await env.AUTH_DB.prepare("SELECT id,email,source,created_at,reason AS subject,'unsubscribed' AS status FROM email_unsubscribes ORDER BY created_at DESC LIMIT 100").all();
-      return json10({ items: r.results || [], counts, note: "These addresses are marked Do not contact and will be skipped when sending." });
+      return json10({ items: r.results || [], note: "These addresses are marked Do not contact and will be skipped when sending." });
     }
     if (folder === "archived") {
       const r = await env.AUTH_DB.prepare("SELECT id,from_address,to_address,subject,received_at,read_at,archived_at,delivery_status,size_bytes FROM inbound_mail WHERE archived_at IS NOT NULL AND deleted_at IS NULL ORDER BY received_at DESC LIMIT 100").all();
-      return json10({ items: r.results || [], counts, note: "Archived messages are kept here until you move them back or delete them." });
+      return json10({ items: r.results || [], note: "Archived messages are kept here until you move them back or delete them." });
     }
     if (folder === "deleted") {
       const r = await env.AUTH_DB.prepare("SELECT id,from_address,from_address AS recipient,to_address,subject,received_at,'received' AS kind,'Deleted' AS status FROM inbound_mail WHERE deleted_at IS NOT NULL UNION ALL SELECT id,from_email AS from_address,from_email,recipient,subject,created_at,'sent' AS kind,'Deleted' AS status FROM admin_sent_mail WHERE deleted_at IS NOT NULL UNION ALL SELECT id,from_email AS from_address,from_email,recipient,subject,created_at,'sent' AS kind,'Deleted' AS status FROM developer_email_requests WHERE deleted_at IS NOT NULL ORDER BY received_at DESC LIMIT 100").all();
-      return json10({ items: r.results || [], counts, note: "Deleted messages remain here until you permanently remove them." });
+      return json10({ items: r.results || [], note: "Deleted messages remain here until you permanently remove them." });
     }
     return json10({ error: "Unknown folder" }, 400);
   }
