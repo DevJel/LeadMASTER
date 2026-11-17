@@ -113,12 +113,10 @@
       }
     ]
   },
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_sqlite_classes": [
-        "EmailCoordinator"
-      ]
+  "exports": {
+    "EmailCoordinator": {
+      "type": "durable-object",
+      "storage": "sqlite"
     }
-  ]
+  }
 }
