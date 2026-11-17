@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 const page=await readFile(new URL('../public/index.html',import.meta.url),'utf8');
-test('landing uses the original full logo and favicon',()=>{assert.ok(page.includes('assets/brand/leadmaster-full.svg'));assert.ok(page.includes('assets/brand/leadmaster-icon.svg'));});
+test('landing uses the original full logo and favicon',()=>{assert.ok(page.includes('assets/brand/leadmaster-full.svg'));assert.ok(page.includes('assets/brand/favicon-gray.svg'));});
 test('sign-in links use existing login page',()=>{const links=[...page.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)];const signIns=links.filter(m=>/log in|sign in|open workspace/i.test(m[2]));assert.ok(signIns.length>=1);for(const link of signIns)assert.equal(link[1],'/login');});
 test('landing describes actual capabilities accurately',()=>{assert.ok(page.includes('The administrator email workspace, dedicated inbox and email sending are live.'));assert.ok(page.includes('The dedicated inbox, message sending, delivery updates, activity history and reply assistance are live.'));assert.ok(page.includes('Campaigns, automatic scheduling, external SMTP and advanced reporting remain in development.'));assert.ok(page.includes('/api/v1/accounts/{account_id}/emails'));assert.ok(!page.includes('Secure sign-in and email sending are not available yet'));});
 test('tab controls point to existing panels',()=>{const tabs=[...page.matchAll(/aria-controls="(panel-[^"]+)"/g)];assert.equal(tabs.length,6);for(const [,id] of tabs)assert.ok(page.includes('id="'+id+'"'));});
