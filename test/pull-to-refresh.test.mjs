@@ -7,7 +7,7 @@ const loadingOverlay = await readFile(new URL('../src/dashboard-tsx/LoadingOverl
 
 test('workspace refresh is single-flight and verifies a complete server snapshot', () => {
   assert.match(app, /const refreshLock = useRef\(false\)/);
-  assert.match(app, /if\(refreshLock\.current\) return/);
+  assert.match(app, /if\(refreshLock\.current/);
   assert.match(app, /Array\.isArray\(inboxData\?\.items\)/);
   assert.match(app, /Array\.isArray\(sentData\?\.items\)/);
   assert.match(app, /Array\.isArray\(deletedData\?\.items\)/);
@@ -15,10 +15,15 @@ test('workspace refresh is single-flight and verifies a complete server snapshot
   assert.match(app, /setNotes\(notesData\.records\.map/);
 });
 
-test('workspace refresh retries at 1.5 seconds and stops within 12 seconds', () => {
-  assert.match(app, /while\(Date\.now\(\) - startedAt < 12000\)/);
-  assert.match(app, /Math\.min\(1500,remaining\)/);
-  assert.match(app, /timeoutMs:remainingAtStart/);
+test('workspace refresh performs one bounded read and only retries on a new user action', () => {
+  const start = app.indexOf('async function refreshWorkspace(){');
+  const end = app.indexOf('function currentScrollTop()', start);
+  assert.ok(start >= 0 && end > start);
+  const refresh = app.slice(start, end);
+  assert.equal((refresh.match(/reloadRecords\(/g) || []).length, 1);
+  assert.match(refresh, /timeoutMs:15000/);
+  assert.doesNotMatch(refresh, /\bwhile\s*\(/);
+  assert.doesNotMatch(refresh, /setTimeout/);
   assert.match(app, /requestController\.abort\(\)/);
 });
 

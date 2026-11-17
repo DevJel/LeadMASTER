@@ -1,3 +1,11 @@
+## 2026-11-17 — Turso-safe dashboard refresh (feature branch)
+
+- Make each user-triggered workspace refresh a single bounded request cycle; remove automatic retry loops that could repeat the full Turso-backed snapshot.
+- Keep the dashboard snapshot in React memory between views and do not add interval or visibility polling. A failed manual refresh keeps the prior snapshot and presents a retry action.
+- Run mailbox summary-count scans only for the dedicated `folder=counts` endpoint. Inbox, Sent, Deleted and suppression-list reads no longer execute eight extra aggregate queries each.
+- Mark mailbox GET reads as `no-store` so a deliberate refresh cannot reuse a browser-cached response.
+- Add regression tests for the mailbox query budget and one-cycle refresh behavior. No production deployment is implied by this feature branch.
+
 ## 2026-11-17 — Persistent dashboard shell and non-blocking content loading
 
 - Kept the shared dashboard header, navigation, profile controls and scroll frame mounted across tab changes; only the active content region changes.
