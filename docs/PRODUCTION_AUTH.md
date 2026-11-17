@@ -21,7 +21,7 @@
 2. The login browser widget requests a Turnstile token with action `login`.
 3. `POST /api/auth/login` enforces same-origin, shared IP and administrator-identity rate limits (hashed bucket identifiers), server-side Turnstile Siteverify, expected hostname and action, administrator allowlist, and configured password verification.
 4. A successful password check generates a six-digit OTP, stores an HMAC hash in D1 and sends the code through SES SMTP. The OTP expires after 10 minutes.
-5. `POST /api/auth/verify` enforces shared IP and administrator-identity rate limits, validates the code, enforces expiry, single use and a maximum of five incorrect attempts, consumes it and creates a 32-byte random opaque session token.
+5. `POST /api/auth/verify` enforces a shared IP rate limit in addition to the challenge's five-incorrect-attempt limit, validates expiry and single use, consumes the code and creates a 32-byte random opaque session token.
 6. Only the SHA-256 hash of the session token is stored in D1. The cookie is Secure, HttpOnly, SameSite=Strict and persists for 180 days. The server-side session and cookie use the same expiry; closing the Android app does not revoke or clear it. Explicit sign-out revokes the D1 session and clears the cookie.
 7. `GET /api/auth/session` checks the server-side session. `POST /api/auth/logout` revokes it.
 
