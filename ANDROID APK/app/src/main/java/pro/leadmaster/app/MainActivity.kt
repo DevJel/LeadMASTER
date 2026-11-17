@@ -327,7 +327,7 @@ class MainActivity : ComponentActivity() {
             input:focus{border-color:#ed873f;box-shadow:0 0 0 3px rgba(237,135,63,.16)}
             .password-wrap button{height:52px;color:#f0a06a}
             .field{margin-bottom:20px}
-            .challenge{position:absolute!important;width:1px!important;height:1px!important;min-height:1px!important;left:-10000px!important;top:auto!important;margin:0!important;overflow:hidden!important;opacity:0!important;pointer-events:none!important}
+            .challenge{position:relative!important;width:auto!important;height:auto!important;min-height:65px!important;left:auto!important;top:auto!important;margin:0 0 12px!important;overflow:visible!important;opacity:1!important;pointer-events:auto!important;display:flex!important;justify-content:center!important;align-items:center!important}.challenge iframe{max-width:100%!important}
             .primary{min-height:52px;border-radius:15px;background:linear-gradient(135deg,#f18a42,#d96520);color:#fff;font-size:15px;box-shadow:0 8px 22px rgba(221,103,34,.22);transition:transform .16s ease,filter .16s ease}
             .primary:not(:disabled):hover{filter:brightness(1.08)}
             .primary:not(:disabled):active{transform:scale(.985)}
