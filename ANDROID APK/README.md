@@ -7,14 +7,14 @@ LeadMASTER for Android is the official Android companion to the LeadMASTER web w
 - **Production workspace:** https://leadmaster.jelvan.space
 - **Source repository:** https://github.com/DevJel/LeadMASTER
 - **Android build workflow:** https://github.com/DevJel/LeadMASTER/actions/workflows/android-apk.yml
-- **Current app version in source:** `1.8.0` (`versionCode 9`)
+- **Current app version in source:** `1.9.0` (`versionCode 9`)
 - **Android application ID:** `pro.leadmaster.app`
 
 > **APK availability:** CI publishes an installable debug APK as a GitHub Actions artifact. Open the Android build workflow, select the latest successful run, and download the `leadmaster-android-debug-apk` artifact. Artifacts are retained for 90 days. A public GitHub Release APK is not currently published. Debug builds are for testing and are not signed with the owner's production release key.
 
 ## 1. Product and implementation principles
 
-The Android application is intentionally a thin client. It does not implement a second mailbox, account system, contact database, sending engine or authorization layer.
+The Android application uses a native Jetpack Compose shell around the authenticated LeadMASTER workspace. The Compose layer owns branded loading, recoverable connection errors and the Android-specific sign-in presentation; the shared workspace continues to use the same production APIs, account session, mailbox, contacts, sending engine and authorization rules. It does not create a second business-data store or duplicate authentication.
 
 1. **One dashboard:** `src/Mandatory LeadMASTER Dashboard.html` is the canonical dashboard source. `public/dashboard.html` is its generated deployment mirror.
 2. **One service layer:** authenticated requests, account permissions, email operations and persisted workspace data are handled by the production LeadMASTER application and APIs.
@@ -27,11 +27,12 @@ The Android application is intentionally a thin client. It does not implement a 
 | Capability | Implementation | Important boundary |
 |---|---|---|
 | Authenticated workspace | Loads the production LeadMASTER HTTPS workspace in Android WebView | Requires a valid server-side account session |
-| Dashboard UI | Uses the canonical responsive web dashboard | No duplicated native dashboard or extra native navigation bar |
+| Dashboard UI | Uses the canonical responsive workspace inside the secure host | Existing feature parity and API behavior are preserved while native Compose module screens are introduced incrementally |
 | Mobile navigation | Supplied by the dashboard's own responsive navigation | Keep web and Android UI behavior aligned |
 | Pull-to-refresh | Uses the shared dashboard's verified refresh handler inside WebView | Touch pull-down, desktop drag/trackpad and manual refresh share one server-backed data path; no duplicate native refresh state |
 | Light/dark theme | Dashboard theme is observed and synchronized to Android system-bar icon contrast | Dashboard remains the theme source of truth |
-| Sign-in persistence | WebView persists the server-issued HttpOnly session cookie; cookie store is flushed on lifecycle transitions | Closing the app is not sign-out; server expiry and explicit logout still apply |
+| Sign-in presentation | App-only Material-inspired styling is applied to the existing secure sign-in and OTP pages | Same password, Turnstile, OTP, and server-issued HttpOnly session flow; no duplicate native credential store |
+| Native loading and recovery | Compose overlay blurs the page beneath a branded progress surface and displays a retry state on main-frame failures | No empty white loading screen; progress is driven by WebView page progress and completion callbacks |
 | Back navigation | Android Back navigates WebView history; exits when no history remains | Does not create a separate native navigation stack |
 | File selection | WebView file chooser launches Android's multi-document picker | The web app remains responsible for file validation and upload behavior |
 | Email download | Android DownloadManager saves supported same-origin downloads to Downloads | The current native filename is `LeadMASTER-message.eml` |
@@ -56,7 +57,7 @@ Android notification permission, channel settings, vibration, Do Not Disturb and
 
 ## Interface preview
 
-The Android companion displays the responsive web workspace. These images are **synthetic local browser previews**, not Android device captures or proof of APK behavior. See the [complete screenshot atlas](../docs/screenshots/README.md).
+The Android companion displays the shared responsive workspace in a hardened WebView, with Compose-owned app loading and recovery states. These images are **synthetic local browser previews**, not Android device captures or proof of APK behavior. See the [complete screenshot atlas](../docs/screenshots/README.md).
 
 | Inbox | Compose | Settings |
 |---|---|---|
@@ -228,8 +229,8 @@ The Android module currently declares:
 |---|---|
 | Application ID | `pro.leadmaster.app` |
 | Namespace | `pro.leadmaster.app` |
-| Version name | `1.7.0` |
-| Version code | `8` |
+| Version name | `1.9.0` |
+| Version code | `10` |
 | Minimum SDK | API 26 (Android 8.0) |
 | Compile SDK | API 35 |
 | Target SDK | API 35 |
