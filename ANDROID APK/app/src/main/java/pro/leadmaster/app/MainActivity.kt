@@ -216,10 +216,11 @@ class MainActivity : ComponentActivity() {
 
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
+                    CookieManager.getInstance().flush()
+                    view?.evaluateJavascript(nativeLoginStyleScript, null)
                     pageLoading = false
                     pageLoadError = false
                     pageProgress = 100
-                    CookieManager.getInstance().flush()
                     view?.evaluateJavascript(
                         """
                         (function(){
@@ -267,6 +268,43 @@ class MainActivity : ComponentActivity() {
         controller.isAppearanceLightStatusBars = !dark
         controller.isAppearanceLightNavigationBars = !dark
     }
+
+    private val nativeLoginStyleScript = """
+        (function(){
+          if(location.pathname!=='/login.html'||document.getElementById('lm-native-login-theme'))return;
+          var style=document.createElement('style');
+          style.id='lm-native-login-theme';
+          style.textContent=`
+            html,body{min-height:100%;background:#F7F7F5!important;color:#171717}
+            .layout{min-height:100dvh;display:flex;flex-direction:column;background:#F7F7F5}
+            .hero{background:transparent!important;color:#171717;min-height:0;overflow:visible}
+            .hero::after,.hero-art,.hero-center,.hero-wordmark,.hero-footer,.feature-card{display:none!important}
+            .hero-content{min-height:0;padding:max(24px,env(safe-area-inset-top)) 24px 0;gap:0}
+            .hero-top{justify-content:flex-start;min-height:44px}
+            .login-top-logo{display:none!important}
+            .hero-top::before{content:"";display:block;width:44px;height:44px;background:url('/assets/brand/leadmaster-icon.svg') center/contain no-repeat}
+            .hero-top::after{content:"LeadMASTER";font-size:20px;line-height:1;font-weight:750;letter-spacing:-.04em;color:#171717}
+            .right{flex:1;background:transparent}
+            .main-content{justify-content:flex-start;padding:24px 22px calc(32px + env(safe-area-inset-bottom))}
+            .card{max-width:480px;padding:28px 22px;border:1px solid #E6E4E0;border-radius:24px;background:#fff;box-shadow:0 14px 38px rgba(23,23,23,.06)}
+            h2{font-size:24px;letter-spacing:-.03em}
+            .sub{color:#70706D;margin-bottom:24px}
+            label{font-size:12px;font-weight:650;letter-spacing:.01em}
+            input{height:52px;border-radius:14px;border-color:#E6E4E0;background:#FBFBFA}
+            input:focus{border-color:#E9762B;box-shadow:0 0 0 3px rgba(233,118,43,.14)}
+            .password-wrap button{color:#B95C20}
+            .primary{min-height:52px;border-radius:16px;background:#E9762B;font-size:15px;transition:transform .16s ease,background .16s ease}
+            .primary:not(:disabled):hover{background:#D96620}
+            .primary:not(:disabled):active{transform:scale(.985)}
+            .primary:disabled{background:#E8B18D;color:#fff}
+            .login-right-footer{padding:12px 22px calc(18px + env(safe-area-inset-bottom));color:#777}
+            .login-privacy-link{color:#555}
+            .challenge{display:flex;justify-content:center}
+            @media(max-width:380px){.main-content{padding-inline:16px}.card{padding:24px 18px}}
+          `;
+          document.head.appendChild(style);
+        })();
+    """.trimIndent()
 
     private val notificationMonitorScript = """
         (function(){
