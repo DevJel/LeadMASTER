@@ -16,7 +16,6 @@ import android.os.Bundle
 import android.os.Environment
 import android.webkit.CookieManager
 import android.webkit.DownloadListener
-import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
@@ -46,6 +45,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
+import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
     private var webView: WebView? = null
@@ -149,7 +151,33 @@ class MainActivity : ComponentActivity() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) settings.safeBrowsingEnabled = true
             CookieManager.getInstance().setAcceptCookie(true)
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
-            addJavascriptInterface(NativeBridge(), "LeadMasterNative")
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+                WebViewCompat.addWebMessageListener(
+                    this,
+                    "LeadMasterNative",
+                    setOf("https://${WorkspaceViewModel.APP_HOST}")
+                ) { _, message, sourceOrigin, isMainFrame, _ ->
+                    // Reject iframe, opaque, non-HTTPS, unexpected-host and unexpected-port messages.
+                    if (!isMainFrame || sourceOrigin.scheme != "https" ||
+                        sourceOrigin.host != WorkspaceViewModel.APP_HOST ||
+                        (sourceOrigin.port != -1 && sourceOrigin.port != 443)
+                    ) return@addWebMessageListener
+                    val payload = runCatching { JSONObject(message.data) }.getOrNull()
+                        ?: return@addWebMessageListener
+                    when (payload.optString("type")) {
+                        "themeChanged" -> {
+                            val dark = payload.optBoolean("dark", false)
+                            runOnUiThread { applySystemBarTheme(dark) }
+                        }
+                        "notifyEvent" -> {
+                            val title = payload.optString("title", "LeadMASTER").take(80)
+                            val body = payload.optString("message", "You have a new update.").take(180)
+                            val eventType = payload.optString("eventType", "general").take(24)
+                            runOnUiThread { postNativeNotification(title, body, eventType) }
+                        }
+                    }
+                }
+            }
             webChromeClient = object : WebChromeClient() {
                 override fun onProgressChanged(view: WebView?, newProgress: Int) {
                     super.onProgressChanged(view, newProgress)
@@ -227,8 +255,8 @@ class MainActivity : ComponentActivity() {
                         (function(){
                           var root=document.querySelector('#root .app-shell');
                           var syncTheme=function(){
-                            if(window.LeadMasterNative){
-                              window.LeadMasterNative.themeChanged(root?.getAttribute('data-theme')==='dark');
+                            if(window.LeadMasterNative&&typeof window.LeadMasterNative.postMessage==='function'){
+                              window.LeadMasterNative.postMessage(JSON.stringify({type:'themeChanged',dark:root?.getAttribute('data-theme')==='dark'}));
                             }
                           };
                           syncTheme();
@@ -334,7 +362,7 @@ class MainActivity : ComponentActivity() {
           window.__lmNativeNotificationMonitor=true;
           var seenActivity=new Set(),seenInbox=new Set(),activityReady=false,inboxReady=false;
           function trimSeen(set){if(set.size>300){var first=set.values().next().value;set.delete(first);}}
-          function notify(title,message,type){try{window.LeadMasterNative.notifyEvent(String(title||'LeadMASTER'),String(message||'You have a new update.'),String(type||'general'));}catch(_){}}
+          function notify(title,message,type){try{window.LeadMasterNative.postMessage(JSON.stringify({type:'notifyEvent',title:String(title||'LeadMASTER').slice(0,80),message:String(message||'You have a new update.').slice(0,180),eventType:String(type||'general').slice(0,24)}));}catch(_){}}
           function clean(value){return String(value||'').replace(/\s+/g,' ').slice(0,150);}
           async function checkActivity(){
             try{
@@ -429,23 +457,6 @@ class MainActivity : ComponentActivity() {
         )
     }
 
-    private inner class NativeBridge {
-        @JavascriptInterface
-        fun themeChanged(dark: Boolean) {
-            runOnUiThread { applySystemBarTheme(dark) }
-        }
-
-        @JavascriptInterface
-        fun notify(title: String?, message: String?) {
-            runOnUiThread { postNativeNotification(title, message, "general") }
-        }
-
-        @JavascriptInterface
-        fun notifyEvent(title: String?, message: String?, eventType: String?) {
-            runOnUiThread { postNativeNotification(title, message, eventType) }
-        }
-    }
-
     override fun onPause() {
         CookieManager.getInstance().flush()
         super.onPause()
@@ -465,7 +476,6 @@ class MainActivity : ComponentActivity() {
         // Persist the authenticated HttpOnly session cookie; closing the app is not sign-out.
         CookieManager.getInstance().flush()
         webView?.let { view ->
-            view.removeJavascriptInterface("LeadMasterNative")
             view.stopLoading()
             view.destroy()
         }
