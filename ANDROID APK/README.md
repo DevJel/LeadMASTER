@@ -339,4 +339,4 @@ The following are required before calling the Android app production-ready:
 - Verify a production-signed release APK and retain the signing key only in the approved secret store / GitHub Actions secrets. Never distribute the debug APK as a production release.
 - Confirm Cloudflare production bindings, D1/Turso behavior, Turnstile hostname/action, SES OTP delivery and runtime logs without exposing credentials.
 
-The CI workflow builds the debug APK, runs the Worker HTTP test suite, and runs Android unit-test and lint tasks. CI success does not replace the device and live-service acceptance checks above.
+The Android CI workflow runs the focused Worker authentication HTTP suite, Android unit-test and lint tasks, and builds the debug APK. The repository-wide test suite currently has unrelated failures because the `required-componets-design/` source directory referenced by existing tests and the asset builder is absent from the repository. CI success does not replace the device and live-service acceptance checks above.
