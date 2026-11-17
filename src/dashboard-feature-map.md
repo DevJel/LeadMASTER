@@ -16,7 +16,7 @@ See [`docs/FEATURES.md`](../docs/FEATURES.md) for the complete implementation/st
 | Feature | API / source | Behavior and boundary |
 |---|---|---|
 | Account identity | `GET /api/auth/session`, `GET /api/account/profile` | Uses the validated administrator session and current account. |
-| Mailbox counts and views | `GET /api/admin/mail?folder=counts`, `GET /api/admin/mail?folder=...` | Loads authoritative mailbox and sending state. |
+| Mailbox counts and views | `GET /api/admin/mail?folder=counts`, `GET /api/admin/mail?folder=...` | Summary scans run only for the explicit counts endpoint; normal folder and suppression reads do not run aggregate counts. Dashboard refresh is a single bounded snapshot cycle, with no automatic retries or polling; the last good in-memory snapshot remains available after a failed refresh. |
 | Message detail and actions | `GET /api/admin/mail/:id`, `PATCH /api/admin/mail/:id` | Reads actual message body; archive, soft-delete, restore and confirmed permanent delete are server actions. |
 | Send | `POST /api/admin/send` | Immediate queue submission. Queue acceptance is not delivery confirmation. |
 | Reply suggestion | `POST /api/admin/mail/:id/suggest` | User-triggered draft; human review and send confirmation required. |
