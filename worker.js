@@ -28,9 +28,9 @@ const UPSTREAM = "https://leadmaster-preview.projects-public-portfolio.workers.d
 const CHALLENGE_COOKIE = "lm_turnstile";
 const SESSION_COOKIE = "lm_session";
 // Persistent browser/mobile login: remains valid across app restarts until
-// explicit sign-out or the 180-day inactivity/security expiry.
-const SESSION_TTL_MS = 180 * 24 * 60 * 60 * 1000;
-const SESSION_COOKIE_MAX_AGE = 180 * 24 * 60 * 60;
+// explicit sign-out, revocation, or the one-year security expiry.
+const SESSION_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+const SESSION_COOKIE_MAX_AGE = 365 * 24 * 60 * 60;
 const enc = new TextEncoder();
 
 function b64url(bytes) {
