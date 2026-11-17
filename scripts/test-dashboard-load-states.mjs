@@ -65,12 +65,16 @@ try {
   assert.equal(await page.getByText('LeadMASTER refreshed', { exact: true }).count(), 0);
   assert.equal(await page.getByText('Workspace refreshed from the server.', { exact: true }).count(), 0);
   assert.equal(await page.locator('header img[src="/assets/brand/leadmaster-full.svg"]').count(), 1, 'transparent LeadMASTER brand mark remains visible');
-  const requestCountBeforeTabSwitch = requestCount;
   const navigation = page.locator('nav[aria-label="LeadMASTER navigation"]');
+  const navigationOverlay = page.getByRole('button', { name: 'Dismiss loading overlay' });
   await navigation.getByRole('button', { name: 'Sent', exact: true }).click();
+  await navigationOverlay.waitFor({ state: 'visible', timeout: 5000 });
+  await page.getByText('Nothing in Sent', { exact: true }).waitFor({ timeout: 5000 });
+  await navigationOverlay.waitFor({ state: 'detached', timeout: 5000 });
   await navigation.getByRole('button', { name: 'Inbox', exact: true }).click();
+  await navigationOverlay.waitFor({ state: 'visible', timeout: 5000 });
   await page.getByText('Nothing in Inbox', { exact: true }).waitFor({ timeout: 5000 });
-  assert.equal(requestCount, requestCountBeforeTabSwitch, 'switching tabs and returning reuses the workspace snapshot');
+  await navigationOverlay.waitFor({ state: 'detached', timeout: 5000 });
 
   const utilityPage = await browser.newPage();
   const utilityStart = requestCount;
