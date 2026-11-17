@@ -244,9 +244,9 @@ async function login(request, env) {
   const identity = typeof body.identity === "string" ? body.identity.trim().toLowerCase() : "";
   const adminEmail = await configuredAdminEmail(env);
   if (!adminEmail || identity !== adminEmail) return json({ error: "Unable to sign in. Check the registered email and password." }, 401);
+  if (!(await verifyLoginTurnstile(body.turnstileToken, env, "login"))) return json({ error: "Security verification failed. Complete the Cloudflare check and try again." }, 403);
   const accountLimit = await enforceAuthRateLimit(env, "auth:login:account:" + await sha256(adminEmail), 20, 15 * 60 * 1000);
   if (accountLimit) return accountLimit;
-  if (!(await verifyLoginTurnstile(body.turnstileToken, env, "login"))) return json({ error: "Security verification failed. Complete the Cloudflare check and try again." }, 403);
   const configuredPassword = await secret(env.ADMIN_PASSWORD);
   const sessionSecret = await secret(env.SESSION_SECRET);
   if (!configuredPassword || !sessionSecret || !(await passwordMatches(body.password, configuredPassword))) return json({ error: "Unable to sign in" }, 401);
@@ -303,8 +303,6 @@ async function verifyOtp(request, env, ctx) {
   const clientIp = request.headers.get("CF-Connecting-IP") || "unknown";
   const ipLimit = await enforceAuthRateLimit(env, "auth:verify:ip:" + await sha256(clientIp), 20, 15 * 60 * 1000);
   if (ipLimit) return ipLimit;
-  const accountLimit = await enforceAuthRateLimit(env, "auth:verify:account:" + await sha256(adminEmail), 20, 15 * 60 * 1000);
-  if (accountLimit) return accountLimit;
   try {
     row = await readAuthDependency(() => env.AUTH_DB.prepare("SELECT id,code_hash,expires_at,attempts FROM auth_challenges WHERE email = ? ORDER BY created_at DESC LIMIT 1").bind(adminEmail).first(), {deadline:readDeadline});
   } catch (error) {
