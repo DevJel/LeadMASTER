@@ -227,12 +227,16 @@ export default function App(){
   useEffect(() => {
     if (!navigationLoading) return;
     let secondFrame = 0;
+    let hideTimer = 0;
     const firstFrame = window.requestAnimationFrame(() => {
-      secondFrame = window.requestAnimationFrame(() => setNavigationLoading(false));
+      secondFrame = window.requestAnimationFrame(() => {
+        hideTimer = window.setTimeout(() => setNavigationLoading(false), 180);
+      });
     });
     return () => {
       window.cancelAnimationFrame(firstFrame);
       if (secondFrame) window.cancelAnimationFrame(secondFrame);
+      if (hideTimer) window.clearTimeout(hideTimer);
     };
   }, [navigationLoading, view]);
   const touchStartY = useRef<number|null>(null);
@@ -470,7 +474,7 @@ export default function App(){
     async function patchMail(id:string, action:string, extra:any={}){const res=await fetch(`/api/admin/mail/${encodeURIComponent(id)}`,{method:'PATCH',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({action,...extra})});const j=await res.json().catch(()=>({}));if(!res.ok)throw new Error(mapLeadMasterError(j.error||'system').message);return j;}
   async function openMessage(id:string, openFull=true){
     setPreviewEmailId(id);
-    setOpenEmailId(openFull ? id : null);
+    if(openFull)setOpenEmailId(id);else setOpenEmailId(null);
     markRead(id);
     const item=userEmails.find(e=>e.id===id);
     if(!item||item.folder==='drafts'||item.detailLoaded||(detailState?.id===id&&detailState.status==='loading'))return;
