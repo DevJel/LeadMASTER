@@ -351,9 +351,9 @@ export default function App(){
         api("records.list", {collection:'leadmaster_contacts'}, requestSignal),
         api("records.list", {collection:'leadmaster_reminders'}, requestSignal),
         api("records.list", {collection:'leadmaster_notes'}, requestSignal),
-        fetch('/api/admin/mail?folder=inbox', {credentials:'same-origin',signal:requestSignal}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`Inbox request failed (${r.status})`);return j;}),
-        fetch('/api/admin/mail?folder=sent', {credentials:'same-origin',signal:requestSignal}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`Sent request failed (${r.status})`);return j;}),
-        fetch('/api/admin/mail?folder=deleted', {credentials:'same-origin',signal:requestSignal}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`Deleted request failed (${r.status})`);return j;}),
+        fetch('/api/admin/mail?folder=inbox', {credentials:'same-origin',cache:'no-store',signal:requestSignal}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`Inbox request failed (${r.status})`);return j;}),
+        fetch('/api/admin/mail?folder=sent', {credentials:'same-origin',cache:'no-store',signal:requestSignal}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`Sent request failed (${r.status})`);return j;}),
+        fetch('/api/admin/mail?folder=deleted', {credentials:'same-origin',cache:'no-store',signal:requestSignal}).then(async r=>{const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||`Deleted request failed (${r.status})`);return j;}),
       ]);
       if(!Array.isArray(prefsData?.records) || !Array.isArray(msgsData?.records) || !Array.isArray(tplData?.records) || !Array.isArray(ruleData?.records) || !Array.isArray(schedData?.records) || !Array.isArray(contactsData?.records) || !Array.isArray(remindersData?.records) || !Array.isArray(notesData?.records) || !Array.isArray(inboxData?.items) || !Array.isArray(sentData?.items) || !Array.isArray(deletedData?.items)) throw new Error('The server returned an incomplete workspace snapshot.');
       const prefsRec = prefsData?.records?.[0];
@@ -404,22 +404,14 @@ export default function App(){
   // Dashboard data is kept in React memory between views. Avoid timer/visibility polling;
   // the user refresh gesture below is the explicit source of a fresh workspace snapshot.
   async function refreshWorkspace(){
-    if(refreshLock.current) return;
-    if(pollLock.current || busyRef.current) return;
+    if(refreshLock.current || pollLock.current || busyRef.current) return;
     refreshLock.current = true;
     setIsRefreshing(true);
     setRefreshError('');
-    const startedAt = Date.now();
-    let verified = false;
     try{
-      while(Date.now() - startedAt < 12000){
-        const remainingAtStart = Math.max(1, 12000 - (Date.now() - startedAt));
-        verified = await reloadRecords({silent:true,background:true,timeoutMs:remainingAtStart});
-        if(verified) break;
-        const remaining = 12000 - (Date.now() - startedAt);
-        if(remaining <= 0) break;
-        await new Promise(resolve => window.setTimeout(resolve, Math.min(1500,remaining)));
-      }
+      // Safe mode: one explicit snapshot read only. Never retry the entire Turso-backed
+      // workspace automatically; a failed refresh preserves the last good snapshot.
+      const verified = await reloadRecords({silent:true,background:true,timeoutMs:15000});
       if(!verified) setRefreshError('Could not refresh the workspace. Your previously loaded content is still available. Try again.');
     }finally{
       setIsRefreshing(false);
