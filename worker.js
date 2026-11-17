@@ -198,23 +198,55 @@ async function sessionFor(request, env) {
   const account = await accountForEmail(env,row.email);
   return { email: row.email, tokenHash, accountId: account.id, accountName: account.name, ownerName: account.owner_name || "" };
 }
+async function authRateLimit(env, bucketKey, maxAttempts, windowMs) {
+  const now = Date.now();
+  const row = await env.AUTH_DB.prepare(
+    "INSERT INTO auth_rate_limits (bucket_key,window_start,count) VALUES (?, ?, 1) " +
+    "ON CONFLICT(bucket_key) DO UPDATE SET " +
+    "count=CASE WHEN auth_rate_limits.window_start<=? THEN 1 ELSE auth_rate_limits.count+1 END, " +
+    "window_start=CASE WHEN auth_rate_limits.window_start<=? THEN excluded.window_start ELSE auth_rate_limits.window_start END " +
+    "RETURNING count,window_start"
+  ).bind(bucketKey, now, now - windowMs, now - windowMs).first();
+  if (!row || !Number.isFinite(Number(row.count))) throw new Error("auth-rate-limit-unavailable");
+  const count = Number(row.count);
+  if (count <= maxAttempts) return null;
+  const retryAfter = Math.max(1, Math.ceil((Number(row.window_start) + windowMs - now) / 1000));
+  return json(
+    { error: "Too many sign-in attempts. Please wait before trying again.", errorCode: "LM-AUTH-RATE-LIMIT" },
+    429,
+    { "retry-after": String(retryAfter) }
+  );
+}
+async function enforceAuthRateLimit(env, bucketKey, maxAttempts, windowMs) {
+  try {
+    return await authRateLimit(env, bucketKey, maxAttempts, windowMs);
+  } catch {
+    console.error("AUTH_RATE_LIMIT_UNAVAILABLE");
+    return json({ error: "Sign-in protection is temporarily unavailable. Please retry shortly." }, 503);
+  }
+}
 async function authConfig(request, env) {
   if (request.method !== "GET") return json({ error: "Method not allowed" }, 405, { allow: "GET" });
   const siteKey = await secret(env.TURNSTILE_SITE_KEY);
   if (!siteKey || !/^0x4[A-Za-z0-9_-]{20,}$/.test(siteKey)) return json({ error: "Security verification is not configured" }, 503);
   return json({ turnstileSiteKey: siteKey });
 }
-// The current product provisions one primary administrator. That identity is intentionally exempt from
-// email/IP request throttles; Turnstile, password verification and the one-time OTP attempt cap remain active.
+// The primary administrator is protected by shared IP and account buckets. Bucket keys
+// contain hashes only, never raw IP addresses or email addresses.
 async function login(request, env) {
   if (request.method !== "POST") return json({ error: "Method not allowed" }, 405, { allow: "POST" });
   if (!sameOrigin(request)) return json({ error: "Invalid request" }, 403);
   let body;
   try { body = await readJson(request); } catch { return json({ error: "Invalid request" }, 400); }
-  if (!(await verifyLoginTurnstile(body.turnstileToken, env, "login"))) return json({ error: "Security verification failed. Complete the Cloudflare check and try again." }, 403);
+  const clientIp = request.headers.get("CF-Connecting-IP") || "unknown";
+  const ipLimit = await enforceAuthRateLimit(env, "auth:login:ip:" + await sha256(clientIp), 30, 15 * 60 * 1000);
+  if (ipLimit) return ipLimit;
   const identity = typeof body.identity === "string" ? body.identity.trim().toLowerCase() : "";
   const adminEmail = await configuredAdminEmail(env);
   if (!adminEmail || identity !== adminEmail) return json({ error: "Unable to sign in. Check the registered email and password." }, 401);
+  const accountLimit = await enforceAuthRateLimit(env, "auth:login:account:" + await sha256(adminEmail), 20, 15 * 60 * 1000);
+  if (accountLimit) return accountLimit;
+  if (!(await verifyLoginTurnstile(body.turnstileToken, env, "login"))) return json({ error: "Security verification failed. Complete the Cloudflare check and try again." }, 403);
   const configuredPassword = await secret(env.ADMIN_PASSWORD);
   const sessionSecret = await secret(env.SESSION_SECRET);
   if (!configuredPassword || !sessionSecret || !(await passwordMatches(body.password, configuredPassword))) return json({ error: "Unable to sign in" }, 401);
@@ -225,7 +257,7 @@ async function login(request, env) {
   await env.AUTH_DB.prepare("DELETE FROM auth_challenges WHERE email = ?").bind(adminEmail).run();
   await env.AUTH_DB.prepare("INSERT INTO auth_challenges (id,email,code_hash,created_at,expires_at,attempts) VALUES (?,?,?,?,?,0)")
     .bind(id, adminEmail, codeHash, now, now + 10 * 60 * 1000).run();
-  await logWorkspaceAction(env,adminEmail,"sign_in_code_sent","Requested a sign-in code.");
+  try { await logWorkspaceAction(env,adminEmail,"sign_in_code_sent","Requested a sign-in code."); } catch { console.error("AUTH_AUDIT_WRITE_FAILED"); }
   try {
     await sendThroughEmailCoordinator(env, {
       id,
@@ -268,6 +300,11 @@ async function verifyOtp(request, env, ctx) {
     console.error("OTP_VERIFY_IDENTITY_UNAVAILABLE");
     return authCapacityResponse(error);
   }
+  const clientIp = request.headers.get("CF-Connecting-IP") || "unknown";
+  const ipLimit = await enforceAuthRateLimit(env, "auth:verify:ip:" + await sha256(clientIp), 20, 15 * 60 * 1000);
+  if (ipLimit) return ipLimit;
+  const accountLimit = await enforceAuthRateLimit(env, "auth:verify:account:" + await sha256(adminEmail), 20, 15 * 60 * 1000);
+  if (accountLimit) return accountLimit;
   try {
     row = await readAuthDependency(() => env.AUTH_DB.prepare("SELECT id,code_hash,expires_at,attempts FROM auth_challenges WHERE email = ? ORDER BY created_at DESC LIMIT 1").bind(adminEmail).first(), {deadline:readDeadline});
   } catch (error) {
