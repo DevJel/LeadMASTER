@@ -30,7 +30,7 @@ test("all utility routes are full-width same-tab workspaces", () => {
 test("tab navigation keeps the global loading veil until the destination has painted", () => {
   assert.match(app, /const \[navigationLoading, setNavigationLoading\] = useState\(false\)/);
   assert.match(app, /loadingOverlayActive = .*navigationLoading/);
-  assert.match(app, /requestAnimationFrame\(\(\) => \{[\s\S]*requestAnimationFrame\(\(\) => setNavigationLoading\(false\)\)/);
+  assert.match(app, /requestAnimationFrame\(\(\) => \{[\s\S]*requestAnimationFrame\(\(\) => \{[\s\S]*setTimeout\(\(\) => setNavigationLoading\(false\), 180\)/);
   assert.match(app, /setView\(next\)/);
   assert.match(overlay, /fixed inset-0 z-\[120\]/);
   assert.match(overlay, /backdrop-blur-md/);
