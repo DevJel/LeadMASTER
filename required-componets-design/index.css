@@ -106,3 +106,17 @@ button{font-family:inherit}
 @keyframes lm-confirm-ring{0%{transform:scale(.86);opacity:.65}100%{transform:scale(1.14);opacity:0}}
 @keyframes lm-confirm-shake{0%,90%,100%{transform:rotate(0)}92%{transform:rotate(-5deg)}94%{transform:rotate(4deg)}96%{transform:rotate(-2deg)}98%{transform:rotate(1deg)}}
 @media(prefers-reduced-motion:reduce){.lm-confirm-overlay,.lm-confirm-modal,.lm-confirm-icon:after,.lm-confirm-trash{animation:none!important}}
+
+
+/* Full-page mail workspace with one draggable, accessible vertical divider. */
+.lm-mail-workspace{display:grid;grid-template-columns:minmax(280px,var(--lm-mail-list-width,52%)) 12px minmax(280px,1fr);width:100%;min-width:0;height:calc(100dvh - 132px);min-height:320px;max-height:100%;overflow:hidden;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--surface)}
+.lm-mail-list-column,.lm-mail-preview-column{min-width:0;min-height:0;height:100%;overflow:auto;overscroll-behavior:contain}
+.lm-mail-list-column>.lm-mail-list{height:100%;min-height:0;margin:0!important;border-radius:0!important;box-shadow:none!important;overflow-y:auto;overflow-x:hidden}
+.lm-mail-preview-column{border-left:1px solid var(--border);background:var(--surface)}
+.lm-mail-preview{height:100%;min-height:0;border-radius:0;box-shadow:none}
+.lm-mail-resize-handle{position:relative;width:12px;height:100%;justify-self:center;cursor:col-resize;touch-action:none;background:var(--surface-2);border-left:1px solid var(--border);border-right:1px solid var(--border)}
+.lm-mail-resize-handle:after{content:"";position:absolute;left:4px;top:calc(50% - 24px);width:2px;height:48px;border-radius:2px;background:var(--text-3)}
+.lm-mail-resize-handle:hover{background:var(--surface-3)}
+.lm-mail-resize-handle:focus-visible{outline:2px solid var(--text);outline-offset:-2px}
+.lm-utility-workspace{width:100%;max-width:none}
+@media(max-width:1023px){.lm-mail-workspace{display:flex;flex-direction:column;height:auto;max-height:none;min-height:0;overflow:visible}.lm-mail-list-column{height:auto;max-height:55dvh;overflow:auto;border-bottom:1px solid var(--border)}.lm-mail-preview-column{height:auto;min-height:240px;overflow:visible;border-left:0}.lm-mail-resize-handle{display:none}.lm-mail-preview{height:auto;min-height:240px}}
