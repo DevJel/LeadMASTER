@@ -6,7 +6,8 @@
         android:allowBackup="false"
         android:usesCleartextTraffic="false"
         android:label="LeadMASTER"
-        android:icon="@drawable/ic_leadmaster"\n        android:roundIcon="@drawable/ic_leadmaster"
+        android:icon="@drawable/ic_leadmaster"
+        android:roundIcon="@drawable/ic_leadmaster"
         android:theme="@style/Theme.LeadMASTER"
         android:hardwareAccelerated="true">
         <activity
