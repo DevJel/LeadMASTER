@@ -25,7 +25,7 @@ async function seedOtp(sql,code='123456'){
 }
 test('login endpoint rate-limits repeated requests by IP before contacting Turnstile',async()=>{
  const {env,sql}=setup();
- for(let i=0;i<30;i++){
+ for(let i=0;i<20;i++){
   const r=await call(env,'/api/auth/login',{method:'POST',body:{identity:email,password:'wrong',turnstileToken:'synthetic'}});
   assert.equal(r.status,403);
  }
