@@ -25,7 +25,7 @@ async function seedOtp(sql,code='123456'){
 }
 test('login endpoint rate-limits repeated requests by IP before contacting Turnstile',async()=>{
  const {env,sql}=setup();
- for(let i=0;i<20;i++){
+ for(let i=0;i<30;i++){
   const r=await call(env,'/api/auth/login',{method:'POST',body:{identity:email,password:'wrong',turnstileToken:'synthetic'}});
   assert.equal(r.status,403);
  }
@@ -35,6 +35,24 @@ test('login endpoint rate-limits repeated requests by IP before contacting Turns
  const bucket=sql.prepare("SELECT bucket_key FROM auth_rate_limits ORDER BY bucket_key LIMIT 1").get();
  assert.ok(bucket);
  assert.ok(!bucket.bucket_key.includes(email));
+});
+test('administrator login attempts are rate-limited after a valid Turnstile challenge',async()=>{
+ const {env,sql}=setup();
+ const originalFetch=globalThis.fetch;
+ globalThis.fetch=async url=>String(url).includes('challenges.cloudflare.com/turnstile/v0/siteverify')
+  ?Response.json({success:true,hostname:'leadmaster.jelvan.space',action:'login'})
+  :new Response('SYNTHETIC UPSTREAM',{status:404});
+ try{
+  for(let i=0;i<20;i++){
+   const r=await call(env,'/api/auth/login',{method:'POST',body:{identity:email,password:'wrong',turnstileToken:'synthetic'}});
+   assert.equal(r.status,401);
+  }
+  const blocked=await call(env,'/api/auth/login',{method:'POST',body:{identity:email,password:'wrong',turnstileToken:'synthetic'}});
+  assert.equal(blocked.status,429);
+  const bucket=sql.prepare("SELECT bucket_key FROM auth_rate_limits WHERE bucket_key LIKE 'auth:login:account:%'").get();
+  assert.ok(bucket);
+  assert.ok(!bucket.bucket_key.includes(email));
+ }finally{globalThis.fetch=originalFetch}
 });
 test('valid OTP atomically creates the session and returns its cookie before background work',async()=>{
  const {env,sql}=setup();await seedOtp(sql);
