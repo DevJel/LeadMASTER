@@ -31,7 +31,7 @@ test("tab navigation keeps the global loading veil until the destination has pai
   assert.match(app, /const \[navigationLoading, setNavigationLoading\] = useState\(false\)/);
   assert.match(app, /loadingOverlayActive = .*navigationLoading/);
   assert.match(app, /requestAnimationFrame\(\(\) => \{[\s\S]*requestAnimationFrame\(\(\) => setNavigationLoading\(false\)\)/);
-  assert.match(app, /navigateToView\(next\)/);
+  assert.match(app, /setView\(next\)/);
   assert.match(overlay, /fixed inset-0 z-\[120\]/);
   assert.match(overlay, /backdrop-blur-md/);
   assert.match(overlay, /bg-black\/25/);
