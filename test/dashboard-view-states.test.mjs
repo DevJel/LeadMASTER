@@ -34,7 +34,7 @@ test('premium shell keeps centered search, transparent product logo and bottom p
 });
 
 
-test('reusable loading veil is subtle, dismissible and automatically closes when idle', async () => {
+test('reusable loading veil blurs the full viewport, is dismissible and closes when idle', async () => {
   const [app, overlay] = await Promise.all([
     readFile(new URL('../required-componets-design/App.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../src/dashboard-tsx/LoadingOverlay.tsx', import.meta.url), 'utf8')
