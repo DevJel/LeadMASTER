@@ -4,7 +4,7 @@
 - Keep the dashboard snapshot in React memory between views and do not add interval or visibility polling. A failed manual refresh keeps the prior snapshot and presents a retry action.
 - Run mailbox summary-count scans only for the dedicated `folder=counts` endpoint. Inbox, Sent, Deleted and suppression-list reads no longer execute eight extra aggregate queries each.
 - Mark mailbox GET reads as `no-store` so a deliberate refresh cannot reuse a browser-cached response.
-- Add regression tests for the mailbox query budget and one-cycle refresh behavior. No production deployment is implied by this feature branch.
+- Add regression tests for the mailbox query budget and one-cycle refresh behavior. Production Worker version 299 is live with the existing SQLite `EmailCoordinator` export preserved; no database schema or data migration was applied.
 
 ## 2026-11-17 — Persistent dashboard shell and non-blocking content loading
 
