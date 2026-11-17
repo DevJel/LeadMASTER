@@ -536,7 +536,7 @@ export default function App(){
     setComposeMode('new'); setReplyTo(null); setShowEmoji(false);
     setCompose(prev=>({to: to ?? prev.to, cc:'', bcc:'', subject: subject ?? prev.subject, body: prev.body, showCc:false}));
     if(to!==undefined) setCompose({to, cc:'', bcc:'', subject:subject||'', body:'', showCc:false});
-    setView('compose'); setOpenEmailId(null); setMobileSidebar(false);
+    navigateToView('compose'); setOpenEmailId(null); setMobileSidebar(false);
   }
   function closeComposeTab(){ navigateToView(previousView || 'inbox'); setStatus('Compose closed — returned to previous view.'); }
   function openSender(name:string, email:string, company?:string){
