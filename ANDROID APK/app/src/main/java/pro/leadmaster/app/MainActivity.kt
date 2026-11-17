@@ -39,6 +39,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.viewinterop.AndroidView
@@ -178,13 +179,6 @@ class MainActivity : ComponentActivity() {
                     pageLoading = true
                     pageLoadError = false
                     pageProgress = 0
-                }
-
-                override fun onPageFinished(view: WebView?, url: String?) {
-                    super.onPageFinished(view, url)
-                    pageLoading = false
-                    pageLoadError = false
-                    pageProgress = 100
                 }
 
                 override fun onReceivedError(
