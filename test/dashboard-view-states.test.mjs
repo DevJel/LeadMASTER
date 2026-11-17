@@ -40,8 +40,8 @@ test('reusable loading veil is subtle, dismissible and automatically closes when
     readFile(new URL('../src/dashboard-tsx/LoadingOverlay.tsx', import.meta.url), 'utf8')
   ]);
   assert.ok(app.includes('<LoadingOverlay active={loadingOverlayActive}'));
-  assert.ok(overlay.includes('backdrop-blur-sm'));
-  assert.ok(overlay.includes('bg-black/10'));
+  assert.ok(overlay.includes('backdrop-blur-md'));
+  assert.ok(overlay.includes('bg-black/25'));
   assert.ok(overlay.includes('aria-label="Dismiss loading overlay"'));
   assert.ok(overlay.includes('if (!active || dismissed) return null;'));
   assert.ok(overlay.includes('onClick={onDismiss}'));
