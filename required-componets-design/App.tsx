@@ -208,6 +208,7 @@ export default function App(){
   const [loadError, setLoadError] = useState<string>('');
   const [actionError, setActionError] = useState<string>('');
   const [viewLoading, setViewLoading] = useState(true);
+  const [navigationLoading, setNavigationLoading] = useState(false);
   const [viewError, setViewError] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState('');
@@ -221,8 +222,19 @@ export default function App(){
   const [confirmation, setConfirmation] = useState<ActionConfirmationRequest|null>(null);
   const [confirmationAction, setConfirmationAction] = useState<(()=>Promise<void>|void)|null>(null);
   const [sendingPhase, setSendingPhase] = useState<SendingPhase|null>(null);
-  const loadingOverlayActive = isLoading || viewLoading || isRefreshing || busy || Boolean(sendingPhase) || detailState?.status === 'loading';
+  const loadingOverlayActive = isLoading || viewLoading || navigationLoading || isRefreshing || busy || Boolean(sendingPhase) || detailState?.status === 'loading';
   useEffect(() => { if (loadingOverlayActive) setLoadingOverlayDismissed(false); }, [loadingOverlayActive]);
+  useEffect(() => {
+    if (!navigationLoading) return;
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => setNavigationLoading(false));
+    });
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
+    };
+  }, [navigationLoading, view]);
   const touchStartY = useRef<number|null>(null);
   const pointerStartY = useRef<number|null>(null);
   const wheelDistance = useRef(0);
@@ -302,8 +314,10 @@ export default function App(){
   const [htmlSnippet, setHtmlSnippet] = useState('');
   const [htmlTemplate, setHtmlTemplate] = useState('');
   const [showComposePreview, setShowComposePreview] = useState(false);
-  const [previewMode, setPreviewMode] = useState(false);
   const [previewEmailId, setPreviewEmailId] = useState<string|null>(null);
+  const [mailSplitPercent, setMailSplitPercent] = useState(52);
+  const mailWorkspaceRef = useRef<HTMLDivElement|null>(null);
+  const mailSplitDragging = useRef(false);
   const [detailPreviewMode, setDetailPreviewMode] = useState<'text'|'html'>('text');
   const [composePriority, setComposePriority] = useState<'normal'|'high'|'low'>('normal');
   const [composeReadReceipt, setComposeReadReceipt] = useState(false);
@@ -314,7 +328,6 @@ export default function App(){
   const [composeViewSource, setComposeViewSource] = useState(false);
   const [composeCustomSize, setComposeCustomSize] = useState('');
   const [composeDiscardConfirm, setComposeDiscardConfirm] = useState(false);
-  const [previewLayout, setPreviewLayout] = useState<'vertical'|'horizontal'>('vertical');
   const [htmlDialogOpen, setHtmlDialogOpen] = useState(false);
   const [htmlDialogValue, setHtmlDialogValue] = useState('');
   const [htmlDialogPreview, setHtmlDialogPreview] = useState(true);
@@ -455,7 +468,24 @@ export default function App(){
   }
 
     async function patchMail(id:string, action:string, extra:any={}){const res=await fetch(`/api/admin/mail/${encodeURIComponent(id)}`,{method:'PATCH',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({action,...extra})});const j=await res.json().catch(()=>({}));if(!res.ok)throw new Error(mapLeadMasterError(j.error||'system').message);return j;}
-  async function openMessage(id:string){setOpenEmailId(id);markRead(id);const item=userEmails.find(e=>e.id===id);if(!item||item.folder==='drafts'||item.detailLoaded)return;setDetailState({id,status:'loading'});try{const res=await fetch(`/api/admin/mail/${encodeURIComponent(id)}`,{credentials:'same-origin'});const j=await res.json().catch(()=>({}));if(!res.ok)throw new Error(j.error||'Message unavailable');const source=`/api/admin/mail/${id}/source`;setUserEmails(prev=>prev.map(e=>e.id===id?{...e,body:typeof j.text_body==='string'?j.text_body:(j.detail||''),htmlBody:typeof j.html_body==='string'?j.html_body:undefined,fromAddress:e.folder==='sent'&&typeof j.sender==='string'?j.sender:undefined,sourceUrl:j.download_url===source?source:undefined,detailLoaded:true,snippet:(j.text_body||j.detail||e.snippet).slice(0,110),email:e.folder==='inbox'?(j.from_address||e.email):e.email,sender:e.folder==='inbox'?(j.from_name||j.from_address||e.sender):e.sender,attachment:Number(j.attachments||0)>0}:e));setDetailState(prev=>prev?.id===id?{id,status:'ready'}:prev);}catch(e){setDetailState(prev=>prev?.id===id?{id,status:'error'}:prev);}}
+  async function openMessage(id:string, openFull=true){
+    setPreviewEmailId(id);
+    setOpenEmailId(openFull ? id : null);
+    markRead(id);
+    const item=userEmails.find(e=>e.id===id);
+    if(!item||item.folder==='drafts'||item.detailLoaded)return;
+    setDetailState({id,status:'loading'});
+    try{
+      const res=await fetch("/api/admin/mail/"+encodeURIComponent(id),{credentials:'same-origin'});
+      const j=await res.json().catch(()=>({}));
+      if(!res.ok)throw new Error(j.error||'Message unavailable');
+      const source="/api/admin/mail/"+id+"/source";
+      setUserEmails(prev=>prev.map(e=>e.id===id?{...e,body:typeof j.text_body==='string'?j.text_body:(j.detail||''),htmlBody:typeof j.html_body==='string'?j.html_body:undefined,fromAddress:e.folder==='sent'&&typeof j.sender==='string'?j.sender:undefined,sourceUrl:j.download_url===source?source:undefined,detailLoaded:true,snippet:(j.text_body||j.detail||e.snippet).slice(0,110),email:e.folder==='inbox'?(j.from_address||e.email):e.email,sender:e.folder==='inbox'?(j.from_name||j.from_address||e.sender):e.sender,attachment:Number(j.attachments||0)>0}:e));
+      setDetailState(prev=>prev?.id===id?{id,status:'ready'}:prev);
+    }catch{
+      setDetailState(prev=>prev?.id===id?{id,status:'error'}:prev);
+    }
+  }
   function toggleStar(id:string, e?:React.MouseEvent){ e?.stopPropagation(); const next = new Set(starred); next.has(id)? next.delete(id): next.add(id); setStarred(next); savePrefs({starred:next}); setStatus(next.has(id)?'Starred — priority lead saved':'Removed from starred'); }
   function markRead(id:string){ if(readIds.has(id)) return; const next=new Set(readIds); next.add(id); setReadIds(next); const mail=userEmails.find(e=>e.id===id); if(mail?.folder==='inbox') patchMail(id,'read',{read:true}).catch(e=>setActionError(mapLeadMasterError(e).message)); else savePrefs({read:next}); }
   async function doArchive(id:string){const mail=userEmails.find(e=>e.id===id);if(mail?.folder==='sent'){setStatus('Sent mail cannot be archived through this mailbox endpoint. Move it to Deleted instead.');return;}try{await patchMail(id,'archive');setArchived(prev=>new Set([...prev,id]));setStatus('Message archived.');setOpenEmailId(null);await reloadRecords();}catch(e){setActionError(mapLeadMasterError(e).message);setStatus('Could not archive this message.');}}
@@ -499,7 +529,7 @@ export default function App(){
     else if(mode==='template' && tpl) setCompose({to:'', cc:'', bcc:'', subject:tpl.subject, body:tpl.body + (signature? `\n\n${signature}`:''), showCc:false});
     else setCompose({to:'', cc:'', bcc:'', subject:'', body:'', showCc:false});
     if(view!=='compose') setPreviousView(view);
-    setOpenEmailId(null); setMobileSidebar(false); setView('compose');
+    setOpenEmailId(null); setMobileSidebar(false); navigateToView('compose');
   }
   function openComposeTab(to?:string, subject?:string){
     if(view!=='compose') setPreviousView(view);
@@ -508,7 +538,7 @@ export default function App(){
     if(to!==undefined) setCompose({to, cc:'', bcc:'', subject:subject||'', body:'', showCc:false});
     setView('compose'); setOpenEmailId(null); setMobileSidebar(false);
   }
-  function closeComposeTab(){ setView(previousView || 'inbox'); setStatus('Compose closed — returned to previous view.'); }
+  function closeComposeTab(){ navigateToView(previousView || 'inbox'); setStatus('Compose closed — returned to previous view.'); }
   function openSender(name:string, email:string, company?:string){
     setSelectedSender({name, email, company});
     setSenderNoteDraft(senderNotes[email] || '');
@@ -528,7 +558,7 @@ export default function App(){
   }
   function viewAllFromSender(){
     if(!selectedSender) return;
-    setSearch(selectedSender.email); setView('inbox'); setSelectedSender(null); setOpenEmailId(null); setStatus(`Showing all emails from ${selectedSender.name}.`);
+    setSearch(selectedSender.email); navigateToView('inbox'); setSelectedSender(null); setOpenEmailId(null); setStatus(`Showing all emails from ${selectedSender.name}.`);
   }
   function sendEmailToSender(){
     if(!selectedSender) return;
@@ -560,12 +590,12 @@ export default function App(){
         setStatus(`Queued ${result.queued||1} message${(result.queued||1)===1?'':'s'}. Queue acceptance is not delivery confirmation.`);
       }
       setComposeOpen(false); setCompose({to:'',cc:'',bcc:'',subject:'',body:'',showCc:false});
-      if(kind==='sent') setView('outbox');
+      if(kind==='sent') navigateToView('outbox');
       setOpenEmailId(null); await reloadRecords();
     }catch(e){if(kind==='sent')setSendingPhase('unknown');setActionError(mapLeadMasterError(e).message);setStatus(kind==='sent'?'The send request was not confirmed. Check Outbox before trying again.':'The draft could not be saved.');}
     finally{setBusy(false);if(kind==='sent')window.setTimeout(()=>setSendingPhase(null),1800);}
   }
-  async function scheduleCompose(){ if(!compose.to.trim()){ setStatus('Add a recipient before scheduling.'); return; } const item: ScheduledItem = {id:uid(), to:compose.to, subject:compose.subject||'(no subject)', body:compose.body, when:scheduleWhen||schedulePick||'Tomorrow · 9:00 AM'};setBusy(true);try{const created=await api('records.create',{collection:'leadmaster_scheduled',value:item,idempotency_key:`leadmaster-sched-${item.id}`});setScheduled(prev=>[{...item,recordId:created?.id},...prev]);setComposeOpen(false);setCompose({to:'',cc:'',bcc:'',subject:'',body:'',showCc:false});setView('scheduled');setStatus('Saved in Scheduled. Automatic timed dispatch is not enabled yet; use Send now to queue it.');}catch(e){setActionError(mapLeadMasterError(e).message);setStatus('Schedule was not saved; your compose content is still available.');}finally{setBusy(false);}}
+  async function scheduleCompose(){ if(!compose.to.trim()){ setStatus('Add a recipient before scheduling.'); return; } const item: ScheduledItem = {id:uid(), to:compose.to, subject:compose.subject||'(no subject)', body:compose.body, when:scheduleWhen||schedulePick||'Tomorrow · 9:00 AM'};setBusy(true);try{const created=await api('records.create',{collection:'leadmaster_scheduled',value:item,idempotency_key:`leadmaster-sched-${item.id}`});setScheduled(prev=>[{...item,recordId:created?.id},...prev]);setComposeOpen(false);setCompose({to:'',cc:'',bcc:'',subject:'',body:'',showCc:false});navigateToView('scheduled');setStatus('Saved in Scheduled. Automatic timed dispatch is not enabled yet; use Send now to queue it.');}catch(e){setActionError(mapLeadMasterError(e).message);setStatus('Schedule was not saved; your compose content is still available.');}finally{setBusy(false);}}
   function toggleSelectAll(){ if(selected.size===filtered.length) setSelected(new Set()); else setSelected(new Set(filtered.map(e=>e.id))); }
   async function bulkArchive(){const ids=[...selected];for(const id of ids){try{await patchMail(id,'archive');}catch(e){setActionError(mapLeadMasterError(e).message);}}setSelected(new Set());await reloadRecords();setStatus('Archive actions processed.');}
   function bulkDelete(){const ids=[...selected];if(!ids.length)return;requestConfirmation({title:'Move the selected messages to Deleted?',message:'The selected messages will be moved to your Deleted folder.',itemLabel:ids.length+' message(s)',confirmLabel:'Move to Deleted'},()=>bulkDeleteConfirmed(ids));}
@@ -678,7 +708,11 @@ export default function App(){
   function composeBodyStyle(): React.CSSProperties { return {fontFamily: composeFont, fontSize: composeFontSize, textAlign: composeAlign, color: composeColor, backgroundColor: composeHighlight, textDecoration: fmtStrike ? 'line-through' : undefined}; }
 
   const viewTitle = view==='compose'?'Compose': view==='inbox'?'Inbox': view==='sent'?'Sent': view==='outbox'?'Outbox': view==='deleted'?'Deleted': view==='assistant'?'Assistant': view==='automation'?'Automation': view==='templates'?'Templates': view==='scheduled'?'Scheduled':'Settings';
-  const goView = (v:View)=>{ if(v==='compose'){ openComposeTab(); return; } if(view==='compose') setPreviousView(view); setView(v); setOpenEmailId(null); setSelected(new Set()); setMobileSidebar(false); setConfirmEmpty(false); setViewError(false); };
+  function navigateToView(next:View){
+    if(next!==view){setNavigationLoading(true);setLoadingOverlayDismissed(false);}
+    setView(next);
+  }
+  const goView = (v:View)=>{ if(v==='compose'){ openComposeTab(); return; } if(view==='compose') setPreviousView(view); navigateToView(v); setOpenEmailId(null); setPreviewEmailId(null); setSelected(new Set()); setMobileSidebar(false); setConfirmEmpty(false); setViewError(false); };
   const badgeFor = (k:View)=> k==='inbox'?counts.inboxUnread : k==='outbox'?counts.outbox : k==='deleted'?counts.deleted : k==='scheduled'?counts.scheduled : 0;
   const NAV: {k:View; label:string; icon:IconName; badge:number}[] = componentOrder.filter(k=>k!=='settings' && !hiddenComponents.has(k)).map(k=>({k, label:componentLabel(k), icon:componentIcon(k), badge:badgeFor(k)}));
 
@@ -781,7 +815,7 @@ export default function App(){
     <div className="bg-[var(--surface)] rounded-2xl overflow-hidden gmail-shadow mx-1 sm:mx-2">
       {filtered.length===0 ? <div className="p-10 sm:p-16 text-center"><img src="/assets/illustrations/empty-mail.webp" alt="" width="168" height="120" className="mx-auto mb-2 h-auto w-[168px] object-contain" loading="lazy"/><h2 className="text-[18px] mt-3">Nothing in {viewTitle}</h2><p className="text-[14px] text-[var(--text-3)] mt-1 max-w-[420px] mx-auto">{view==='deleted'?'Deleted is empty. Restored mail returns to Inbox.': search? `No results for “${search}”. Try a different sender, subject, or lead.` : 'You are all caught up.'}</p><button onClick={()=>{setSearch(''); setOnlyAttachment(false); goView('inbox');}} className="mt-4 px-5 py-2.5 rounded-full bg-[var(--text)] text-[var(--surface)] text-[14px]">Back to Inbox</button></div> : filtered.map(email=>{
         const isUnread = !readIds.has(email.id); const isSel = selected.has(email.id); const rowPad = density==='compact'?'py-1.5':'py-2.5';
-        return <div key={email.id} className={`group relative flex items-center gap-1 sm:gap-2 px-2 sm:px-3 border-b border-[var(--border)] last:border-0 cursor-pointer hover:bg-[var(--surface-2)] ${isSel?'bg-[var(--surface-2)]':''} ${previewEmailId===email.id?'bg-[var(--surface-2)]':''} ${rowPad}`} onClick={()=>{ if(previewMode){ setPreviewEmailId(email.id); openMessage(email.id); } else { openMessage(email.id); } }} onDoubleClick={()=>{ openMessage(email.id); }} title="Click to preview or open · Double-click to open full detail">
+        return <div key={email.id} className={`group relative flex items-center gap-1 sm:gap-2 px-2 sm:px-3 border-b border-[var(--border)] last:border-0 cursor-pointer hover:bg-[var(--surface-2)] ${isSel?'bg-[var(--surface-2)]':''} ${previewEmailId===email.id?'bg-[var(--surface-2)]':''} ${rowPad}`} onClick={()=>{ void openMessage(email.id,false); }} onDoubleClick={()=>{ void openMessage(email.id,true); }} title="Click to preview · Double-click to open full message">
           <input type="checkbox" checked={isSel} onChange={e=>{e.stopPropagation(); const n=new Set(selected); n.has(email.id)?n.delete(email.id):n.add(email.id); setSelected(n);}} onClick={e=>e.stopPropagation()} className="accent-black w-4 h-4 shrink-0" aria-label={`Select ${email.subject}`}/>
           <button onClick={e=>toggleStar(email.id,e)} className="p-1 shrink-0" aria-label="Star">{starred.has(email.id)?<span className="text-[18px] leading-none">★</span>:<UniformIcon name="star" size={18}/>}</button>
           <span className="hidden sm:flex items-center gap-2 shrink-0">{senderButton(email)}</span>
@@ -797,13 +831,71 @@ export default function App(){
     </div>
   );
 
+  function resizeMailSplit(clientX:number){
+    const rect=mailWorkspaceRef.current?.getBoundingClientRect();
+    if(!rect||rect.width<=0)return;
+    const percent=((clientX-rect.left)/rect.width)*100;
+    setMailSplitPercent(Math.max(28,Math.min(72,percent)));
+  }
+  function startMailSplitResize(event:React.PointerEvent<HTMLDivElement>){
+    if(event.pointerType==='mouse'&&event.button!==0)return;
+    event.preventDefault();
+    mailSplitDragging.current=true;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+  function moveMailSplitResize(event:React.PointerEvent<HTMLDivElement>){
+    if(mailSplitDragging.current)resizeMailSplit(event.clientX);
+  }
+  function stopMailSplitResize(event:React.PointerEvent<HTMLDivElement>){
+    mailSplitDragging.current=false;
+    if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
+  }
+  function handleMailSplitKeyDown(event:React.KeyboardEvent<HTMLDivElement>){
+    if(event.key==='ArrowLeft'||event.key==='ArrowRight'){
+      event.preventDefault();
+      setMailSplitPercent(value=>Math.max(28,Math.min(72,value+(event.key==='ArrowRight'?3:-3))));
+    }
+  }
+
   const previewEmail = allEmails.find(e=>e.id===previewEmailId) || null;
-  const previewPanel = previewMode && previewEmail && (view==='inbox'||view==='sent'||view==='deleted') && !openEmail ? (
-    <div className={`bg-[var(--surface)] rounded-2xl gmail-shadow border border-[var(--border)] overflow-hidden ${previewLayout==='vertical'?'m-0 flex-1 min-w-0':'mx-1 sm:mx-2 mt-3'}`} aria-label={`Preview of ${previewEmail.subject}`}>
-      <div className="flex flex-wrap items-center gap-2 bg-[var(--surface-2)] px-4 py-3"><span className="flex items-center gap-2 font-medium text-[14px]"><UniformIcon name="eye" size={18}/> Preview — {view==='sent'?'Sent':view==='deleted'?'Deleted':'Inbox'} · {previewLayout==='vertical'?'Vertical':'Horizontal'}</span><span className="text-[12px] text-[var(--text-3)]">Click a row to preview it here. Double-click or Open for full detail.</span><div className="ml-auto flex gap-1"><button onClick={()=>setDetailPreviewMode(detailPreviewMode==='html'?'text':'html')} className="px-3 py-1.5 rounded-full border border-[var(--border)] text-[12px]">{detailPreviewMode==='html'?'Show as text':'Show as HTML'}</button><button onClick={()=>{ setOpenEmailId(previewEmail.id); }} className="px-3 py-1.5 rounded-full bg-[var(--text)] text-[var(--surface)] text-[12px]">Open</button><button onClick={()=>setPreviewEmailId(null)} className="px-3 py-1.5 rounded-full border border-[var(--border)] text-[12px]" aria-label="Close preview"><UniformIcon name="x" size={14}/></button></div></div>
-      <div className="p-4 sm:p-5"><div className="flex items-center gap-3"><span className="w-10 h-10 rounded-full bg-[var(--text)] text-[var(--surface)] grid place-items-center font-medium shrink-0"><AvatarIcon email={previewEmail.email} size={20} /></span><div className="min-w-0"><button onClick={()=>openSender(previewEmail.sender, previewEmail.email, previewEmail.company)} className="font-medium hover:underline text-left">{previewEmail.sender}</button><p className="text-[12px] text-[var(--text-3)] truncate">&lt;{previewEmail.email}&gt; · {previewEmail.date} · {previewEmail.time} · {previewEmail.category}{previewEmail.label?` · ${previewEmail.label}`:''}</p></div></div><h3 className="text-[18px] font-medium leading-snug mt-3">{previewEmail.subject}</h3>{previewEmail.company && <p className="mt-1 text-[12px]"><span className="px-2 py-0.5 rounded-full border border-[var(--border)]">{previewEmail.company}</span>{previewEmail.value && <span className="ml-1 px-2 py-0.5 rounded-full border border-[var(--border)]">{previewEmail.value}</span>}</p>}{detailPreviewMode==='html' && previewEmail.htmlBody ? <SafeEmailHtml html={previewEmail.htmlBody}/> : <p className="whitespace-pre-line text-[14px] leading-relaxed mt-3">{previewEmail.body.slice(0,1200)}{previewEmail.body.length>1200?'…':''}</p>}{previewEmail.sourceUrl && <p className="mt-3 text-[13px]"><a className="underline" href={previewEmail.sourceUrl}>Download original message (.eml)</a></p>}<div className="flex flex-wrap gap-2 mt-4"><button onClick={()=>openCompose('reply', previewEmail)} className="px-4 py-2 rounded-full border border-[var(--border)] text-[13px] flex items-center gap-1"><UniformIcon name="reply" size={14}/> Reply</button><button onClick={()=>openCompose('forward', previewEmail)} className="px-4 py-2 rounded-full border border-[var(--border)] text-[13px] flex items-center gap-1"><UniformIcon name="forward" size={14}/> Forward</button><button onClick={()=>doArchive(previewEmail.id)} className="px-4 py-2 rounded-full border border-[var(--border)] text-[13px] flex items-center gap-1"><UniformIcon name="archive" size={14}/> Archive</button><button onClick={()=>doDelete(previewEmail.id)} className="px-4 py-2 rounded-full border border-[var(--border)] text-[13px] flex items-center gap-1"><UniformIcon name="trash" size={14}/> Delete</button><button onClick={()=>doSnooze(previewEmail.id)} className="px-4 py-2 rounded-full border border-[var(--border)] text-[13px] flex items-center gap-1"><UniformIcon name="clock" size={14}/> Snooze</button><button onClick={()=>openComposeTab(previewEmail.email)} className="px-4 py-2 rounded-full bg-[var(--text)] text-[var(--surface)] text-[13px]">Compose to sender</button></div></div>
-    </div>
-  ) : null;
+  const previewPanel = (
+    <section className="lm-mail-preview h-full min-h-0 w-full overflow-y-auto bg-[var(--surface)]" aria-label="Message preview">
+      {previewEmail ? <>
+        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
+          <span className="flex items-center gap-2 font-medium text-[14px]"><UniformIcon name="eye" size={18}/> Message preview</span>
+          <div className="ml-auto flex flex-wrap gap-1">
+            <button onClick={()=>setDetailPreviewMode(detailPreviewMode==='html'?'text':'html')} className="px-3 py-1.5 rounded-full border border-[var(--border)] text-[12px]">{detailPreviewMode==='html'?'Show as text':'Show as HTML'}</button>
+            <button onClick={()=>setOpenEmailId(previewEmail.id)} className="px-3 py-1.5 rounded-full bg-[var(--text)] text-[var(--surface)] text-[12px]">Open full message</button>
+          </div>
+        </div>
+        <div className="p-4 sm:p-5">
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-full bg-[var(--text)] text-[var(--surface)] grid place-items-center font-medium shrink-0"><AvatarIcon email={previewEmail.email} size={20}/></span>
+            <div className="min-w-0">
+              <button onClick={()=>openSender(previewEmail.sender,previewEmail.email,previewEmail.company)} className="font-medium hover:underline text-left">{previewEmail.sender}</button>
+              <p className="text-[12px] text-[var(--text-3)] break-words">&lt;{previewEmail.email}&gt; · {previewEmail.date} · {previewEmail.time}</p>
+            </div>
+          </div>
+          <h3 className="text-[18px] font-medium leading-snug mt-3">{previewEmail.subject}</h3>
+          {previewEmail.company&&<p className="mt-1 text-[12px]"><span className="px-2 py-0.5 rounded-full border border-[var(--border)]">{previewEmail.company}</span>{previewEmail.value&&<span className="ml-1 px-2 py-0.5 rounded-full border border-[var(--border)]">{previewEmail.value}</span>}</p>}
+          {detailState?.id===previewEmail.id&&detailState.status==='loading' ? <div role="status" className="mt-4 text-sm text-[var(--text-3)]">Loading message content…</div>
+            : detailState?.id===previewEmail.id&&detailState.status==='error' ? <div role="alert" className="mt-4 text-sm"><p>Could not load this message.</p><button className="underline mt-2" onClick={()=>void openMessage(previewEmail.id,false)}>Try again</button></div>
+            : detailPreviewMode==='html'&&previewEmail.htmlBody ? <SafeEmailHtml html={previewEmail.htmlBody}/> : <p className="whitespace-pre-line text-[14px] leading-relaxed mt-3">{previewEmail.body||previewEmail.snippet}</p>}
+          {previewEmail.sourceUrl&&<p className="mt-3 text-[13px]"><a className="underline" href={previewEmail.sourceUrl}>Download original message (.eml)</a></p>}
+          <div className="flex flex-wrap gap-2 mt-4">
+            <button onClick={()=>openCompose('reply',previewEmail)} className="px-4 py-2 rounded-full border border-[var(--border)] text-[13px] flex items-center gap-1"><UniformIcon name="reply" size={14}/> Reply</button>
+            <button onClick={()=>openCompose('forward',previewEmail)} className="px-4 py-2 rounded-full border border-[var(--border)] text-[13px] flex items-center gap-1"><UniformIcon name="forward" size={14}/> Forward</button>
+            <button onClick={()=>doArchive(previewEmail.id)} className="px-4 py-2 rounded-full border border-[var(--border)] text-[13px] flex items-center gap-1"><UniformIcon name="archive" size={14}/> Archive</button>
+            <button onClick={()=>doDelete(previewEmail.id)} className="px-4 py-2 rounded-full border border-[var(--border)] text-[13px] flex items-center gap-1"><UniformIcon name="trash" size={14}/> Delete</button>
+            <button onClick={()=>doSnooze(previewEmail.id)} className="px-4 py-2 rounded-full border border-[var(--border)] text-[13px] flex items-center gap-1"><UniformIcon name="clock" size={14}/> Snooze</button>
+            <button onClick={()=>openComposeTab(previewEmail.email)} className="px-4 py-2 rounded-full bg-[var(--text)] text-[var(--surface)] text-[13px]">Compose to sender</button>
+          </div>
+        </div>
+      </> : <div className="grid h-full min-h-[240px] place-items-center px-6 py-10 text-center">
+        <div><UniformIcon name="mail" size={34}/><h2 className="mt-3 text-[16px] font-semibold">No message selected</h2><p className="mt-1 max-w-[320px] text-[13px] text-[var(--text-3)]">Select a message from the list to preview it here. Double-click a message to open the full page.</p></div>
+      </div>}
+    </section>
+  );
 
   const composeTab = (
     <div className="mx-1 sm:mx-2">
@@ -898,7 +990,6 @@ export default function App(){
           <label className="flex items-center gap-1 p-1"><input type="checkbox" disabled={viewLoading} checked={filtered.length>0 && selected.size===filtered.length} onChange={toggleSelectAll} className="accent-black w-4 h-4" aria-label="Select all"/><UniformIcon name="chevron-down" size={16}/></label>
           <button disabled={viewLoading} onClick={()=>{ void retryCurrentView(); }} className="p-2 rounded-full hover:bg-[var(--surface-3)] disabled:opacity-50" aria-label="Refresh"><UniformIcon name="refresh" size={18}/></button>
           {selected.size>0 ? <><button onClick={bulkArchive} className="p-2 rounded-full hover:bg-[var(--surface-3)]" aria-label="Archive selected"><UniformIcon name="archive" size={18}/></button><button onClick={bulkDelete} className="p-2 rounded-full hover:bg-[var(--surface-3)]" aria-label="Delete selected"><UniformIcon name="trash" size={18}/></button><span className="text-[13px] text-[var(--text-2)]">{selected.size} selected</span></> : <button onClick={()=>setStatus('More actions: Mark as read, Filter messages, Mute — use row actions for quick triage.')} className="p-2 rounded-full hover:bg-[var(--surface-3)]" aria-label="More actions"><UniformIcon name="more" size={18}/></button>}
-          <span className="flex items-center gap-1 border border-[var(--border)] rounded-full p-0.5" aria-label="Preview pane layout"><button onClick={()=>{ setPreviewMode(false); setPreviewEmailId(null); setStatus('Preview pane off — rows open the full message again.'); }} className={`px-2.5 py-1 rounded-full text-[12px] ${!previewMode?'bg-[var(--text)] text-[var(--surface)]':''}`}>No split</button><button onClick={()=>{ setPreviewMode(true); setPreviewLayout('vertical'); setStatus('Preview pane on — Vertical. Click any Inbox or Sent row to preview it.'); }} className={`px-2.5 py-1 rounded-full text-[12px] ${previewMode&&previewLayout==='vertical'?'bg-[var(--text)] text-[var(--surface)]':''}`}>Vertical</button><button onClick={()=>{ setPreviewMode(true); setPreviewLayout('horizontal'); setStatus('Preview pane on — Horizontal. Click any Inbox or Sent row to preview it below.'); }} className={`px-2.5 py-1 rounded-full text-[12px] ${previewMode&&previewLayout==='horizontal'?'bg-[var(--text)] text-[var(--surface)]':''}`}>Horizontal</button></span>
           <div className="ml-auto flex items-center gap-2 text-[12px] sm:text-[13px]"><span className="hidden sm:inline">1–{filtered.length} of {filtered.length}</span><span className="sm:hidden">{filtered.length}</span><button className="p-1" aria-label="Previous page">‹</button><button className="p-1" aria-label="Next page">›</button><button onClick={()=>setShowSettings(!showSettings)} className="p-1.5 rounded-full hover:bg-[var(--surface-3)]" aria-label="List settings"><UniformIcon name="settings" size={16}/></button></div>
         </div>
       )}
@@ -927,7 +1018,13 @@ export default function App(){
             <div className="flex flex-wrap gap-2 mt-8"><button onClick={()=>openCompose('reply', openEmail)} className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-[var(--border)] hover:bg-[var(--surface-2)]"><UniformIcon name="reply" size={17}/> Reply</button><button onClick={()=>openCompose('forward', openEmail)} className="flex items-center gap-2 px-5 py-2.5 rounded-full border border-[var(--border)] hover:bg-[var(--surface-2)]"><UniformIcon name="forward" size={17}/> Forward</button>{openEmail.folder==='drafts' && <button onClick={()=>openCompose('draft', openEmail)} className="px-5 py-2.5 rounded-full bg-[var(--text)] text-[var(--surface)]">Continue draft</button>}</div>
           </div>
         </article>
-      ) : (view==='inbox'||view==='sent'||view==='deleted') ? (previewMode && previewLayout==='vertical' && previewEmail ? <div className="flex flex-col lg:flex-row gap-3 mx-1 sm:mx-2 items-start"><div className="flex-1 min-w-0 w-full">{mailList}</div><div className="flex-1 min-w-0 w-full lg:max-w-[440px] lg:sticky lg:top-[132px]">{previewPanel}</div></div> : <>{mailList}{previewPanel}</>) : null}
+      ) : (view==='inbox'||view==='sent'||view==='deleted') ? (
+        <div ref={mailWorkspaceRef} className="lm-mail-workspace" style={{'--lm-mail-list-width':mailSplitPercent+'%'} as React.CSSProperties}>
+          <div className="lm-mail-list-column">{mailList}</div>
+          <div className="lm-mail-resize-handle" role="separator" tabIndex={0} aria-label="Resize message list and preview" aria-orientation="vertical" aria-valuemin={28} aria-valuemax={72} aria-valuenow={mailSplitPercent} onPointerDown={startMailSplitResize} onPointerMove={moveMailSplitResize} onPointerUp={stopMailSplitResize} onPointerCancel={stopMailSplitResize} onKeyDown={handleMailSplitKeyDown}/>
+          <div className="lm-mail-preview-column">{previewPanel}</div>
+        </div>
+      ) : null}
 
       {view==='outbox' && (
         <div className="mx-1 sm:mx-2">
@@ -1063,7 +1160,7 @@ export default function App(){
         {(showHelp||showApps) && <div className="absolute right-2 sm:right-4 top-[72px] w-[320px] max-w-[calc(100vw-16px)] bg-[var(--surface)] rounded-2xl gmail-shadow p-4 z-50 border border-[var(--border)]">
           {showHelp && <div><p className="font-medium">Help — LeadMASTER</p><p className="text-[13px] text-[var(--text-3)] mt-1 leading-relaxed">Search filters this view live. Star, archive, snooze and delete are on every row. Use Assistant for summaries, Automation for rules, Templates for fast replies, and Scheduled for send-later.</p><button onClick={()=>setShowHelp(false)} className="mt-3 text-[14px] underline underline-offset-2">Close</button></div>}
           {showApps && <div><p className="font-medium mb-3">Apps</p><div className="grid grid-cols-3 gap-3 text-center text-[12px]">
-            {[['Notes','note','notes'],['Contacts','contacts','contacts'],['Calendar','calendar','calendar'],['Calculator','tasks','calculator'],['Currency Conversion','building','currency'],['Email HTML Playground','html','email-html-playground']].map(([name,ic,route])=><a key={route} href={`/dashboard?app=${route}`} target="_blank" rel="noopener noreferrer" onClick={()=>setShowApps(false)} className="p-3 rounded-xl hover:bg-[var(--surface-2)] flex flex-col items-center gap-1 text-[var(--text-2)]"><UniformIcon name={ic as IconName} size={22}/><span>{name}</span></a>)}
+            {[['Notes','note','notes'],['Contacts','contacts','contacts'],['Calendar','calendar','calendar'],['Calculator','tasks','calculator'],['Currency Conversion','building','currency'],['Email HTML Playground','html','email-html-playground']].map(([name,ic,route])=><a key={route} href={`/dashboard?app=${route}`} onClick={()=>setShowApps(false)} className="p-3 rounded-xl hover:bg-[var(--surface-2)] flex flex-col items-center gap-1 text-[var(--text-2)]"><UniformIcon name={ic as IconName} size={22}/><span>{name}</span></a>)}
           </div></div>}
         </div>}
       </header>
@@ -1098,7 +1195,7 @@ export default function App(){
 
       {senderProfile}
 
-      <LoadingOverlay active={loadingOverlayActive} dismissed={loadingOverlayDismissed} onDismiss={()=>setLoadingOverlayDismissed(true)} statusLabel="Loading status" label={detailState?.status === 'loading' ? 'Loading message…' : isRefreshing ? 'Refreshing and verifying workspace data…' : isLoading || viewLoading ? 'Loading ' + viewTitle.toLowerCase() + '…' : 'Processing your request…'} sendingPhase={sendingPhase}/>
+      <LoadingOverlay active={loadingOverlayActive} dismissed={loadingOverlayDismissed} onDismiss={()=>setLoadingOverlayDismissed(true)} statusLabel="Loading status" label={navigationLoading ? 'Opening ' + viewTitle.toLowerCase() + '…' : detailState?.status === 'loading' ? 'Loading message…' : isRefreshing ? 'Refreshing and verifying workspace data…' : isLoading || viewLoading ? 'Loading ' + viewTitle.toLowerCase() + '…' : 'Processing your request…'} sendingPhase={sendingPhase}/>
       <ActionConfirmation request={confirmation} onCancel={()=>{setConfirmation(null);setConfirmationAction(null);}} onConfirm={async()=>{const action=confirmationAction;setConfirmation(null);setConfirmationAction(null);await action?.();}} />
       {htmlDialogOpen && <div className="fixed inset-0 z-[70] flex items-center justify-center p-3" role="dialog" aria-label="Insert HTML"><div className="absolute inset-0 bg-black/40" onClick={()=>setHtmlDialogOpen(false)} /><div className="relative w-full max-w-[640px] bg-[var(--surface)] rounded-2xl gmail-shadow border border-[var(--border)] overflow-hidden max-h-[92vh] overflow-y-auto"><div className="flex items-center justify-between bg-[var(--surface-2)] px-4 py-3"><p className="font-medium flex items-center gap-2"><UniformIcon name="html" size={18}/> Insert HTML</p><button onClick={()=>setHtmlDialogOpen(false)} className="p-1.5 rounded-full hover:bg-[var(--surface-3)]" aria-label="Close HTML dialog"><UniformIcon name="x" size={18}/></button></div><div className="p-4"><p className="text-[13px] text-[var(--text-3)]">Paste HTML or choose a preset. Scripts are stripped on insert. Preview shows how it will render.</p><label className="block text-[13px] font-medium mt-3">Preset<select value={htmlTemplate} onChange={e=>{setHtmlTemplate(e.target.value); const t=HTML_SNIPPETS.find(x=>x.name===e.target.value); if(t) setHtmlDialogValue(t.html);}} className="w-full mt-1 border border-[var(--border)] rounded-lg px-3 py-2 bg-[var(--surface)] outline-none"><option value="">Choose a preset — Button, Table, Divider, Image, Signature Block, Callout Box…</option>{HTML_SNIPPETS.map(s=><option key={s.name} value={s.name}>{s.name}</option>)}</select></label><label className="block text-[13px] font-medium mt-3">HTML code<textarea value={htmlDialogValue} onChange={e=>setHtmlDialogValue(e.target.value)} rows={10} placeholder={'<p><strong>Hello</strong> — paste HTML here</p>'} className="w-full mt-1 border border-[var(--border)] rounded-lg px-3 py-2 bg-[var(--surface)] outline-none text-[13px] font-mono resize-y" aria-label="HTML code"/></label><label className="flex items-center gap-2 text-[13px] mt-3"><input type="checkbox" checked={htmlDialogPreview} onChange={e=>setHtmlDialogPreview(e.target.checked)} className="accent-black w-4 h-4"/> Preview HTML</label>{htmlDialogPreview && htmlDialogValue && <div className="mt-3"><p className="text-[12px] font-medium mb-1">Preview</p><div className="border border-[var(--border)] rounded-xl p-3 bg-[var(--background)] text-[14px]" dangerouslySetInnerHTML={{__html: sanitizeHtml(htmlDialogValue)}} /></div>}<div className="flex justify-end gap-2 mt-4"><button onClick={()=>setHtmlDialogOpen(false)} className="px-4 py-2 rounded-full border border-[var(--border)] text-[14px]">Cancel</button><button onClick={insertHtmlFromDialog} className="px-5 py-2 rounded-full bg-[var(--text)] text-[var(--surface)] text-[14px]">Insert HTML</button></div></div></div></div>}
 
