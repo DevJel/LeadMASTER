@@ -75,7 +75,6 @@ try{
  await page.setViewportSize({width:1440,height:1000});
  await page.getByRole('button',{name:'Inbox',exact:true}).first().click();
  await page.getByText('Incoming example',{exact:true}).first().click();
- await page.getByRole('button',{name:'Text',exact:true}).click();
  await page.getByText('Incoming plain version',{exact:true}).waitFor();
  assert.equal(await page.getByRole('link',{name:'Download original message (.eml)'}).getAttribute('href'),`/api/admin/mail/${inboundId}/source`);
  assert.equal(await page.getByText('attachment.pdf',{exact:true}).count(),0);
