@@ -12,6 +12,10 @@ Turso is the sole production application database. The fresh-reset production da
 
 No D1 data was imported. The active production Worker configurations have no D1 binding. Cloudflare's D1 database listing in the target account is empty, and lookup of the previous production D1 ID `246db481-9bff-4088-8dcc-b810138aea68` returns 404.
 
+## Durable Object deployment contract
+
+Both `wrangler.jsonc` and the production deployment config `wrangler.mail-master-web-app.jsonc` declare the existing `EmailCoordinator` class through the declarative `exports` map with SQLite storage. Do not combine this with the legacy `migrations` array. This keeps future Worker uploads aligned with the already-provisioned namespace and prevents an upload from omitting the class declaration.
+
 ## Runtime mapping
 
 ```mermaid
