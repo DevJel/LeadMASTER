@@ -1,5 +1,0 @@
-# External SMTP probe — staging only
-
-The unmounted probe implements bounded SMTP greeting, EHLO, STARTTLS or implicit TLS, and AUTH PLAIN or LOGIN. It does not issue MAIL, RCPT, or DATA. It returns a small sanitized success/failure result and does not expose credentials or raw server replies. Its socket factory is an injected trust boundary: it MUST enforce network destination policy, DNS rebinding defenses, TLS verification for the original hostname, and bounded connection behavior. The repository does not yet provide such a factory. Do not route or deploy this module until it exists, is security-reviewed, and is tested in the actual Workers runtime against an authorized test server. User-visible connected status must only be saved after this real probe succeeds for the current connection revision.
-
-Tests use simulated streams, not SMTP servers or Cloudflare. SMTP sending, queue integration, persistence of verified status, authenticated APIs, settings UI, Android acceptance and key management remain incomplete. These source changes do not affect currently deployed behavior.
