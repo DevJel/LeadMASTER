@@ -35,7 +35,7 @@ const allowlist = [
   "dashboard.html", "dashboard.css", "dashboard.js", "dashboard-app.js", "dashboard-app.css",
   "html-preview.css", "html-preview.js", "developer-api-keys.html",
   "docs.html", "mcp.html", "privacy.html", "terms.html", "legal.css", "docs.css", "llms.txt", "robots.txt",
-  "assets/brand/leadmaster-full.svg", "assets/brand/favicon-gray.svg", "assets/brand/leadmaster-icon.svg",
+  "assets/brand/leadmaster-full.svg", "assets/brand/favicon-gray.svg",
   "help-center.html",
   "assets/illustrations/empty-mail.webp", "assets/illustrations/empty-contacts.webp",
   "assets/vendor/dompurify.min.js", "assets/marketing/leadmaster_testimonial_email_campaigns_transparent.webp"
