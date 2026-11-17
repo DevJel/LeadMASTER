@@ -1,3 +1,1 @@
--keepclassmembers class pro.leadmaster.app.MainActivity$NativeBridge {
-    @android.webkit.JavascriptInterface <methods>;
-}
+# The Android bridge uses AndroidX WebViewCompat.WebMessageListener; no JavaScriptInterface methods are exposed.

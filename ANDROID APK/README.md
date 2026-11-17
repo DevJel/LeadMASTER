@@ -7,7 +7,7 @@ LeadMASTER for Android is the official Android companion to the LeadMASTER web w
 - **Production workspace:** https://leadmaster.jelvan.space
 - **Source repository:** https://github.com/DevJel/LeadMASTER
 - **Android build workflow:** https://github.com/DevJel/LeadMASTER/actions/workflows/android-apk.yml
-- **Current app version in source:** `1.9.0` (`versionCode 10`)
+- **Current app version in source:** `1.9.1` (`versionCode 11`)
 - **Android application ID:** `pro.leadmaster.app`
 
 > **APK availability:** CI publishes an installable debug APK as a GitHub Actions artifact. Open the Android build workflow, select the latest successful run, and download the `leadmaster-android-debug-apk` artifact. Artifacts are retained for 90 days. A public GitHub Release APK is not currently published. Debug builds are for testing and are not signed with the owner's production release key.
@@ -105,7 +105,7 @@ LeadMASTER production services
 | Production authentication and authorization | LeadMASTER Worker and server-side session store |
 | Android CI build and artifact publication | `.github/workflows/android-apk.yml` |
 
-The Android bridge is intentionally narrow. The current JavaScript interface exposes theme synchronization and notification methods only. Do not expose credentials, arbitrary native method invocation, account records, filesystem access or unrestricted URL launching through this bridge.
+The Android bridge is intentionally narrow. It uses AndroidX WebKit `WebMessageListener` with an exact HTTPS origin allowlist, rejects non-main-frame messages, validates the source host and port, and accepts only theme synchronization and notification event messages. If the installed WebView provider does not support the feature, these optional native enhancements are disabled. Do not expose credentials, arbitrary native method invocation, account records, filesystem access or unrestricted URL launching through this bridge.
 
 ## 4. Authentication and persistent sign-in
 
@@ -327,3 +327,16 @@ For diagnosis, capture the app version, Android version, device model, workflow 
 
 
 The web dashboard remains the single source of truth for workspace features, account data, and authentication; the Android app provides the companion shell around that shared production experience.
+
+## Production release gates
+
+The following are required before calling the Android app production-ready:
+
+- Complete the server-side WebAuthn integration and Android Credential Manager registration/sign-in flow. Passkeys are not currently implemented.
+- Publish and verify `/.well-known/assetlinks.json` on the sign-in origin using the exact production signing certificate SHA-256 fingerprint for `pro.leadmaster.app`.
+- Replace the legacy configured-secret password format with a PBKDF2 password hash after a controlled credential migration.
+- Complete a real Android device test for login, OTP, process death/restart, cookie restoration, explicit logout, revoked session, network loss/retry, file chooser, external URL handling and notifications.
+- Verify a production-signed release APK and retain the signing key only in the approved secret store / GitHub Actions secrets. Never distribute the debug APK as a production release.
+- Confirm Cloudflare production bindings, D1/Turso behavior, Turnstile hostname/action, SES OTP delivery and runtime logs without exposing credentials.
+
+The Android CI workflow runs the focused Worker authentication HTTP suite, Android unit-test and lint tasks, and builds the debug APK. The repository-wide test suite currently has unrelated failures because the `required-componets-design/` source directory referenced by existing tests and the asset builder is absent from the repository. CI success does not replace the device and live-service acceptance checks above.

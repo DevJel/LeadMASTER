@@ -1,6 +1,6 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';import {DatabaseSync} from 'node:sqlite';import {readFileSync} from 'node:fs';import worker from '../../worker.js';
 const origin='https://synthetic.invalid', email='admin@example.test';
-function setup(){const sql=new DatabaseSync(':memory:');sql.exec(`PRAGMA foreign_keys=ON;CREATE TABLE auth_sessions(token_hash TEXT PRIMARY KEY,email TEXT,created_at INTEGER,expires_at INTEGER,revoked_at INTEGER);CREATE TABLE auth_challenges(id TEXT PRIMARY KEY,email TEXT,code_hash TEXT,created_at INTEGER,expires_at INTEGER,attempts INTEGER);CREATE TABLE accounts(id TEXT PRIMARY KEY,name TEXT,owner_email TEXT UNIQUE,owner_name TEXT,created_at INTEGER,updated_at INTEGER);CREATE TABLE account_members(account_id TEXT,email TEXT,role TEXT,created_at INTEGER,UNIQUE(account_id,email));CREATE TABLE developer_api_keys(id TEXT,account_id TEXT,created_by TEXT);CREATE TABLE developer_email_requests(account_id TEXT,api_key_id TEXT);CREATE TABLE developer_webhooks(account_id TEXT,api_key_id TEXT);CREATE TABLE admin_sent_mail(id TEXT PRIMARY KEY);CREATE TABLE workspace_activity(id TEXT PRIMARY KEY,actor_email TEXT,action TEXT,summary TEXT,target_id TEXT,created_at INTEGER,details_json TEXT);`);sql.exec(readFileSync(new URL('../../migrations/0010_email_templates.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../../migrations/0011_audience_groups.sql',import.meta.url),'utf8'));sql.prepare('INSERT INTO accounts VALUES(?,?,?,?,?,?)').run('acct_synthetic','Test workspace',email,'Test',0,0);
+function setup(){const sql=new DatabaseSync(':memory:');sql.exec(`PRAGMA foreign_keys=ON;CREATE TABLE auth_sessions(token_hash TEXT PRIMARY KEY,email TEXT,created_at INTEGER,expires_at INTEGER,revoked_at INTEGER);CREATE TABLE auth_challenges(id TEXT PRIMARY KEY,email TEXT,code_hash TEXT,created_at INTEGER,expires_at INTEGER,attempts INTEGER);CREATE TABLE auth_rate_limits(bucket_key TEXT PRIMARY KEY,window_start INTEGER,count INTEGER);CREATE TABLE accounts(id TEXT PRIMARY KEY,name TEXT,owner_email TEXT UNIQUE,owner_name TEXT,created_at INTEGER,updated_at INTEGER);CREATE TABLE account_members(account_id TEXT,email TEXT,role TEXT,created_at INTEGER,UNIQUE(account_id,email));CREATE TABLE developer_api_keys(id TEXT,account_id TEXT,created_by TEXT);CREATE TABLE developer_email_requests(account_id TEXT,api_key_id TEXT);CREATE TABLE developer_webhooks(account_id TEXT,api_key_id TEXT);CREATE TABLE admin_sent_mail(id TEXT PRIMARY KEY);CREATE TABLE workspace_activity(id TEXT PRIMARY KEY,actor_email TEXT,action TEXT,summary TEXT,target_id TEXT,created_at INTEGER,details_json TEXT);`);sql.exec(readFileSync(new URL('../../migrations/0010_email_templates.sql',import.meta.url),'utf8'));sql.exec(readFileSync(new URL('../../migrations/0011_audience_groups.sql',import.meta.url),'utf8'));sql.prepare('INSERT INTO accounts VALUES(?,?,?,?,?,?)').run('acct_synthetic','Test workspace',email,'Test',0,0);
  const db={prepare(q){let args=[];return {bind(...v){args=v;return this},async all(){return {results:sql.prepare(q).all(...args)}},async first(){return sql.prepare(q).get(...args)||null},async run(){return {meta:{changes:Number(sql.prepare(q).run(...args).changes)}}}}},async batch(stmts){sql.exec('BEGIN');try{let out=[];for(const s of stmts)out.push(await s.run());sql.exec('COMMIT');return out}catch(e){sql.exec('ROLLBACK');throw e}}};const env={AUTH_DB:db,ADMIN_EMAIL:email,ADMIN_PASSWORD:'synthetic',SESSION_SECRET:'synthetic',TURNSTILE_SITE_KEY:'synthetic',TURNSTILE_SECRET:'synthetic',SES_SMTP_HOST:'synthetic',SES_SMTP_USERNAME:'synthetic',SES_SMTP_PASSWORD:'synthetic',SES_FROM_EMAIL:'sender@example.test'};return {sql,env}}
 async function session(sql,token,{expires=Date.now()+60000,revoked=null}={}){const hash=Buffer.from(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token))).toString('hex');sql.prepare('INSERT INTO auth_sessions VALUES(?,?,?,?,?)').run(hash,email,Date.now(),expires,revoked)}
 async function call(env,path,{token,method='GET',body,source=origin,ctx}={}){const headers={};if(token)headers.Cookie='lm_session='+token;if(body){headers['content-type']='application/json';headers.Origin=source}return worker.fetch(new Request(origin+path,{method,headers,...(body?{body:JSON.stringify(body)}:{})}),env,ctx)}
@@ -23,6 +23,37 @@ async function seedOtp(sql,code='123456'){
  const hash=Array.from(new Uint8Array(raw),b=>b.toString(16).padStart(2,'0')).join('');
  sql.prepare('INSERT INTO auth_challenges VALUES(?,?,?,?,?,0)').run(id,email,hash,now,now+600000);
 }
+test('login endpoint rate-limits repeated requests by IP before contacting Turnstile',async()=>{
+ const {env,sql}=setup();
+ for(let i=0;i<30;i++){
+  const r=await call(env,'/api/auth/login',{method:'POST',body:{identity:email,password:'wrong',turnstileToken:'synthetic'}});
+  assert.equal(r.status,403);
+ }
+ const blocked=await call(env,'/api/auth/login',{method:'POST',body:{identity:email,password:'wrong',turnstileToken:'synthetic'}});
+ assert.equal(blocked.status,429);
+ assert.ok(Number(blocked.headers.get('retry-after'))>0);
+ const bucket=sql.prepare("SELECT bucket_key FROM auth_rate_limits ORDER BY bucket_key LIMIT 1").get();
+ assert.ok(bucket);
+ assert.ok(!bucket.bucket_key.includes(email));
+});
+test('administrator login attempts are rate-limited after a valid Turnstile challenge',async()=>{
+ const {env,sql}=setup();
+ const originalFetch=globalThis.fetch;
+ globalThis.fetch=async url=>String(url).includes('challenges.cloudflare.com/turnstile/v0/siteverify')
+  ?Response.json({success:true,hostname:'leadmaster.jelvan.space',action:'login'})
+  :new Response('SYNTHETIC UPSTREAM',{status:404});
+ try{
+  for(let i=0;i<20;i++){
+   const r=await call(env,'/api/auth/login',{method:'POST',body:{identity:email,password:'wrong',turnstileToken:'synthetic'}});
+   assert.equal(r.status,401);
+  }
+  const blocked=await call(env,'/api/auth/login',{method:'POST',body:{identity:email,password:'wrong',turnstileToken:'synthetic'}});
+  assert.equal(blocked.status,429);
+  const bucket=sql.prepare("SELECT bucket_key FROM auth_rate_limits WHERE bucket_key LIKE 'auth:login:account:%'").get();
+  assert.ok(bucket);
+  assert.ok(!bucket.bucket_key.includes(email));
+ }finally{globalThis.fetch=originalFetch}
+});
 test('valid OTP atomically creates the session and returns its cookie before background work',async()=>{
  const {env,sql}=setup();await seedOtp(sql);
  const background=[];const ctx={waitUntil(p){background.push(p)}};
