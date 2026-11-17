@@ -60,13 +60,24 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-      - name: Configure production signing key
+      - name: Decode and validate production keystore
         if: ${{ env.HAS_RELEASE_SIGNING == 'true' }}
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        shell: bash
         run: |
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/leadmaster-release.jks"
-          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/leadmaster-release.jks" >> "$GITHUB_ENV"
+          set -euo pipefail
+          KEYSTORE_PATH="$RUNNER_TEMP/leadmaster-release-keystore"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          test -s "$KEYSTORE_PATH"
+          # Validate the keystore and alias without printing passwords or private material.
+          keytool -list -keystore "$KEYSTORE_PATH" \
+            -storepass:env ANDROID_KEYSTORE_PASSWORD \
+            -alias "$ANDROID_KEY_ALIAS" >/dev/null
+          echo "ANDROID_KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+          echo "Production keystore decoded and alias validated."
 
       - name: Build production-signed release APK
         if: ${{ env.HAS_RELEASE_SIGNING == 'true' }}
@@ -77,6 +88,19 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: gradle assembleRelease
 
+      - name: Verify production APK signature
+        if: ${{ env.HAS_RELEASE_SIGNING == 'true' }}
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          APK="ANDROID APK/app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          apksigner verify --verbose "$APK"
+          # The certificate fingerprint is public and is needed for Digital Asset Links.
+          apksigner verify --print-certs "$APK" | grep -E 'Signer #[0-9]+ certificate SHA-256 digest:'
+
       - name: Publish production release APK
         if: ${{ env.HAS_RELEASE_SIGNING == 'true' }}
         uses: actions/upload-artifact@v4
@@ -85,3 +109,11 @@ jobs:
           path: ANDROID APK/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 90
+
+      - name: Remove temporary signing material
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "${ANDROID_KEYSTORE_PATH:-}" ] && [ -f "$ANDROID_KEYSTORE_PATH" ]; then
+            shred -u "$ANDROID_KEYSTORE_PATH" || rm -f "$ANDROID_KEYSTORE_PATH"
+          fi
