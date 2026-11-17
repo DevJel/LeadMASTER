@@ -7,7 +7,7 @@ LeadMASTER for Android is the official Android companion to the LeadMASTER web w
 - **Production workspace:** https://leadmaster.jelvan.space
 - **Source repository:** https://github.com/DevJel/LeadMASTER
 - **Android build workflow:** https://github.com/DevJel/LeadMASTER/actions/workflows/android-apk.yml
-- **Current app version in source:** `1.9.0` (`versionCode 9`)
+- **Current app version in source:** `1.9.0` (`versionCode 10`)
 - **Android application ID:** `pro.leadmaster.app`
 
 > **APK availability:** CI publishes an installable debug APK as a GitHub Actions artifact. Open the Android build workflow, select the latest successful run, and download the `leadmaster-android-debug-apk` artifact. Artifacts are retained for 90 days. A public GitHub Release APK is not currently published. Debug builds are for testing and are not signed with the owner's production release key.
@@ -18,7 +18,7 @@ The Android application uses a native Jetpack Compose shell around the authentic
 
 1. **One dashboard:** `src/Mandatory LeadMASTER Dashboard.html` is the canonical dashboard source. `public/dashboard.html` is its generated deployment mirror.
 2. **One service layer:** authenticated requests, account permissions, email operations and persisted workspace data are handled by the production LeadMASTER application and APIs.
-3. **Native where appropriate:** Android code is limited to platform capabilities such as WebView hosting, notifications, file selection, downloads, external intents, Back navigation and system-bar appearance.
+3. **Native where appropriate:** Jetpack Compose owns the app shell, app-specific sign-in presentation, loading/recovery surfaces and Android-native feedback. Authenticated workspace modules continue to use the shared responsive workspace until each module is migrated and verified natively.
 4. **No fake parity:** a web module is not considered available in Android merely because it appears in navigation. The same production-backed capability must work through the shared dashboard and API.
 5. **No competing persistence:** do not add a second local business-data store, duplicate validation rules or a separate native implementation of web workflows without an explicit product decision.
 
