@@ -7,7 +7,7 @@ const loadingOverlay = await readFile(new URL('../src/dashboard-tsx/LoadingOverl
 
 test('workspace refresh is single-flight and verifies a complete server snapshot', () => {
   assert.match(app, /const refreshLock = useRef\(false\)/);
-  assert.match(app, /if\(refreshLock\.current\\s*\\|\\|/);
+  assert.match(app, /if\(refreshLock\.current/);
   assert.match(app, /Array\.isArray\(inboxData\?\.items\)/);
   assert.match(app, /Array\.isArray\(sentData\?\.items\)/);
   assert.match(app, /Array\.isArray\(deletedData\?\.items\)/);
@@ -22,7 +22,7 @@ test('workspace refresh performs one bounded read and only retries on a new user
   const refresh = app.slice(start, end);
   assert.equal((refresh.match(/reloadRecords\(/g) || []).length, 1);
   assert.match(refresh, /timeoutMs:15000/);
-  assert.doesNotMatch(refresh, /\\bwhile\\s*\\(/);
+  assert.doesNotMatch(refresh, /\bwhile\s*\(/);
   assert.doesNotMatch(refresh, /setTimeout/);
   assert.match(app, /requestController\.abort\(\)/);
 });
