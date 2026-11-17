@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -77,7 +78,7 @@ fun NativeLoadingOverlay(
                 Image(
                     painter = painterResource(id = R.drawable.ic_leadmaster),
                     contentDescription = "LeadMASTER",
-                    modifier = Modifier.size(58.dp).then(Modifier)
+                    modifier = Modifier.size(58.dp).graphicsLayer(scaleX = logoScale, scaleY = logoScale)
                 )
                 Spacer(Modifier.height(20.dp))
                 Text(
