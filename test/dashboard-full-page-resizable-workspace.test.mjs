@@ -25,6 +25,9 @@ test("all utility routes are full-width same-tab workspaces", () => {
   assert.match(utility, /lm-utility-workspace flex h-dvh min-h-0 w-full flex-col/);
   assert.match(utility, /<main className="min-h-0 w-full flex-1/);
   assert.doesNotMatch(utility, /max-w-6xl|max-w-2xl|target="_blank"/);
+  assert.match(utility, /const panel=.w-full min-w-0 border-b/);
+  assert.doesNotMatch(utility, /rounded-2xl border border-\[#e5e5e5\] bg-white p-4/);
+  assert.doesNotMatch(utility, /rounded-xl border border-\[#e5e5e5\] p-4/);
 });
 
 test("tab navigation keeps the global loading veil until the destination has painted", () => {
