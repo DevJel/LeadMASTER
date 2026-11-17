@@ -86,3 +86,16 @@ test('manual workspace refresh performs one bounded cycle without automatic retr
   assert.doesNotMatch(refresh, /\bwhile\s*\(/);
   assert.doesNotMatch(refresh, /setTimeout/);
 });
+
+const productionWranglerConfig = readFileSync(new URL('../wrangler.mail-master-web-app.jsonc', import.meta.url), 'utf8');
+const rootWranglerConfig = readFileSync(new URL('../wrangler.jsonc', import.meta.url), 'utf8');
+
+test('production Wrangler configs preserve the existing SQLite EmailCoordinator export', () => {
+  for (const [name, config] of [
+    ['production', productionWranglerConfig],
+    ['root', rootWranglerConfig],
+  ]) {
+    assert.match(config, /"exports"\\s*:\\s*\\{[\\s\\S]*?"EmailCoordinator"\\s*:\\s*\\{[\\s\\S]*?"type"\\s*:\\s*"durable-object"[\\s\\S]*?"storage"\\s*:\\s*"sqlite"/, name);
+    assert.doesNotMatch(config, /"migrations"\\s*:/, name + ' must use declarative exports, not legacy migrations');
+  }
+});
