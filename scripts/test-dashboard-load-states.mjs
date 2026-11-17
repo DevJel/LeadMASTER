@@ -57,7 +57,7 @@ try {
   await page.getByRole('button', { name: 'Retry', exact: true }).click();
   await page.getByText('Nothing in Inbox').waitFor({ timeout: 5000 });
   const before = requestCount;
-  await page.getByRole('button', { name: 'Refresh', exact: true }).click();
+  await page.getByRole('button', { name: 'Refresh workspace', exact: true }).click();
   await page.getByText('Loading inbox', { exact: false }).first().waitFor({ timeout: 5000 });
   assert.equal(await page.getByText('Nothing in Inbox').isVisible(), true, 'last successful content stays visible during refresh');
   await page.getByText('Nothing in Inbox').waitFor({ timeout: 5000 });
