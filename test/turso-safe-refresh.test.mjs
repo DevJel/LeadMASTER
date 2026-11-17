@@ -95,7 +95,10 @@ test('production Wrangler configs preserve the existing SQLite EmailCoordinator 
     ['production', productionWranglerConfig],
     ['root', rootWranglerConfig],
   ]) {
-    assert.match(config, /"exports"\\s*:\\s*\\{[\\s\\S]*?"EmailCoordinator"\\s*:\\s*\\{[\\s\\S]*?"type"\\s*:\\s*"durable-object"[\\s\\S]*?"storage"\\s*:\\s*"sqlite"/, name);
-    assert.doesNotMatch(config, /"migrations"\\s*:/, name + ' must use declarative exports, not legacy migrations');
+    assert.ok(config.includes('"exports": {'), name + ' must declare Worker exports');
+    assert.ok(config.includes('"EmailCoordinator": {'), name + ' must keep the existing class export');
+    assert.ok(config.includes('"type": "durable-object"'), name + ' must declare a Durable Object export');
+    assert.ok(config.includes('"storage": "sqlite"'), name + ' must preserve SQLite storage');
+    assert.ok(!config.includes('"migrations"'), name + ' must use declarative exports, not legacy migrations');
   }
 });
