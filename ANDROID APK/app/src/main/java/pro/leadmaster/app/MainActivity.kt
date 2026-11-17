@@ -27,10 +27,21 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
@@ -38,6 +49,9 @@ import androidx.core.content.ContextCompat
 
 class MainActivity : ComponentActivity() {
     private var webView: WebView? = null
+    private var pageProgress by mutableIntStateOf(0)
+    private var pageLoading by mutableStateOf(true)
+    private var pageLoadError by mutableStateOf(false)
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private val filePicker = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         fileChooserCallback?.onReceiveValue(uris.toTypedArray())
@@ -84,16 +98,35 @@ class MainActivity : ComponentActivity() {
         modifier: Modifier,
         savedState: Bundle?
     ) {
-        AndroidView(
-            modifier = modifier,
-            factory = { context ->
-                createWebView(context).also { view ->
-                    webView = view
-                    val restored = if (savedState != null) view.restoreState(savedState) else null
-                    if (restored == null) view.loadUrl(WorkspaceViewModel.HOME_URL)
+        Box(modifier = modifier.fillMaxSize()) {
+            AndroidView(
+                modifier = Modifier.fillMaxSize().then(if (pageLoading || pageLoadError) Modifier.blur(10.dp) else Modifier),
+                factory = { context ->
+                    createWebView(context).also { view ->
+                        webView = view
+                        val restored = if (savedState != null) view.restoreState(savedState) else null
+                        if (restored == null) view.loadUrl(WorkspaceViewModel.HOME_URL)
+                    }
                 }
+            )
+            AnimatedVisibility(
+                visible = pageLoading || pageLoadError,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                NativeLoadingOverlay(
+                    progress = pageProgress,
+                    failed = pageLoadError,
+                    onRetry = {
+                        pageLoadError = false
+                        pageLoading = true
+                        pageProgress = 0
+                        webView?.reload() ?: run { webView?.loadUrl(WorkspaceViewModel.HOME_URL) }
+                    }
+                )
             }
-        )
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -118,6 +151,11 @@ class MainActivity : ComponentActivity() {
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
             addJavascriptInterface(NativeBridge(), "LeadMasterNative")
             webChromeClient = object : WebChromeClient() {
+                override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                    super.onProgressChanged(view, newProgress)
+                    pageProgress = newProgress.coerceIn(0, 100)
+                }
+
                 override fun onShowFileChooser(
                     webView: WebView?,
                     filePathCallback: ValueCallback<Array<Uri>>?,
@@ -136,6 +174,25 @@ class MainActivity : ComponentActivity() {
                 }
             }
             webViewClient = object : WebViewClient() {
+                override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                    super.onPageStarted(view, url, favicon)
+                    pageLoading = true
+                    pageLoadError = false
+                    pageProgress = 0
+                }
+
+                override fun onReceivedError(
+                    view: WebView?,
+                    request: WebResourceRequest?,
+                    error: android.webkit.WebResourceError?
+                ) {
+                    super.onReceivedError(view, request, error)
+                    if (request?.isForMainFrame == true) {
+                        pageLoading = false
+                        pageLoadError = true
+                    }
+                }
+
                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                     val uri = request?.url ?: return true
                     val internal = uri.scheme == "https" &&
@@ -160,6 +217,11 @@ class MainActivity : ComponentActivity() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
                     CookieManager.getInstance().flush()
+                    view?.evaluateJavascript(nativeLoginStyleScript) {
+                        pageLoading = false
+                        pageLoadError = false
+                        pageProgress = 100
+                    }
                     view?.evaluateJavascript(
                         """
                         (function(){
@@ -207,6 +269,64 @@ class MainActivity : ComponentActivity() {
         controller.isAppearanceLightStatusBars = !dark
         controller.isAppearanceLightNavigationBars = !dark
     }
+
+    private val nativeLoginStyleScript = """
+        (function(){
+          if(location.pathname!=='/login.html'||document.getElementById('lm-native-login-theme'))return;
+          var style=document.createElement('style');
+          style.id='lm-native-login-theme';
+          style.textContent=`
+            :root{color-scheme:dark}
+            html,body{min-height:100%;margin:0;background:#777!important;color:#f5f5f5}
+            body{background:radial-gradient(ellipse at 50% 12%,rgba(255,255,255,.25),transparent 44%),linear-gradient(145deg,#929292 0%,#686868 48%,#4e4e4e 100%)!important}
+            .layout{min-height:100dvh;display:flex;flex-direction:column;background:transparent!important;position:relative;isolation:isolate}
+            .hero{position:fixed;inset:0;min-height:100dvh;background:transparent!important;overflow:hidden;pointer-events:none;z-index:1}
+            .hero::after,.hero-art{display:none!important}
+            .hero-content{min-height:100dvh;height:100dvh;padding:0!important;display:block!important}
+            .hero-top,.hero-center,.hero-footer,.feature-card{display:none!important}
+            .hero-wordmark{display:block!important;position:absolute;left:50%;bottom:62px;transform:translateX(-50%);width:min(92%,560px);height:78px;margin:0!important;opacity:.96;overflow:visible}
+            .hero-wordmark canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+            .right{position:relative;z-index:2;flex:1;min-height:100dvh;display:flex;flex-direction:column;justify-content:center;align-items:stretch;background:transparent!important}
+            .main-content{flex:1;min-height:calc(100dvh - 54px);display:flex;justify-content:center;align-items:center;padding:max(24px,env(safe-area-inset-top)) 22px 164px!important}
+            .card{width:100%;max-width:440px;padding:32px 26px;border:1px solid rgba(255,255,255,.12);border-radius:26px;background:linear-gradient(145deg,rgba(28,28,28,.98),rgba(8,8,8,.99))!important;color:#f5f5f5;box-shadow:0 28px 80px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.08);animation:lmCardEnter .48s cubic-bezier(.2,.8,.2,1) both}
+            @keyframes lmCardEnter{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+            h2{font-size:25px;line-height:1.2;letter-spacing:-.04em;color:#fff}
+            .sub{color:#aaa;margin:9px 0 27px}
+            label{font-size:12px;font-weight:650;color:#d5d5d5;letter-spacing:.025em}
+            input{height:52px;border-radius:14px;border:1px solid #3b3b3b;background:linear-gradient(180deg,#242424,#1b1b1b);color:#fff;box-shadow:inset 0 1px 2px rgba(0,0,0,.35)}
+            input::placeholder{color:#777}
+            input:focus{border-color:#ed873f;box-shadow:0 0 0 3px rgba(237,135,63,.16)}
+            .password-wrap button{height:52px;color:#f0a06a}
+            .field{margin-bottom:20px}
+            .challenge{position:absolute!important;width:1px!important;height:1px!important;min-height:1px!important;left:-10000px!important;top:auto!important;margin:0!important;overflow:hidden!important;opacity:0!important;pointer-events:none!important}
+            .primary{min-height:52px;border-radius:15px;background:linear-gradient(135deg,#f18a42,#d96520);color:#fff;font-size:15px;box-shadow:0 8px 22px rgba(221,103,34,.22);transition:transform .16s ease,filter .16s ease}
+            .primary:not(:disabled):hover{filter:brightness(1.08)}
+            .primary:not(:disabled):active{transform:scale(.985)}
+            .primary:disabled{background:#75503b;color:#b9a398;box-shadow:none}
+            .error{background:#321d1d;border-color:#663333;color:#ffb4a9}
+            .back{color:#f0a06a}
+            .login-right-footer{position:relative;z-index:3;min-height:48px;padding:8px 16px calc(10px + env(safe-area-inset-bottom));background:transparent!important;color:#bdbdbd;font-size:11px}
+            .login-privacy-link{color:#c8c8c8}
+            .login-right-footer .lock-mark,.login-privacy-label .privacy-mark{color:#aaa}
+            .footer-separator{color:#777}
+            @media(max-width:420px){
+              .main-content{padding-inline:16px!important;padding-bottom:150px!important}
+              .card{padding:28px 21px;border-radius:23px}
+              h2{font-size:23px}
+              .hero-wordmark{height:68px;bottom:56px;width:94%}
+              .login-right-footer{font-size:10px;gap:8px}
+            }
+            @media(max-height:650px){
+              .right{justify-content:flex-start}
+              .main-content{min-height:0;padding-top:18px!important;padding-bottom:140px!important}
+              .card{padding-top:22px;padding-bottom:22px}
+              .hero-wordmark{height:58px;bottom:50px}
+            }
+            @media(prefers-reduced-motion:reduce){.card{animation:none}}
+          `;
+          document.head.appendChild(style);
+        })();
+    """.trimIndent()
 
     private val notificationMonitorScript = """
         (function(){

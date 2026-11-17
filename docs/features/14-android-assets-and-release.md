@@ -1,13 +1,13 @@
 # Android, generated assets and release verification
 
-**Status:** Android is a thin host for the shared responsive LeadMASTER dashboard. The Worker uses a generated static asset map. A successful build is not proof of a signed production Android release or a production Worker deployment.
+**Status:** Android uses a Jetpack Compose native shell for branded loading/recovery and an app-specific Material-style sign-in presentation. Authenticated workspace modules continue to use the shared secure WebView and production APIs; no business data or authentication logic is duplicated. The Worker uses a generated static asset map. A successful build is not proof of a signed production Android release or a production Worker deployment.
 
 ## Android flow
 
 ~~~mermaid
 flowchart TD
   User[Android user] --> App[LeadMASTER Android application]
-  App --> WebView[Secure WebView]
+  App --> Native[Compose shell / app login / loading states]\n  Native --> WebView[Secure WebView]
   WebView --> URL[Canonical dashboard URL]
   URL --> Worker[LeadMASTER Worker]
   Worker --> Session[Server session cookie]
