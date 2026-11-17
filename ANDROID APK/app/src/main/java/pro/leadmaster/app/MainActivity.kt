@@ -162,6 +162,7 @@ class MainActivity : ComponentActivity() {
                         sourceOrigin.host != WorkspaceViewModel.APP_HOST ||
                         (sourceOrigin.port != -1 && sourceOrigin.port != 443)
                     ) return@addWebMessageListener
+                    if (message.data.length > 2048) return@addWebMessageListener
                     val payload = runCatching { JSONObject(message.data) }.getOrNull()
                         ?: return@addWebMessageListener
                     when (payload.optString("type")) {
