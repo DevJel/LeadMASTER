@@ -7,7 +7,7 @@
 ~~~mermaid
 flowchart TD
   User[Android user] --> App[LeadMASTER Android application]
-  App --> WebView[Secure WebView]
+  App --> Native[Compose shell / app login / loading states]\n  Native --> WebView[Secure WebView]
   WebView --> URL[Canonical dashboard URL]
   URL --> Worker[LeadMASTER Worker]
   Worker --> Session[Server session cookie]
