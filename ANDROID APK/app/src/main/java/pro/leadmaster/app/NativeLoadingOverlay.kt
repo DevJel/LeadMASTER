@@ -17,10 +17,17 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -29,9 +36,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.border
 
 private val LeadMasterOrange = Color(0xFFE9762B)
-private val LeadMasterInk = Color(0xFF171717)
-private val LeadMasterMuted = Color(0xFF70706D)
-private val LeadMasterCanvas = Color(0xFFF7F7F5)
+private val LeadMasterInk = Color(0xFFF5F5F5)
+private val LeadMasterMuted = Color(0xFFB8B8B8)
+private val LeadMasterCanvas = Color(0xFF555555)
 
 @Composable
 fun NativeLoadingOverlay(
@@ -39,21 +46,28 @@ fun NativeLoadingOverlay(
     failed: Boolean,
     onRetry: () -> Unit
 ) {
+    val pulse = rememberInfiniteTransition(label = "leadmaster-loading-pulse")
+    val logoScale by pulse.animateFloat(
+        initialValue = 0.96f,
+        targetValue = 1.04f,
+        animationSpec = infiniteRepeatable(tween(1100), repeatMode = RepeatMode.Reverse),
+        label = "leadmaster-logo-pulse"
+    )
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(LeadMasterCanvas.copy(alpha = 0.88f)),
+            .background(Brush.linearGradient(listOf(Color(0xCC777777), Color(0xDD3E3E3E), Color(0xCC777777)))),
         contentAlignment = Alignment.Center
     ) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 28.dp)
-                .border(1.dp, Color(0xFFE6E4E0), RoundedCornerShape(28.dp)),
+                .border(1.dp, Color(0xFF454545), RoundedCornerShape(28.dp)),
             shape = RoundedCornerShape(28.dp),
-            color = Color.White,
-            tonalElevation = 2.dp,
-            shadowElevation = 12.dp
+            color = Color(0xFF111111),
+            tonalElevation = 5.dp,
+            shadowElevation = 24.dp
         ) {
             Column(
                 modifier = Modifier.padding(horizontal = 26.dp, vertical = 30.dp),
@@ -63,12 +77,12 @@ fun NativeLoadingOverlay(
                 Image(
                     painter = painterResource(id = R.drawable.ic_leadmaster),
                     contentDescription = "LeadMASTER",
-                    modifier = Modifier.size(58.dp)
+                    modifier = Modifier.size(58.dp).then(Modifier)
                 )
                 Spacer(Modifier.height(20.dp))
                 Text(
                     text = if (failed) "Connection interrupted" else "LeadMASTER",
-                    color = LeadMasterInk,
+                    color = Color.White,
                     fontSize = 21.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -104,7 +118,7 @@ fun NativeLoadingOverlay(
                             .fillMaxWidth()
                             .height(4.dp),
                         color = LeadMasterOrange,
-                        trackColor = Color(0xFFF1E7DF)
+                        trackColor = Color(0xFF393939)
                     )
                     Spacer(Modifier.height(10.dp))
                     Text(
