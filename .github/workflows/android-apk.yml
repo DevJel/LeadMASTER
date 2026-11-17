@@ -5,6 +5,18 @@ on:
     paths:
       - "ANDROID APK/**"
       - ".github/workflows/android-apk.yml"
+      - "worker.js"
+      - "scripts/http-fixtures/**"
+      - "test/**"
+      - "docs/PRODUCTION_AUTH.md"
+  pull_request:
+    paths:
+      - "ANDROID APK/**"
+      - ".github/workflows/android-apk.yml"
+      - "worker.js"
+      - "scripts/http-fixtures/**"
+      - "test/**"
+      - "docs/PRODUCTION_AUTH.md"
   workflow_dispatch:
 
 permissions:
