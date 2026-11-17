@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { LoadingIndicator } from '../src/dashboard-tsx/LoadingIndicator';
-import { SendingIndicator, SendingPhase } from '../src/dashboard-tsx/SendingIndicator';
+import { LoadingOverlay } from '../src/dashboard-tsx/LoadingOverlay';
+import type { SendingPhase } from '../src/dashboard-tsx/SendingIndicator';
 import { ActionConfirmation, ActionConfirmationRequest } from '../src/dashboard-tsx/ActionConfirmation';
 import { SafeEmailHtml } from '../src/dashboard-tsx/SafeEmailHtml';
 import UtilityApps from './UtilityApps';
@@ -204,6 +204,7 @@ export default function App(){
   const [tasksDone, setTasksDone] = useState<Set<string>>(new Set(['t2']));
 
   const [isLoading, setIsLoading] = useState(true);
+  const [hasWorkspaceSnapshot, setHasWorkspaceSnapshot] = useState(false);
   const [loadError, setLoadError] = useState<string>('');
   const [actionError, setActionError] = useState<string>('');
   const [viewLoading, setViewLoading] = useState(true);
@@ -326,7 +327,8 @@ export default function App(){
   const [cannedPick, setCannedPick] = useState('');
   const [fmtStrike, setFmtStrike] = useState(false);
 
-  useEffect(()=>{setViewError(false);setViewLoading(false);},[view]);
+  // Tab navigation switches only the active content; it reuses this workspace snapshot.
+  useEffect(()=>{setViewError(false);},[view]);
   async function retryCurrentView(){setViewError(false);return await reloadRecords();}
 
   const allEmails = useMemo(()=> userEmails.filter(e=>!deletedForever.has(e.id)), [userEmails, deletedForever]);
@@ -386,13 +388,17 @@ export default function App(){
       setReminders(remindersData.records.map((r:any)=>({...r.value, id:r.value?.id||r.id, recordId:r.id})));
       setNotes(notesData.records.map((r:any)=>({...r.value, id:r.value?.id||r.id, recordId:r.id})));
       setLastRefreshedAt(Date.now());
+      setHasWorkspaceSnapshot(true);
       return true;
     }catch(e){
       const safeError = mapLeadMasterError(e, 'workspace');
       if(silent) { if(!options.background) setRefreshError(safeError.message); }
       else setLoadError(safeError.message);
       return false;
-    }finally{ if(requestTimeout!==null) window.clearTimeout(requestTimeout); if(!silent) setIsLoading(false); }
+    }finally{
+      if(requestTimeout!==null) window.clearTimeout(requestTimeout);
+      if(!silent){ setIsLoading(false); setViewLoading(false); }
+    }
   }
   useEffect(()=>{ reloadRecords(); },[]);
   // Dashboard data is kept in React memory between views. Avoid timer/visibility polling;
@@ -692,22 +698,31 @@ export default function App(){
     </div>
   );
 
-  // Loading is rendered once in the viewport-level overlay below, never inside a panel.
-  const LoadingState = null;
+  // Keep the application frame mounted. Only this content region changes.
+  const LoadingState = (
+    <section className="mx-1 sm:mx-2 mt-3 space-y-4" aria-label="Loading dashboard content" aria-busy="true">
+      <div className="h-7 w-44 rounded-lg bg-[var(--surface-3)] animate-pulse"/>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({length:3},(_,index)=><div key={index} className="h-28 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"><div className="h-4 w-2/3 rounded bg-[var(--surface-3)] animate-pulse"/><div className="mt-4 h-3 w-full rounded bg-[var(--surface-3)] animate-pulse"/><div className="mt-2 h-3 w-4/5 rounded bg-[var(--surface-3)] animate-pulse"/></div>)}
+      </div>
+      <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
+        {Array.from({length:5},(_,index)=><div key={index} className="flex items-center gap-3 border-b border-[var(--border)] p-4 last:border-0"><div className="h-9 w-9 rounded-full bg-[var(--surface-3)] animate-pulse"/><div className="min-w-0 flex-1"><div className="h-3 w-1/3 rounded bg-[var(--surface-3)] animate-pulse"/><div className="mt-2 h-3 w-4/5 rounded bg-[var(--surface-3)] animate-pulse"/></div></div>)}
+      </div>
+    </section>
+  );
   const ErrorState = (
     <div className="mx-1 sm:mx-2 mt-3 bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-6 sm:p-10 text-center" role="alert">
       <div className="mx-auto w-14 h-14 rounded-full border-2 border-[var(--text)] grid place-items-center"><UniformIcon name="alert" size={28}/></div>
-      <h2 className="text-[20px] font-medium mt-4">Something went wrong</h2>
-      <p className="text-[14px] text-[var(--text-3)] mt-1 max-w-[420px] mx-auto">We couldn&apos;t load this view. Please try again.</p>
+      <h2 className="text-[20px] font-medium mt-4">Workspace could not be loaded</h2>
+      <p className="text-[14px] text-[var(--text-3)] mt-1 max-w-[420px] mx-auto">The dashboard frame is ready, but the first workspace snapshot could not be retrieved. Retry to load your content.</p>
       <div className="flex flex-wrap justify-center gap-2 mt-5"><button onClick={retryCurrentView} className="px-6 py-2.5 rounded-full bg-[var(--text)] text-[var(--surface)] text-[14px] font-medium">Retry</button><button onClick={()=>goView('inbox')} className="px-6 py-2.5 rounded-full border border-[var(--text)] bg-[var(--surface)] text-[14px]">Go to Inbox</button></div>
     </div>
   );
-
   const sidebar = (
     <div className="flex flex-col h-full min-h-0">
       <nav className="px-0 py-2 text-[14px] overflow-y-auto flex-1 min-h-0" aria-label="LeadMASTER navigation">
         {NAV.map(item=>(
-          <button key={item.k} disabled={viewLoading && view!==item.k} onClick={()=>goView(item.k)} className={`w-full flex items-center gap-3 pl-5 pr-3 py-[10px] rounded-r-full text-left ${view===item.k?'bg-[var(--text)] text-[var(--surface)] font-medium':'hover:bg-[var(--surface-2)] text-[var(--text-2)]'}`}>
+          <button key={item.k} onClick={()=>goView(item.k)} className={`w-full flex items-center gap-3 pl-5 pr-3 py-[10px] rounded-r-full text-left ${view===item.k?'bg-[var(--text)] text-[var(--surface)] font-medium':'hover:bg-[var(--surface-2)] text-[var(--text-2)]'}`}>
             <UniformIcon name={item.icon} size={20}/><span className="flex-1 truncate">{item.label}</span>{item.badge>0 && <span className={`text-[12px] font-bold px-2 py-0.5 rounded-full ${view===item.k?'bg-[var(--surface)] text-[var(--text)]':'bg-[var(--text)] text-[var(--surface)]'}`}>{item.badge}</span>}
           </button>
         ))}
@@ -1083,14 +1098,15 @@ export default function App(){
         <main ref={mainScrollRef} className="lm-main-scroll flex-1 min-w-0 min-h-0 px-1 sm:px-3 pb-6 lg:h-full lg:overflow-y-auto lg:overflow-x-hidden lg:overscroll-contain">
           {refreshError && <div role="alert" className="mx-2 mt-2 mb-1 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-[13px]"><span className="flex-1 min-w-[180px]">{refreshError}</span><button onClick={()=>void refreshWorkspace()} disabled={isRefreshing} className="rounded-full border border-[var(--text)] px-4 py-2 font-medium disabled:opacity-50">Retry refresh</button></div>}
           {stateBar}
-          {isLoading || viewLoading ? LoadingState : loadError || viewError ? ErrorState : mainContent}
+          {hasWorkspaceSnapshot && (loadError || viewError) && <div role="alert" className="mx-2 mt-2 mb-1 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-3 text-[13px]"><span className="flex-1 min-w-[180px]">{loadError || 'This view could not be refreshed.'}</span><button onClick={()=>void retryCurrentView()} disabled={isLoading} className="rounded-full border border-[var(--text)] px-4 py-2 font-medium disabled:opacity-50">Retry content</button></div>}
+          {hasWorkspaceSnapshot ? mainContent : (loadError || viewError) ? ErrorState : LoadingState}
         </main>
 
       </div>
 
       {senderProfile}
 
-      {loadingOverlayActive && !loadingOverlayDismissed && <div className="fixed inset-0 z-[120] grid place-items-center p-4 bg-black/35 backdrop-blur-md" role="status" aria-live="polite"><section className="relative w-full max-w-[420px] min-h-[220px] flex items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] shadow-2xl px-4 py-8" aria-label={sendingPhase ? 'Sending status' : 'Loading status'}><button type="button" onClick={()=>setLoadingOverlayDismissed(true)} className="absolute right-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-full text-[var(--text-2)] hover:bg-[var(--surface-2)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" aria-label="Dismiss loading overlay" title="Dismiss"><UniformIcon name="x" size={18}/></button>{sendingPhase ? <SendingIndicator phase={sendingPhase}/> : <LoadingIndicator label={detailState?.status === 'loading' ? 'Loading message…' : isRefreshing ? 'Refreshing and verifying workspace data…' : isLoading || viewLoading ? `Loading ${viewTitle.toLowerCase()}…` : 'Processing your request…'}/>}</section></div>}
+      <LoadingOverlay active={loadingOverlayActive} dismissed={loadingOverlayDismissed} onDismiss={()=>setLoadingOverlayDismissed(true)} statusLabel="Loading status" label={detailState?.status === 'loading' ? 'Loading message…' : isRefreshing ? 'Refreshing and verifying workspace data…' : isLoading || viewLoading ? 'Loading ' + viewTitle.toLowerCase() + '…' : 'Processing your request…'} sendingPhase={sendingPhase}/>
       <ActionConfirmation request={confirmation} onCancel={()=>{setConfirmation(null);setConfirmationAction(null);}} onConfirm={async()=>{const action=confirmationAction;setConfirmation(null);setConfirmationAction(null);await action?.();}} />
       {htmlDialogOpen && <div className="fixed inset-0 z-[70] flex items-center justify-center p-3" role="dialog" aria-label="Insert HTML"><div className="absolute inset-0 bg-black/40" onClick={()=>setHtmlDialogOpen(false)} /><div className="relative w-full max-w-[640px] bg-[var(--surface)] rounded-2xl gmail-shadow border border-[var(--border)] overflow-hidden max-h-[92vh] overflow-y-auto"><div className="flex items-center justify-between bg-[var(--surface-2)] px-4 py-3"><p className="font-medium flex items-center gap-2"><UniformIcon name="html" size={18}/> Insert HTML</p><button onClick={()=>setHtmlDialogOpen(false)} className="p-1.5 rounded-full hover:bg-[var(--surface-3)]" aria-label="Close HTML dialog"><UniformIcon name="x" size={18}/></button></div><div className="p-4"><p className="text-[13px] text-[var(--text-3)]">Paste HTML or choose a preset. Scripts are stripped on insert. Preview shows how it will render.</p><label className="block text-[13px] font-medium mt-3">Preset<select value={htmlTemplate} onChange={e=>{setHtmlTemplate(e.target.value); const t=HTML_SNIPPETS.find(x=>x.name===e.target.value); if(t) setHtmlDialogValue(t.html);}} className="w-full mt-1 border border-[var(--border)] rounded-lg px-3 py-2 bg-[var(--surface)] outline-none"><option value="">Choose a preset — Button, Table, Divider, Image, Signature Block, Callout Box…</option>{HTML_SNIPPETS.map(s=><option key={s.name} value={s.name}>{s.name}</option>)}</select></label><label className="block text-[13px] font-medium mt-3">HTML code<textarea value={htmlDialogValue} onChange={e=>setHtmlDialogValue(e.target.value)} rows={10} placeholder={'<p><strong>Hello</strong> — paste HTML here</p>'} className="w-full mt-1 border border-[var(--border)] rounded-lg px-3 py-2 bg-[var(--surface)] outline-none text-[13px] font-mono resize-y" aria-label="HTML code"/></label><label className="flex items-center gap-2 text-[13px] mt-3"><input type="checkbox" checked={htmlDialogPreview} onChange={e=>setHtmlDialogPreview(e.target.checked)} className="accent-black w-4 h-4"/> Preview HTML</label>{htmlDialogPreview && htmlDialogValue && <div className="mt-3"><p className="text-[12px] font-medium mb-1">Preview</p><div className="border border-[var(--border)] rounded-xl p-3 bg-[var(--background)] text-[14px]" dangerouslySetInnerHTML={{__html: sanitizeHtml(htmlDialogValue)}} /></div>}<div className="flex justify-end gap-2 mt-4"><button onClick={()=>setHtmlDialogOpen(false)} className="px-4 py-2 rounded-full border border-[var(--border)] text-[14px]">Cancel</button><button onClick={insertHtmlFromDialog} className="px-5 py-2 rounded-full bg-[var(--text)] text-[var(--surface)] text-[14px]">Insert HTML</button></div></div></div></div>}
 

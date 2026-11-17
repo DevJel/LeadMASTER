@@ -750,6 +750,10 @@ LeadMASTER includes an Android companion in [`ANDROID APK/`](ANDROID%20APK/). It
 The full Android engineering guide covers architecture, supported features and limitations, WebView security, persistent authentication, build requirements, CI artifact retrieval, release signing, device acceptance and troubleshooting: [Android APK documentation](ANDROID%20APK/README.md).
 
 
+## Persistent dashboard shell and loading behavior
+
+The authenticated dashboard keeps its header, navigation, profile controls and scroll frame mounted while the selected tab content changes. Tabs reuse the in-memory workspace snapshot instead of reloading every collection on each visit. The first visit shows a content-area skeleton; a refresh keeps the last successful content visible behind a subtle, dismissible blur. The loading veil closes automatically when the request finishes, and a failed refresh leaves existing content available with a retry notice. Utility pages retain their own header/navigation while their content loads.
+
 ## Mandatory production dashboard
 
 The production dashboard UI is governed by `src/Mandatory LeadMASTER Dashboard.html`. This file is the canonical React design source; `public/dashboard.html` is its generated deployment mirror. Run `npm run build:assets` to synchronize the mandatory UI and regenerate the Worker static asset bundle. Preserve the React components, styling, layout and responsive behavior when connecting backend features. Only production API-backed data may be presented as live workspace data; unsupported capabilities must be clearly identified instead of simulated.
