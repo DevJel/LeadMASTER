@@ -217,10 +217,11 @@ class MainActivity : ComponentActivity() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
                     CookieManager.getInstance().flush()
-                    view?.evaluateJavascript(nativeLoginStyleScript, null)
-                    pageLoading = false
-                    pageLoadError = false
-                    pageProgress = 100
+                    view?.evaluateJavascript(nativeLoginStyleScript) {
+                        pageLoading = false
+                        pageLoadError = false
+                        pageProgress = 100
+                    }
                     view?.evaluateJavascript(
                         """
                         (function(){
