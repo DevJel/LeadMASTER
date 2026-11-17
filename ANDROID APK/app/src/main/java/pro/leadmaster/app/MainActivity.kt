@@ -276,32 +276,53 @@ class MainActivity : ComponentActivity() {
           var style=document.createElement('style');
           style.id='lm-native-login-theme';
           style.textContent=`
-            html,body{min-height:100%;background:#F7F7F5!important;color:#171717}
-            .layout{min-height:100dvh;display:flex;flex-direction:column;background:#F7F7F5}
-            .hero{background:transparent!important;color:#171717;min-height:0;overflow:visible}
-            .hero::after,.hero-art,.hero-center,.hero-wordmark,.hero-footer,.feature-card{display:none!important}
-            .hero-content{min-height:0;padding:max(24px,env(safe-area-inset-top)) 24px 0;gap:0}
-            .hero-top{justify-content:flex-start;min-height:44px}
-            .login-top-logo{display:none!important}
-            .hero-top::before{content:"";display:block;width:44px;height:44px;background:url('/assets/brand/leadmaster-icon.svg') center/contain no-repeat}
-            .hero-top::after{content:"LeadMASTER";font-size:20px;line-height:1;font-weight:750;letter-spacing:-.04em;color:#171717}
-            .right{flex:1;background:transparent}
-            .main-content{justify-content:flex-start;padding:24px 22px calc(32px + env(safe-area-inset-bottom))}
-            .card{max-width:480px;padding:28px 22px;border:1px solid #E6E4E0;border-radius:24px;background:#fff;box-shadow:0 14px 38px rgba(23,23,23,.06)}
-            h2{font-size:24px;letter-spacing:-.03em}
-            .sub{color:#70706D;margin-bottom:24px}
-            label{font-size:12px;font-weight:650;letter-spacing:.01em}
-            input{height:52px;border-radius:14px;border-color:#E6E4E0;background:#FBFBFA}
-            input:focus{border-color:#E9762B;box-shadow:0 0 0 3px rgba(233,118,43,.14)}
-            .password-wrap button{color:#B95C20}
-            .primary{min-height:52px;border-radius:16px;background:#E9762B;font-size:15px;transition:transform .16s ease,background .16s ease}
-            .primary:not(:disabled):hover{background:#D96620}
+            :root{color-scheme:dark}
+            html,body{min-height:100%;margin:0;background:#777!important;color:#f5f5f5}
+            body{background:radial-gradient(ellipse at 50% 12%,rgba(255,255,255,.25),transparent 44%),linear-gradient(145deg,#929292 0%,#686868 48%,#4e4e4e 100%)!important}
+            .layout{min-height:100dvh;display:flex;flex-direction:column;background:transparent!important;position:relative;isolation:isolate}
+            .hero{position:fixed;inset:0;min-height:100dvh;background:transparent!important;overflow:hidden;pointer-events:none;z-index:1}
+            .hero::after,.hero-art{display:none!important}
+            .hero-content{min-height:100dvh;height:100dvh;padding:0!important;display:block!important}
+            .hero-top,.hero-center,.hero-footer,.feature-card{display:none!important}
+            .hero-wordmark{display:block!important;position:absolute;left:50%;bottom:62px;transform:translateX(-50%);width:min(92%,560px);height:78px;margin:0!important;opacity:.96;overflow:visible}
+            .hero-wordmark canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+            .right{position:relative;z-index:2;flex:1;min-height:100dvh;display:flex;flex-direction:column;justify-content:center;align-items:stretch;background:transparent!important}
+            .main-content{flex:1;min-height:calc(100dvh - 54px);display:flex;justify-content:center;align-items:center;padding:max(24px,env(safe-area-inset-top)) 22px 164px!important}
+            .card{width:100%;max-width:440px;padding:32px 26px;border:1px solid rgba(255,255,255,.12);border-radius:26px;background:linear-gradient(145deg,rgba(28,28,28,.98),rgba(8,8,8,.99))!important;color:#f5f5f5;box-shadow:0 28px 80px rgba(0,0,0,.38),inset 0 1px 0 rgba(255,255,255,.08);animation:lmCardEnter .48s cubic-bezier(.2,.8,.2,1) both}
+            @keyframes lmCardEnter{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+            h2{font-size:25px;line-height:1.2;letter-spacing:-.04em;color:#fff}
+            .sub{color:#aaa;margin:9px 0 27px}
+            label{font-size:12px;font-weight:650;color:#d5d5d5;letter-spacing:.025em}
+            input{height:52px;border-radius:14px;border:1px solid #3b3b3b;background:linear-gradient(180deg,#242424,#1b1b1b);color:#fff;box-shadow:inset 0 1px 2px rgba(0,0,0,.35)}
+            input::placeholder{color:#777}
+            input:focus{border-color:#ed873f;box-shadow:0 0 0 3px rgba(237,135,63,.16)}
+            .password-wrap button{height:52px;color:#f0a06a}
+            .field{margin-bottom:20px}
+            .challenge{position:absolute!important;width:1px!important;height:1px!important;min-height:1px!important;left:-10000px!important;top:auto!important;margin:0!important;overflow:hidden!important;opacity:0!important;pointer-events:none!important}
+            .primary{min-height:52px;border-radius:15px;background:linear-gradient(135deg,#f18a42,#d96520);color:#fff;font-size:15px;box-shadow:0 8px 22px rgba(221,103,34,.22);transition:transform .16s ease,filter .16s ease}
+            .primary:not(:disabled):hover{filter:brightness(1.08)}
             .primary:not(:disabled):active{transform:scale(.985)}
-            .primary:disabled{background:#E8B18D;color:#fff}
-            .login-right-footer{padding:12px 22px calc(18px + env(safe-area-inset-bottom));color:#777}
-            .login-privacy-link{color:#555}
-            .challenge{display:flex;justify-content:center}
-            @media(max-width:380px){.main-content{padding-inline:16px}.card{padding:24px 18px}}
+            .primary:disabled{background:#75503b;color:#b9a398;box-shadow:none}
+            .error{background:#321d1d;border-color:#663333;color:#ffb4a9}
+            .back{color:#f0a06a}
+            .login-right-footer{position:relative;z-index:3;min-height:48px;padding:8px 16px calc(10px + env(safe-area-inset-bottom));background:transparent!important;color:#bdbdbd;font-size:11px}
+            .login-privacy-link{color:#c8c8c8}
+            .login-right-footer .lock-mark,.login-privacy-label .privacy-mark{color:#aaa}
+            .footer-separator{color:#777}
+            @media(max-width:420px){
+              .main-content{padding-inline:16px!important;padding-bottom:150px!important}
+              .card{padding:28px 21px;border-radius:23px}
+              h2{font-size:23px}
+              .hero-wordmark{height:68px;bottom:56px;width:94%}
+              .login-right-footer{font-size:10px;gap:8px}
+            }
+            @media(max-height:650px){
+              .right{justify-content:flex-start}
+              .main-content{min-height:0;padding-top:18px!important;padding-bottom:140px!important}
+              .card{padding-top:22px;padding-bottom:22px}
+              .hero-wordmark{height:58px;bottom:50px}
+            }
+            @media(prefers-reduced-motion:reduce){.card{animation:none}}
           `;
           document.head.appendChild(style);
         })();
