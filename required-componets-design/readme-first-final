@@ -72,7 +72,7 @@ Sender Profile shows: Name, Email, Company, Role, Team, Phone, Location, Labels,
 Buttons: Send Email (→ Compose), Add to Contacts, View All Emails From Sender (filters list).
 Subtabs complete: Primary, Promotions, Social, Updates, Forums — all have distinct realistic emails, unread counts, correct filtering. None empty by default.
 Preview Pane — Inbox + Sent (+ Outbox / Deleted / Scheduled for consistency)
-Toggle: No Split / Vertical / Horizontal
+Always-on full-page split workspace with a draggable vertical separator; single-click previews and double-click opens the full message
 Selecting an email shows live Preview: avatar + name + email, subject, date, labels, HTML body rendered (images / tables / buttons / formatting), attachments, Reply / Forward / Delete / Archive / Snooze
 Double-click / Open → full Detail view
 6. Right Panel — Contacts / Calendar Reminders / Notes
