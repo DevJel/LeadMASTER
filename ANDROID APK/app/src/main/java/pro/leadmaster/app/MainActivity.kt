@@ -27,10 +27,20 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
@@ -38,6 +48,9 @@ import androidx.core.content.ContextCompat
 
 class MainActivity : ComponentActivity() {
     private var webView: WebView? = null
+    private var pageProgress by mutableIntStateOf(0)
+    private var pageLoading by mutableStateOf(true)
+    private var pageLoadError by mutableStateOf(false)
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private val filePicker = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         fileChooserCallback?.onReceiveValue(uris.toTypedArray())
@@ -84,16 +97,35 @@ class MainActivity : ComponentActivity() {
         modifier: Modifier,
         savedState: Bundle?
     ) {
-        AndroidView(
-            modifier = modifier,
-            factory = { context ->
-                createWebView(context).also { view ->
-                    webView = view
-                    val restored = if (savedState != null) view.restoreState(savedState) else null
-                    if (restored == null) view.loadUrl(WorkspaceViewModel.HOME_URL)
+        Box(modifier = modifier.fillMaxSize()) {
+            AndroidView(
+                modifier = Modifier.fillMaxSize().then(if (pageLoading || pageLoadError) Modifier.blur(10.dp) else Modifier),
+                factory = { context ->
+                    createWebView(context).also { view ->
+                        webView = view
+                        val restored = if (savedState != null) view.restoreState(savedState) else null
+                        if (restored == null) view.loadUrl(WorkspaceViewModel.HOME_URL)
+                    }
                 }
+            )
+            AnimatedVisibility(
+                visible = pageLoading || pageLoadError,
+                enter = fadeIn(),
+                exit = fadeOut(),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                NativeLoadingOverlay(
+                    progress = pageProgress,
+                    failed = pageLoadError,
+                    onRetry = {
+                        pageLoadError = false
+                        pageLoading = true
+                        pageProgress = 0
+                        webView?.reload() ?: run { webView?.loadUrl(WorkspaceViewModel.HOME_URL) }
+                    }
+                )
             }
-        )
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -118,6 +150,11 @@ class MainActivity : ComponentActivity() {
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
             addJavascriptInterface(NativeBridge(), "LeadMasterNative")
             webChromeClient = object : WebChromeClient() {
+                override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                    super.onProgressChanged(view, newProgress)
+                    pageProgress = newProgress.coerceIn(0, 100)
+                }
+
                 override fun onShowFileChooser(
                     webView: WebView?,
                     filePathCallback: ValueCallback<Array<Uri>>?,
@@ -136,6 +173,32 @@ class MainActivity : ComponentActivity() {
                 }
             }
             webViewClient = object : WebViewClient() {
+                override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                    super.onPageStarted(view, url, favicon)
+                    pageLoading = true
+                    pageLoadError = false
+                    pageProgress = 0
+                }
+
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    super.onPageFinished(view, url)
+                    pageLoading = false
+                    pageLoadError = false
+                    pageProgress = 100
+                }
+
+                override fun onReceivedError(
+                    view: WebView?,
+                    request: WebResourceRequest?,
+                    error: android.webkit.WebResourceError?
+                ) {
+                    super.onReceivedError(view, request, error)
+                    if (request?.isForMainFrame == true) {
+                        pageLoading = false
+                        pageLoadError = true
+                    }
+                }
+
                 override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                     val uri = request?.url ?: return true
                     val internal = uri.scheme == "https" &&
@@ -159,6 +222,9 @@ class MainActivity : ComponentActivity() {
 
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
+                    pageLoading = false
+                    pageLoadError = false
+                    pageProgress = 100
                     CookieManager.getInstance().flush()
                     view?.evaluateJavascript(
                         """
