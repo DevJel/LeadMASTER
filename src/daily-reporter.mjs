@@ -1,6 +1,6 @@
 import { sendThroughEmailCoordinator } from "./email-coordinator-client.mjs";
 
-const DEFAULT_APP_URL = "https://leadmaster.jelvan.space";
+const DEFAULT_APP_URL = "https://leadmaster.jelvan.pro";
 const DEFAULT_REPOSITORY = "DevJel/LeadMASTER";
 const DEFAULT_CF_ACCOUNT = "967aa086112f862ba9f50ccf7aa09246";
 const DEFAULT_TIME_ZONE = "Asia/Kuala_Lumpur";
