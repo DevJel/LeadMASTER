@@ -246,11 +246,12 @@ class MainActivity : ComponentActivity() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
                     CookieManager.getInstance().flush()
-                    view?.evaluateJavascript(nativeLoginStyleScript) {
+                    val loadedView = view ?: return
+                    loadedView.evaluateJavascript(nativeLoginStyleScript) {
                         // A successful HTTP load is not enough: verify that the shared workspace
                         // actually rendered. This prevents a white/empty WebView when dashboard
                         // JavaScript fails or a navigation destination has no screen.
-                        view.evaluateJavascript(
+                        loadedView.evaluateJavascript(
                             """
                             (function(){
                               var login = location.pathname === '/login.html' &&
