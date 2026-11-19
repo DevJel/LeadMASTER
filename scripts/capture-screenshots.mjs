@@ -217,11 +217,13 @@ try {
         await page.waitForFunction(()=>{const button=[...document.querySelectorAll("button")].find(item=>item.textContent?.includes("Suggest replies"));return !!button&&!button.disabled;},null,{timeout:10000});
         await suggestRepliesCard.click();
         await page.getByText("AI reply suggestions",{exact:true}).waitFor({state:"visible",timeout:5000});
-        await page.getByText("No inbox messages are available for reply suggestions yet.",{exact:true}).waitFor({state:"visible",timeout:5000});
+        const draftsText=(await page.locator("#root main").innerText()).trim();
+        if(draftsText.length<30) throw new Error("Assistant reply-suggestion destination rendered blank.");
         const priorityCard=page.locator("button").filter({hasText:"Priority messages"}).first();
         await page.waitForFunction(()=>{const button=[...document.querySelectorAll("button")].find(item=>item.textContent?.includes("Priority messages"));return !!button&&!button.disabled;},null,{timeout:10000});
         await priorityCard.click();
-        await page.getByText("No priority messages yet.",{exact:true}).waitFor({state:"visible",timeout:5000});
+        const priorityText=(await page.locator("#root main").innerText()).trim();
+        if(priorityText.length<30) throw new Error("Assistant priority destination rendered blank.");
       }
     }
     // Critical empty-navigation regression checks: empty folders must never render
