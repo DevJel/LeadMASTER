@@ -206,7 +206,10 @@ try {
       } else {
         await page.getByRole("navigation",{name:"LeadMASTER navigation"}).getByRole("button",{name:label,exact:false}).click();
       }
-      await page.waitForTimeout(200);
+      await page.waitForTimeout(350);
+      const viewText=(await page.locator("#root main").innerText()).trim();
+      if(viewText.length<12) throw new Error(`Navigation destination ${slug} rendered an empty content area.`);
+      if(pageErrors.length) throw new Error(`JavaScript error while opening ${slug}: ${pageErrors.join("; ")}`);
       await snap(`dashboard-${slug}`);
     }
     // Critical empty-navigation regression checks: empty folders must never render
