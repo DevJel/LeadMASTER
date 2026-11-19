@@ -82,7 +82,7 @@ fun NativeLoadingOverlay(
                 )
                 Spacer(Modifier.height(20.dp))
                 Text(
-                    text = if (failed) "Connection interrupted" else "LeadMASTER",
+                    text = if (failed) "Workspace did not finish rendering" else "LeadMASTER",
                     color = Color.White,
                     fontSize = 21.sp,
                     fontWeight = FontWeight.Bold
@@ -90,7 +90,7 @@ fun NativeLoadingOverlay(
                 Spacer(Modifier.height(7.dp))
                 Text(
                     text = if (failed) {
-                        "Your workspace couldn't be reached. Check your connection and try again."
+                        "The shared workspace did not finish rendering. Your account data is safe. Retry to reload the same secure workspace."
                     } else {
                         "Preparing your secure workspace…"
                     },
