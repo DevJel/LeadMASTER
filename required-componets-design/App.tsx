@@ -480,7 +480,7 @@ export default function App(){
     if(openFull)setOpenEmailId(id);else setOpenEmailId(null);
     markRead(id);
     const item=userEmails.find(e=>e.id===id);
-    if(!item||item.folder==='drafts'||item.detailLoaded||(detailState?.id===id&&detailState.status==='loading'))return;
+    if(!item||!filtered.some(email=>email.id===id)||item.folder==='drafts'||item.detailLoaded||(detailState?.id===id&&detailState.status==='loading'))return;
     setDetailState({id,status:'loading'});
     try{
       const res=await fetch("/api/admin/mail/"+encodeURIComponent(id),{credentials:'same-origin'});
@@ -495,15 +495,15 @@ export default function App(){
   }
   function toggleStar(id:string, e?:React.MouseEvent){ e?.stopPropagation(); const next = new Set(starred); next.has(id)? next.delete(id): next.add(id); setStarred(next); savePrefs({starred:next}); setStatus(next.has(id)?'Starred — priority lead saved':'Removed from starred'); }
   function markRead(id:string){ if(readIds.has(id)) return; const next=new Set(readIds); next.add(id); setReadIds(next); const mail=userEmails.find(e=>e.id===id); if(mail?.folder==='inbox') patchMail(id,'read',{read:true}).catch(e=>setActionError(mapLeadMasterError(e).message)); else savePrefs({read:next}); }
-  async function doArchive(id:string){const mail=userEmails.find(e=>e.id===id);if(mail?.folder==='sent'){setStatus('Sent mail cannot be archived through this mailbox endpoint. Move it to Deleted instead.');return;}try{await patchMail(id,'archive');setArchived(prev=>new Set([...prev,id]));setStatus('Message archived.');setOpenEmailId(null);await reloadRecords();}catch(e){setActionError(mapLeadMasterError(e).message);setStatus('Could not archive this message.');}}
+  async function doArchive(id:string){const mail=userEmails.find(e=>e.id===id);if(mail?.folder==='sent'){setStatus('Sent mail cannot be archived through this mailbox endpoint. Move it to Deleted instead.');return;}try{await patchMail(id,'archive');setArchived(prev=>new Set([...prev,id]));setStatus('Message archived.');setOpenEmailId(null);setPreviewEmailId(null);setSelected(prev=>{const next=new Set(prev);next.delete(id);return next;});await reloadRecords();}catch(e){setActionError(mapLeadMasterError(e).message);setStatus('Could not archive this message.');}}
   function doDelete(id:string){const item=userEmails.find(e=>e.id===id);requestConfirmation({title:'Move this message to Deleted?',message:'You can restore this message later from the Deleted folder.',itemLabel:item?.subject||'Selected message',confirmLabel:'Move to Deleted'},()=>doDeleteConfirmed(id));}
-  async function doDeleteConfirmed(id:string){try{await patchMail(id,'delete');playMailSound('deleted');setDeleted(prev=>new Set([...prev,id]));setStatus('Message moved to Deleted.');setOpenEmailId(null);await reloadRecords();}catch(e){setActionError(mapLeadMasterError(e).message);setStatus('The message could not be moved.');}}
+  async function doDeleteConfirmed(id:string){try{await patchMail(id,'delete');playMailSound('deleted');setDeleted(prev=>new Set([...prev,id]));setStatus('Message moved to Deleted.');setOpenEmailId(null);setPreviewEmailId(null);setSelected(prev=>{const next=new Set(prev);next.delete(id);return next;});await reloadRecords();}catch(e){setActionError(mapLeadMasterError(e).message);setStatus('The message could not be moved.');}}
   function doSnooze(id:string){ setStatus('Timed snooze is not enabled in this release. No mailbox change was made.'); }
-  async function restoreEmail(id:string){try{await patchMail(id,'restore');setStatus('Message restored.');await reloadRecords();}catch(e){setActionError(mapLeadMasterError(e).message);setStatus('Could not restore this message.');}}
+  async function restoreEmail(id:string){try{await patchMail(id,'restore');setDeleted(prev=>{const next=new Set(prev);next.delete(id);return next;});setUserEmails(prev=>prev.filter(email=>email.id!==id));setOpenEmailId(null);setPreviewEmailId(null);setSelected(prev=>{const next=new Set(prev);next.delete(id);return next;});await reloadRecords();if(view==='deleted'&&deleted.size<=1)goView('inbox');setStatus('Message restored to Inbox.');}catch(e){setActionError(mapLeadMasterError(e).message);setStatus('Could not restore this message.');}}
   function deleteForever(id:string){const item=userEmails.find(e=>e.id===id);requestConfirmation({title:'Delete this message permanently?',message:'This message will be removed and cannot be restored.',itemLabel:item?.subject||'Selected message',confirmLabel:'Delete permanently'},()=>deleteForeverConfirmed(id));}
-  async function deleteForeverConfirmed(id:string){try{await patchMail(id,'permanentDelete');playMailSound('deleted');setStatus('Message permanently deleted.');setOpenEmailId(null);await reloadRecords();}catch(e){setActionError(mapLeadMasterError(e).message);setStatus('The message could not be deleted.');}}
+  async function deleteForeverConfirmed(id:string){try{await patchMail(id,'permanentDelete');playMailSound('deleted');setUserEmails(prev=>prev.filter(email=>email.id!==id));setDeleted(prev=>{const next=new Set(prev);next.delete(id);return next;});setOpenEmailId(null);setPreviewEmailId(null);setSelected(prev=>{const next=new Set(prev);next.delete(id);return next;});await reloadRecords();if(view==='deleted'&&deleted.size<=1)goView('inbox');setStatus('Message permanently deleted.');}catch(e){setActionError(mapLeadMasterError(e).message);setStatus('The message could not be deleted.');}}
   function emptyTrash(){requestConfirmation({title:'Empty the Deleted folder?',message:'All messages currently in Deleted will be permanently removed. This cannot be undone.',itemLabel:deleted.size+' message(s)',confirmLabel:'Empty Deleted folder'},()=>emptyTrashConfirmed());}
-  async function emptyTrashConfirmed(){setBusy(true);let removed=0,failed=0;for(const id of deleted){try{await patchMail(id,'permanentDelete');removed++;}catch{failed++;}}if(removed>0)playMailSound('deleted');setConfirmEmpty(false);await reloadRecords();setBusy(false);setStatus(failed?`Removed ${removed} message(s); ${failed} need another review.`:`Removed ${removed} message(s).`);}
+  async function emptyTrashConfirmed(){const ids=[...deleted];if(!ids.length){goView('inbox');return;}setBusy(true);const removedIds:string[]=[];const failedIds:string[]=[];try{for(const id of ids){try{await patchMail(id,'permanentDelete');removedIds.push(id);}catch{failedIds.push(id);}}if(removedIds.length){const removedSet=new Set(removedIds);setUserEmails(prev=>prev.filter(email=>!removedSet.has(email.id)));setDeleted(prev=>new Set([...prev].filter(id=>!removedSet.has(id))));setOpenEmailId(null);setPreviewEmailId(null);setSelected(new Set());playMailSound('deleted');}setConfirmEmpty(false);await reloadRecords();if(failedIds.length===0){setStatus(`Deleted folder emptied (${removedIds.length} message${removedIds.length===1?'':'s'} removed). Showing Inbox.`);goView('inbox');}else{setStatus(`Removed ${removedIds.length} message(s); ${failedIds.length} could not be deleted and remain in Deleted.`);}}finally{setBusy(false);}}
 
   const filtered = useMemo(()=>{
     let list = [...allEmails];
@@ -526,7 +526,12 @@ export default function App(){
     const inbox = allEmails.filter(e=> e.folder==='inbox' && !archived.has(e.id) && !snoozed.has(e.id) && !deleted.has(e.id));
     return { inboxUnread: inbox.filter(e=> !readIds.has(e.id)).length, inboxTotal: inbox.length, sent: allEmails.filter(e=> e.folder==='sent' && !deleted.has(e.id)).length, deleted: deleted.size, outbox: outbox.length, scheduled: scheduled.length };
   },[allEmails, readIds, archived, deleted, snoozed, outbox, scheduled]);
-  const openEmail = allEmails.find(e=> e.id===openEmailId) || null;
+  const openEmail = filtered.find(e=> e.id===openEmailId) || null;
+  useEffect(()=>{
+    if(openEmailId && !filtered.some(email=>email.id===openEmailId)) setOpenEmailId(null);
+    if(previewEmailId && !filtered.some(email=>email.id===previewEmailId)) setPreviewEmailId(null);
+    setSelected(current=>{const valid=new Set(filtered.map(email=>email.id));const next=new Set([...current].filter(id=>valid.has(id)));return next.size===current.size?current:next;});
+  },[filtered,openEmailId,previewEmailId]);
 
   function openCompose(mode:'new'|'reply'|'forward'|'draft'|'template', email?:Email, tpl?:Template){
     setComposeMode(mode); setReplyTo(email||null); setShowEmoji(false);
@@ -724,7 +729,7 @@ export default function App(){
     if(next!==view){setNavigationLoading(true);setLoadingOverlayDismissed(false);}
     setView(next);
   }
-  const goView = (v:View)=>{ if(v==='compose'){ openComposeTab(); return; } if(view==='compose') setPreviousView(view); navigateToView(v); setOpenEmailId(null); setPreviewEmailId(null); setSelected(new Set()); setMobileSidebar(false); setConfirmEmpty(false); setViewError(false); };
+  const goView = (v:View)=>{ if(v==='compose'){ if(view==='compose'){setMobileSidebar(false);return;} openComposeTab(); return; } if(v===view){setMobileSidebar(false);return;} if(view==='compose') setPreviousView(view); setSearch(''); setOnlyAttachment(false); setShowFilters(false); navigateToView(v); setOpenEmailId(null); setPreviewEmailId(null); setSelected(new Set()); setMobileSidebar(false); setConfirmEmpty(false); setViewError(false); };
   const badgeFor = (k:View)=> k==='inbox'?counts.inboxUnread : k==='outbox'?counts.outbox : k==='deleted'?counts.deleted : k==='scheduled'?counts.scheduled : 0;
   const NAV: {k:View; label:string; icon:IconName; badge:number}[] = componentOrder.filter(k=>k!=='settings' && !hiddenComponents.has(k)).map(k=>({k, label:componentLabel(k), icon:componentIcon(k), badge:badgeFor(k)}));
 
@@ -869,7 +874,7 @@ export default function App(){
     }
   }
 
-  const previewEmail = allEmails.find(e=>e.id===previewEmailId) || null;
+  const previewEmail = filtered.find(e=>e.id===previewEmailId) || null;
   const previewPanel = (
     <section className="lm-mail-preview h-full min-h-0 w-full overflow-y-auto bg-[var(--surface)]" aria-label="Message preview">
       {previewEmail ? <>
@@ -903,8 +908,8 @@ export default function App(){
             <button onClick={()=>openComposeTab(previewEmail.email)} className="px-4 py-2 rounded-full bg-[var(--text)] text-[var(--surface)] text-[13px]">Compose to sender</button>
           </div>
         </div>
-      </> : <div className="grid h-full min-h-[240px] place-items-center px-6 py-10 text-center">
-        <div><UniformIcon name="inbox" size={34}/><h2 className="mt-3 text-[16px] font-semibold">No message selected</h2><p className="mt-1 max-w-[320px] text-[13px] text-[var(--text-3)]">Select a message from the list to preview it here. Double-click a message to open the full page.</p></div>
+      </> : <div className="grid h-full min-h-[240px] place-items-center px-6 py-10 text-center" role="status" aria-live="polite">
+        <div><span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-[var(--surface-2)] text-[var(--text-3)]"><UniformIcon name="inbox" size={30}/></span><h2 className="mt-3 text-[16px] font-semibold">{filtered.length?'Select a message to preview':'No messages in this folder'}</h2><p className="mt-1 max-w-[320px] text-[13px] text-[var(--text-3)]">{filtered.length?'Choose any message in the list to see its contents here.':'This folder is empty. Choose another folder from the navigation to continue.'}</p></div>
       </div>}
     </section>
   );
@@ -1032,7 +1037,9 @@ export default function App(){
           </div>
         </article>
       ) : (view==='inbox'||view==='sent'||view==='deleted') ? (
-        <div ref={mailWorkspaceRef} className="lm-mail-workspace" style={{'--lm-mail-list-width':mailSplitPercent+'%'} as React.CSSProperties}>
+        filtered.length===0 ? <section className="lm-mail-empty-workspace mx-1 sm:mx-2 grid min-h-[min(64dvh,560px)] place-items-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-6 py-12 text-center" aria-live="polite" aria-label={`${viewTitle} empty state`}>
+          <div className="max-w-[460px]"><span className="mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-[var(--surface-2)] text-[var(--text-3)]"><UniformIcon name={view==='sent'?'sent':view==='deleted'?'deleted':'inbox'} size={36}/></span><h2 className="mt-4 text-[20px] font-semibold">{search.trim()||onlyAttachment?`No matching messages in ${viewTitle}`:`${viewTitle} is empty`}</h2><p className="mt-2 text-[14px] leading-relaxed text-[var(--text-3)]">{search.trim()||onlyAttachment?'Your current filters do not match any messages in this folder. Clear the filters to see all available messages.':view==='deleted'?'Messages you move to Deleted will appear here. Permanently removed messages will no longer appear in this folder.':view==='sent'?'Messages sent from this mailbox will appear here.':'New incoming messages will appear here when they arrive.'}</p>{(search.trim()||onlyAttachment)&&<button onClick={()=>{setSearch('');setOnlyAttachment(false);setShowFilters(false);}} className="mt-5 rounded-full bg-[var(--text)] px-5 py-2.5 text-[13px] font-medium text-[var(--surface)]">Clear filters</button>}{view==='inbox'&&<button onClick={()=>openComposeTab()} className="mt-5 rounded-full border border-[var(--border)] px-5 py-2.5 text-[13px] font-medium">Compose email</button>}</div>
+        </section> : <div ref={mailWorkspaceRef} className="lm-mail-workspace" style={{'--lm-mail-list-width':mailSplitPercent+'%'} as React.CSSProperties}>
           <div className="lm-mail-list-column">{mailList}</div>
           <div className="lm-mail-resize-handle" role="separator" tabIndex={0} aria-label="Resize message list and preview" aria-orientation="vertical" aria-valuemin={28} aria-valuemax={72} aria-valuenow={mailSplitPercent} onPointerDown={startMailSplitResize} onPointerMove={moveMailSplitResize} onPointerUp={stopMailSplitResize} onPointerCancel={stopMailSplitResize} onKeyDown={handleMailSplitKeyDown}/>
           <div className="lm-mail-preview-column">{previewPanel}</div>
