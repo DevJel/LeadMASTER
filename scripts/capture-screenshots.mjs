@@ -212,9 +212,9 @@ try {
       if(pageErrors.length) throw new Error(`JavaScript error while opening ${slug}: ${pageErrors.join("; ")}`);
       await snap(`dashboard-${slug}`);
       if(slug==="assistant"){
-        await page.getByRole("button",{name:"Suggest replies",exact:true}).click();
+        await page.getByText("Suggest replies",{exact:true}).click();
         await page.getByText("No inbox messages are available for reply suggestions yet.",{exact:true}).waitFor({state:"visible",timeout:5000});
-        await page.getByRole("button",{name:"Priority messages",exact:true}).click();
+        await page.getByText("Priority messages",{exact:true}).click();
         await page.getByText("No priority messages yet.",{exact:true}).waitFor({state:"visible",timeout:5000});
       }
     }
