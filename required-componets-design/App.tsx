@@ -589,7 +589,7 @@ export default function App(){
         setStatus('Draft saved to your account.');
       }else{
         const body=compose.body||'';
-        const payload={to:compose.to.trim(),cc:compose.cc,bcc:compose.bcc,subject:compose.subject.trim(),text:containsHtml(body)?body.replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ').trim():body,html:containsHtml(body)?sanitizeHtml(body):undefined,fromEmail:profileEmail||'hello@work.jelvan.pro',fromName:profileName||'LeadMASTER'};
+        const payload={to:compose.to.trim(),cc:compose.cc,bcc:compose.bcc,subject:compose.subject.trim(),text:containsHtml(body)?body.replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ').trim():body,html:body.trim()?composeHtmlBody(body):undefined,fromEmail:profileEmail||'hello@work.jelvan.pro',fromName:profileName||'LeadMASTER'};
         const res=await fetch('/api/admin/send',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
         const result=await res.json().catch(()=>({}));
         if(!res.ok) throw new Error(result.error||`Send request failed (${res.status})`);
@@ -690,7 +690,7 @@ export default function App(){
   function insertLink(){ const url=linkUrl.trim(); if(!url) return; if(!/^(https?:\/\/|mailto:)/i.test(url)){setStatus('Enter a valid https:// or mailto: link.');return;} const safeUrl=url.replaceAll('&','&amp;').replaceAll('"','&quot;'); insertAtCursor(`<a href="${safeUrl}">${safeUrl}</a>`); setLinkUrl(''); setShowLinkInput(false); setStatus('Link inserted.'); }
   function insertList(){ insertAtCursor('<ul><li>List item</li></ul>'); setStatus('Bullet list inserted.'); }
   function applyMarkup(command:'bold'|'italic'|'underline'|'strikeThrough',tag:'strong'|'em'|'u'|'s'){
-    if(!composeViewSource){ const editor=composeRichEditorRef.current; if(!editor){setStatus('Feature not yet implemented.');return;} editor.focus(); const ok=document.execCommand(command,false); if(!ok){setStatus('Feature not yet implemented.');return;} setCompose(prev=>({...prev,body:editor.innerHTML})); }
+    if(!composeViewSource){ const editor=composeRichEditorRef.current; if(!editor){setStatus('Feature not yet implemented.');return;} pushHistory(); editor.focus(); const ok=document.execCommand(command,false); if(!ok){setStatus('Feature not yet implemented.');return;} setCompose(prev=>({...prev,body:editor.innerHTML})); }
     else { const input=composeBodyRef.current; if(!input){setStatus('Feature not yet implemented.');return;} const start=input.selectionStart,end=input.selectionEnd,selected=compose.body.slice(start,end),open=`<${tag}>`,close=`</${tag}>`; pushHistory(); setCompose(prev=>({...prev,body:prev.body.slice(0,start)+open+selected+close+prev.body.slice(end)})); window.requestAnimationFrame(()=>{input.focus();const cursor=start+open.length;input.setSelectionRange(cursor,selected?cursor+selected.length:cursor);}); }
   }
   function applyFmt(kind:'bold'|'italic'|'underline'){ const map={bold:['bold','strong'],italic:['italic','em'],underline:['underline','u']} as const; const [command,tag]=map[kind]; applyMarkup(command,tag); setFmt(prev=>({...prev,[kind]:!prev[kind]})); setStatus(`${kind[0].toUpperCase()+kind.slice(1)} formatting applied.`); }
@@ -717,6 +717,7 @@ export default function App(){
   function insertNumberedList(){ pushHistory(); setCompose(prev=>({...prev, body: prev.body + (prev.body?'\n':'') + '1. '})); setStatus('Numbered list inserted.'); }
   function insertSignatureIntoCompose(){ pushHistory(); setCompose(prev=>({...prev, body: prev.body + (prev.body?'\n\n':'') + signature})); setStatus('Signature inserted.'); }
   function composeBodyStyle(): React.CSSProperties { return {fontFamily: composeFont, fontSize: composeFontSize, textAlign: composeAlign, color: composeColor, backgroundColor: composeHighlight, textDecoration: fmtStrike ? 'line-through' : undefined}; }
+  function composeHtmlBody(body:string):string { const content=containsHtml(body)?sanitizeHtml(body):sanitizeHtml(body).replace(/\r?\n/g,'<br>'); const font=composeFont.replace(/[;"<>]/g,''); const size=/^\d{1,2}px$/.test(composeFontSize)?composeFontSize:'14px'; const color=/^#[0-9a-f]{6}$/i.test(composeColor)?composeColor:'#000000'; const background=composeHighlight==='transparent'?'':`background-color:${composeHighlight};`; return `<div style="font-family:${font};font-size:${size};text-align:${composeAlign};color:${color};${background}">${content}</div>`; }
 
   const viewTitle = view==='compose'?'Compose': view==='inbox'?'Inbox': view==='sent'?'Sent': view==='outbox'?'Outbox': view==='deleted'?'Deleted': view==='assistant'?'Assistant': view==='automation'?'Automation': view==='templates'?'Templates': view==='scheduled'?'Scheduled':'Settings';
   function navigateToView(next:View){
