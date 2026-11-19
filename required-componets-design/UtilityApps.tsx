@@ -48,7 +48,8 @@ function calculate(input:string):number{
 }
 
 export default function UtilityApps({route}:{route:string|null}){
-  const selected=(routeList.includes(route as UtilityRoute)?route:'notes') as UtilityRoute;
+  const isValidRoute=routeList.includes(route as UtilityRoute);
+  const selected=(isValidRoute?route:'notes') as UtilityRoute;
   const [notes,setNotes]=useState<RecordRow<Note>[]>([]);
   const [contacts,setContacts]=useState<RecordRow<Contact>[]>([]);
   const [reminders,setReminders]=useState<RecordRow<Reminder>[]>([]);
@@ -100,7 +101,7 @@ export default function UtilityApps({route}:{route:string|null}){
     finally{if(!silent)setLoading(false);}
   },[selected]);
 
-  useEffect(()=>{void load(false);},[load]);
+  useEffect(()=>{if(isValidRoute)void load(false);},[load,isValidRoute]);
   // Keep the last loaded records in component memory. Refresh only on initial entry,
   // after a successful mutation, or when the user explicitly requests it.
 
@@ -200,6 +201,7 @@ export default function UtilityApps({route}:{route:string|null}){
       <div className="w-full px-4 pb-3">{nav}</div>
     </header>
     <main className="min-h-0 w-full flex-1 space-y-4 overflow-y-auto px-4 py-4">
+      {!isValidRoute ? <section className="grid min-h-[55dvh] place-items-center rounded-2xl border border-[#e5e5e5] bg-white px-6 py-12 text-center" role="alert"><div className="max-w-md"><div aria-hidden="true" className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-[#f5f5f5] text-2xl text-[#666]">!</div><h1 className="mt-4 text-xl font-semibold">This section is unavailable</h1><p className="mt-2 text-sm leading-relaxed text-[#666]">The requested workspace section does not exist or is no longer available. Nothing has been redirected to another utility.</p><a href="/dashboard" className={action+' mt-5 inline-flex'}>Return to main workspace</a></div></section> : <>
       <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-[#777]">Workspace utility</p><h1 className="mt-1 text-2xl font-semibold">{labels[selected]}</h1>{lastLoaded&&<p className="mt-1 text-xs text-[#888]">Updated {new Date(lastLoaded).toLocaleTimeString()}</p>}</div><button type="button" className={secondary} disabled={loading||saving} onClick={()=>void load(false)}>{loading?'Refreshing…':'Refresh'}</button></div>
       {error&&lastLoaded!==null&&<div role="alert" className="rounded-xl border border-[#e6caca] bg-[#fff8f8] p-3 text-sm">{error}</div>}
       {notice&&<div role="status" className="rounded-xl border border-[#ddd] bg-white p-3 text-sm">{notice}</div>}
@@ -236,6 +238,7 @@ export default function UtilityApps({route}:{route:string|null}){
         <section className={panel}><div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-semibold">AI email designer</h2><p className="text-xs text-[#777]">Generate a draft, then review before exporting.</p></div><span className="rounded-full border border-[#ddd] px-2.5 py-1 text-[10px] uppercase tracking-wider">AI assisted</span></div><label className="mt-4 block text-sm">What should this email say?<textarea className={field+' mt-1'} rows={4} value={prompt} onChange={e=>setPrompt(e.target.value)}/></label><label className="mt-3 block text-sm">Subject<input className={field+' mt-1'} value={subject} onChange={e=>setSubject(e.target.value)}/></label><label className="mt-3 block text-sm">HTML source<textarea className={field+' mt-1 font-mono text-xs'} rows={14} value={html} onChange={e=>setHtml(e.target.value)}/></label><div className="mt-3 flex flex-wrap gap-2"><button className={action} disabled={aiBusy} onClick={()=>void generateEmail()}>{aiBusy?'Preparing…':'Generate with AI'}</button><button className={secondary} onClick={()=>void copyHtml()}>{htmlCopied?'Copied':'Copy HTML'}</button><button className={secondary} onClick={downloadHtml}>Export HTML</button><button className={secondary} onClick={()=>setShowPreview(!showPreview)}>{showPreview?'Hide preview':'Show preview'}</button></div></section>
         <section className={panel}><div className="flex items-center justify-between gap-2"><h2 className="font-semibold">Email preview</h2><span className="text-xs text-[#777]">Sanitized preview</span></div><div className="mt-3 border-b border-[#e5e5e5] py-3"><p className="text-xs text-[#777]">Subject</p><p className="mt-1 font-semibold">{subject}</p></div>{showPreview&&<div className="mt-3 min-h-[480px] overflow-auto bg-transparent py-3"><div dangerouslySetInnerHTML={{__html:cleanHtml(html)}}/></div>}</section>
       </div>}
+      </>}
       </>}
     </main>
     <ActionConfirmation request={confirmation} onCancel={()=>{setConfirmation(null);setConfirmationAction(null);}} onConfirm={async()=>{
