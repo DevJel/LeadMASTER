@@ -218,7 +218,7 @@ try {
     await page.getByRole("button",{name:/Empty Trash/}).click();
     await page.getByRole("button",{name:"Empty Deleted folder",exact:true}).click();
     await page.waitForTimeout(700);
-    if(!(await page.getByRole("heading",{name:"Inbox is empty",exact:true}).isVisible())){const state=(await page.locator("#root").innerText()).slice(-2200);throw new Error("Empty Trash did not navigate to Inbox. Current dashboard state: "+state); }
+    if(!(await page.getByRole("heading",{name:"Inbox is empty",exact:true}).isVisible())){const state=(await page.locator("body").innerText().catch(()=>"" )).slice(-3000);throw new Error("Empty Trash did not navigate to Inbox. URL: "+page.url()+"; browser errors: "+pageErrors.join(" | ")+"; current UI: "+state); }
     if(await page.locator(".lm-mail-workspace").count())throw new Error("Empty Inbox rendered the split mail workspace.");
     await clickPrimaryNav("Deleted");
     await page.getByRole("heading",{name:"Deleted is empty",exact:true}).waitFor({state:"visible",timeout:5000});
