@@ -10,7 +10,7 @@ import { createMailSoundPlayer, createMailSoundTracker } from './mail-sounds.mjs
 import { mapLeadMasterError } from '../src/leadmaster-error-mapper.mjs';
 
 type Folder = 'inbox' | 'sent' | 'drafts';
-type View = 'compose' | 'inbox' | 'sent' | 'outbox' | 'deleted' | 'assistant' | 'automation' | 'templates' | 'scheduled' | 'settings';
+type View = 'compose' | 'inbox' | 'sent' | 'outbox' | 'deleted' | 'assistant' | 'automation' | 'templates' | 'scheduled' | 'settings' | 'unavailable';
 type Email = { id:string; sender:string; email:string; initials:string; color:string; subject:string; snippet:string; body:string; htmlBody?:string; fromAddress?:string; sourceUrl?:string; detailLoaded?:boolean; label:string|null; date:string; time:string; unread:boolean; attachment:boolean; folder:Folder; isUser?:boolean; company?:string; value?:string; category?:string; deliveryStatus?:string };
 type Template = { id:string; name:string; subject:string; body:string; category:string; recordId?:string };
 type Rule = { id:string; name:string; triggerType:'sender'|'subject'; contains:string; action:'label'|'star'|'archive'|'move'; actionValue:string; enabled:boolean; recordId?:string };
@@ -177,6 +177,7 @@ export default function App(){
   const [showFilters, setShowFilters] = useState(false);
   const [onlyAttachment, setOnlyAttachment] = useState(false);
   const [view, setView] = useState<View>('inbox');
+  const [unavailableSection, setUnavailableSection] = useState('');
   const [previousView, setPreviousView] = useState<View>('inbox');
   const [starred, setStarred] = useState<Set<string>>(new Set());
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
@@ -727,12 +728,12 @@ export default function App(){
   function composeBodyStyle(): React.CSSProperties { return {fontFamily: composeFont, fontSize: composeFontSize, textAlign: composeAlign, color: composeColor, backgroundColor: composeHighlight, textDecoration: fmtStrike ? 'line-through' : undefined}; }
   function composeHtmlBody(body:string):string { const content=containsHtml(body)?sanitizeHtml(body):sanitizeHtml(body).replace(/\r?\n/g,'<br>'); const font=composeFont.replace(/[;"<>]/g,''); const size=/^\d{1,2}px$/.test(composeFontSize)?composeFontSize:'14px'; const color=/^#[0-9a-f]{6}$/i.test(composeColor)?composeColor:'#000000'; const background=composeHighlight==='transparent'?'':`background-color:${composeHighlight};`; return `<div style="font-family:${font};font-size:${size};text-align:${composeAlign};color:${color};${background}">${content}</div>`; }
 
-  const viewTitle = view==='compose'?'Compose': view==='inbox'?'Inbox': view==='sent'?'Sent': view==='outbox'?'Outbox': view==='deleted'?'Deleted': view==='assistant'?'Assistant': view==='automation'?'Automation': view==='templates'?'Templates': view==='scheduled'?'Scheduled':view==='settings'?'Settings':'Unavailable';
+  const viewTitle = view==='compose'?'Compose': view==='inbox'?'Inbox': view==='sent'?'Sent': view==='outbox'?'Outbox': view==='deleted'?'Deleted': view==='assistant'?'Assistant': view==='automation'?'Automation': view==='templates'?'Templates': view==='scheduled'?'Scheduled':view==='settings'?'Settings':view==='unavailable'?'Unavailable':'Unavailable';
   function navigateToView(next:View){
     if(next!==view){setNavigationLoading(true);setLoadingOverlayDismissed(false);}
     setView(next);
   }
-  const goView = (v:View)=>{ if(!VALID_VIEWS.has(v)){setViewError(true);setStatus('This section is unavailable. Choose a supported workspace section.');setMobileSidebar(false);return;} if(v==='compose'){ if(view==='compose'){setMobileSidebar(false);return;} openComposeTab(); return; } if(v===view){setMobileSidebar(false);return;} if(view==='compose') setPreviousView(view); setSearch(''); setOnlyAttachment(false); setShowFilters(false); navigateToView(v); setOpenEmailId(null); setPreviewEmailId(null); setSelected(new Set()); setMobileSidebar(false); setConfirmEmpty(false); setViewError(false); };
+  const goView = (v:View|string)=>{ if(!VALID_VIEWS.has(v as View)){setUnavailableSection(String(v));setSearch('');setOnlyAttachment(false);setShowFilters(false);setOpenEmailId(null);setPreviewEmailId(null);setSelected(new Set());setConfirmEmpty(false);setViewError(false);setMobileSidebar(false);navigateToView('unavailable');return;} if(v==='compose'){ if(view==='compose'){setMobileSidebar(false);return;} openComposeTab(); return; } if(v===view){setMobileSidebar(false);return;} if(view==='compose') setPreviousView(view); setSearch(''); setOnlyAttachment(false); setShowFilters(false); navigateToView(v); setOpenEmailId(null); setPreviewEmailId(null); setSelected(new Set()); setMobileSidebar(false); setConfirmEmpty(false); setViewError(false); };
   const badgeFor = (k:View)=> k==='inbox'?counts.inboxUnread : k==='outbox'?counts.outbox : k==='deleted'?counts.deleted : k==='scheduled'?counts.scheduled : 0;
   const NAV: {k:View; label:string; icon:IconName; badge:number}[] = componentOrder.filter(k=>k!=='settings' && !hiddenComponents.has(k)).map(k=>({k, label:componentLabel(k), icon:componentIcon(k), badge:badgeFor(k)}));
 
@@ -1130,7 +1131,7 @@ export default function App(){
       {view==='inbox' && !openEmail && <div className="grid sm:grid-cols-3 gap-3 mx-1 sm:mx-2 mt-4">
         {[{t:'One inbox', d:'All incoming messages appear together. Search and use message actions to focus on what matters.', i:'spark' as IconName}, {t:'Triage in seconds', d:'Hover any row to archive, delete, or snooze. Star what you need to find again.', i:'zap' as IconName}, {t:'Assistant does the busywork', d:'Summaries, draft replies, cleanup, and priority leads — in one panel.', i:'assistant' as IconName}].map(x=><div key={x.t} className="bg-[var(--surface)] rounded-2xl p-4 gmail-shadow border border-[var(--border)]"><UniformIcon name={x.i} size={18}/><p className="font-medium mt-2">{x.t}</p><p className="text-[13px] text-[var(--text-3)] leading-relaxed mt-1">{x.d}</p></div>)}
       </div>}
-      {!VALID_VIEWS.has(view) && <section className="mx-1 sm:mx-2 grid min-h-[55dvh] place-items-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-6 py-12 text-center" role="alert"><div><UniformIcon name="alert" size={32}/><h2 className="mt-3 text-[18px] font-semibold">This workspace section is unavailable</h2><p className="mt-1 text-[13px] text-[var(--text-3)]">The requested section is not supported. No blank page or automatic tab redirect was opened.</p><button onClick={()=>goView('inbox')} className="mt-4 rounded-full bg-[var(--text)] px-5 py-2.5 text-[13px] text-[var(--surface)]">Open Inbox</button></div></section>}
+      {!VALID_VIEWS.has(view) && <section className="mx-1 sm:mx-2 grid min-h-[55dvh] place-items-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-6 py-12 text-center" role="status" aria-live="polite"><div className="max-w-[440px]"><UniformIcon name="alert" size={32}/><h2 className="mt-3 text-[18px] font-semibold">Feature not yet implemented.</h2><p className="mt-2 text-[13px] text-[var(--text-3)]">{unavailableSection ? `“${unavailableSection}” is not available in this workspace yet.` : 'This destination does not have a supported screen.'} No blank page will be opened and you will not be silently redirected.</p><button onClick={()=>goView('inbox')} className="mt-4 rounded-full bg-[var(--text)] px-5 py-2.5 text-[13px] text-[var(--surface)]">Open Inbox</button></div></section>}
     </>
   );
 
