@@ -221,7 +221,7 @@ try {
     await clickPrimaryNav("Deleted");
     await page.getByRole("heading",{name:"Deleted is empty",exact:true}).waitFor({state:"visible",timeout:5000});
     if(await page.locator(".lm-mail-workspace").count())throw new Error("Empty Deleted folder rendered a blank split pane.");
-    await primaryNav.getByRole("button",{name:"Deleted",exact:true}).click();
+    await clickPrimaryNav("Deleted");
     await page.getByRole("heading",{name:"Deleted is empty",exact:true}).waitFor({state:"visible",timeout:5000});
     const searchBox=page.getByRole("textbox",{name:"Search mail"});
     await searchBox.fill("no-such-message");
