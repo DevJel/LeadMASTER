@@ -36,7 +36,7 @@ try{
   window.AudioContext=class{constructor(){this.state='running';this.currentTime=0;this.destination={}} createOscillator(){return {frequency:{set value(v){window.__notes.push(v)}},connect(){},start(){},stop(){}}}createGain(){return {gain:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){}}}close(){return Promise.resolve()}};
  });
  await page.goto(`http://127.0.0.1:${server.address().port}/dashboard.html`);
- await page.getByText('Nothing in Inbox').waitFor();
+ await page.getByRole('heading',{name:'Inbox is empty',exact:true}).waitFor();
  assert.deepEqual(await page.evaluate(()=>window.__notes),[],'initial snapshot silent');
  // User interaction unlocks browser audio; test server changes are synthetic.
  await page.getByRole('button',{name:'Refresh',exact:true}).click();
