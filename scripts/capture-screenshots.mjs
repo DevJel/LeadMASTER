@@ -211,6 +211,12 @@ try {
       if(viewText.length<12) throw new Error(`Navigation destination ${slug} rendered an empty content area.`);
       if(pageErrors.length) throw new Error(`JavaScript error while opening ${slug}: ${pageErrors.join("; ")}`);
       await snap(`dashboard-${slug}`);
+      if(slug==="assistant"){
+        await page.getByRole("button",{name:"Suggest replies",exact:true}).click();
+        await page.getByText("No inbox messages are available for reply suggestions yet.",{exact:true}).waitFor({state:"visible",timeout:5000});
+        await page.getByRole("button",{name:"Priority messages",exact:true}).click();
+        await page.getByText("No priority messages yet.",{exact:true}).waitFor({state:"visible",timeout:5000});
+      }
     }
     // Critical empty-navigation regression checks: empty folders must never render
     // a blank split pane, retain stale filters, or silently reopen a different utility.
