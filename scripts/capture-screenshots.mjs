@@ -154,8 +154,22 @@ try {
       }
       await route.fulfill({status: 200, contentType: "application/json", body: JSON.stringify({data})});
     });
+    const deletedMailFixture = [{id:"deleted-fixture-1",from_address:"former-contact@example.test",from_name:"Former Contact",subject:"Synthetic deleted message",received_at:Date.now(),kind:"received"}];
     await page.route("**/api/admin/mail**", async route => {
-      await route.fulfill({status: 200, contentType: "application/json", body: JSON.stringify({items: [], counts: {inbox: 0, archived: 0, sent: 0, queued: 0, deleted: 0, bounced: 0, unsuccessful: 0, unsubscribed: 0}})});
+      const request=route.request();
+      const requestUrl=new URL(request.url());
+      if(request.method()==="PATCH"){
+        let payload={};try{payload=request.postDataJSON()||{}}catch{}
+        if(payload.action==="permanentDelete"){
+          const id=decodeURIComponent(requestUrl.pathname.split("/").pop()||"");
+          const index=deletedMailFixture.findIndex(item=>item.id===id);
+          if(index>=0)deletedMailFixture.splice(index,1);
+        }
+        return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({ok:true})});
+      }
+      const folder=requestUrl.searchParams.get("folder")||"inbox";
+      const items=folder==="deleted"?deletedMailFixture:[];
+      await route.fulfill({status: 200, contentType: "application/json", body: JSON.stringify({items, counts: {inbox: 0, archived: 0, sent: 0, queued: 0, deleted: deletedMailFixture.length, bounced: 0, unsuccessful: 0, unsubscribed: 0}})});
     });
     const pageErrors = [];
     page.on("pageerror", error => pageErrors.push(error.message));
@@ -195,6 +209,35 @@ try {
       await page.waitForTimeout(200);
       await snap(`dashboard-${slug}`);
     }
+    // Critical empty-navigation regression checks: empty folders must never render
+    // a blank split pane, retain stale filters, or silently reopen a different utility.
+    const primaryNav=page.getByRole("navigation",{name:"LeadMASTER navigation"});
+    await primaryNav.getByRole("button",{name:"Deleted",exact:true}).click();
+    await page.getByText("Synthetic deleted message",{exact:true}).waitFor({state:"visible",timeout:5000});
+    await page.getByRole("button",{name:/Empty Trash/}).click();
+    await page.getByRole("button",{name:"Empty Deleted folder",exact:true}).click();
+    await page.getByRole("heading",{name:"Inbox is empty",exact:true}).waitFor({state:"visible",timeout:10000});
+    if(await page.locator(".lm-mail-workspace").count())throw new Error("Empty Inbox rendered the split mail workspace.");
+    await primaryNav.getByRole("button",{name:"Deleted",exact:true}).click();
+    await page.getByRole("heading",{name:"Deleted is empty",exact:true}).waitFor({state:"visible",timeout:5000});
+    if(await page.locator(".lm-mail-workspace").count())throw new Error("Empty Deleted folder rendered a blank split pane.");
+    await primaryNav.getByRole("button",{name:"Deleted",exact:true}).click();
+    await page.getByRole("heading",{name:"Deleted is empty",exact:true}).waitFor({state:"visible",timeout:5000});
+    const searchBox=page.getByRole("textbox",{name:"Search mail"});
+    await searchBox.fill("no-such-message");
+    await primaryNav.getByRole("button",{name:"Sent",exact:true}).click();
+    if(await searchBox.inputValue()!=="")throw new Error("Changing folders retained a stale search filter.");
+    await page.getByRole("heading",{name:"Sent is empty",exact:true}).waitFor({state:"visible",timeout:5000});
+    if(await page.locator(".lm-mail-workspace").count())throw new Error("Empty Sent folder rendered a blank split pane.");
+    // An unknown app route must show an unavailable state, never default to Notes.
+    await page.goto(`http://127.0.0.1:${port}/dashboard.html?app=unknown-feature`,{waitUntil:"domcontentloaded"});
+    await page.getByRole("heading",{name:"This section is unavailable",exact:true}).waitFor({state:"visible",timeout:10000});
+    if(await page.getByRole("heading",{name:"Create or edit a note"}).count())throw new Error("Unknown utility route silently opened Notes.");
+    await page.goto(`http://127.0.0.1:${port}/dashboard.html`,{waitUntil:"domcontentloaded"});
+    await page.waitForSelector("#root main",{timeout:15000});
+    await page.waitForFunction(()=>!document.querySelector("#root")?.textContent?.includes("Loading workspace"),null,{timeout:10000});
+    await primaryNav.getByRole("button",{name:"Inbox",exact:true}).waitFor({state:"visible",timeout:5000});
+    await snap("dashboard-empty-navigation-regression");
     // Retain the existing refresh and template-preview smoke checks.
     if (device === "desktop") {
       await page.getByRole("button",{name:"Refresh workspace"}).click();
