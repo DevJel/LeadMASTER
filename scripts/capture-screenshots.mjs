@@ -237,7 +237,8 @@ try {
     await page.goto(`http://127.0.0.1:${port}/dashboard.html`,{waitUntil:"domcontentloaded"});
     await page.waitForSelector("#root main",{timeout:15000});
     await page.waitForFunction(()=>!document.querySelector("#root")?.textContent?.includes("Loading workspace"),null,{timeout:10000});
-    await page.getByRole("navigation",{name:"LeadMASTER navigation"}).getByRole("button",{name:"Inbox",exact:true}).waitFor({state:"visible",timeout:5000});
+    if(device==="mobile") await page.getByRole("heading",{name:"Inbox is empty",exact:true}).waitFor({state:"visible",timeout:5000});
+    else await page.getByRole("navigation",{name:"LeadMASTER navigation"}).getByRole("button",{name:"Inbox",exact:true}).waitFor({state:"visible",timeout:5000});
     await snap("dashboard-empty-navigation-regression");
     // Retain the existing refresh and template-preview smoke checks.
     if (device === "desktop") {
