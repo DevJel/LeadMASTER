@@ -105,6 +105,7 @@ function UniformIcon({name, size=20, className=''}:{name:IconName; size?:number;
 function Spinner({size=18}:{size?:number}){ return <svg width={size} height={size} viewBox="0 0 24 24" className="lm-spinner" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2" opacity="0.25"/><path d="M21 12a9 9 0 0 0-9-9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>; }
 
 const DEFAULT_COMPONENT_ORDER: View[] = ['compose','inbox','sent','outbox','deleted','assistant','automation','templates','scheduled'];
+const VALID_VIEWS = new Set<View>([...DEFAULT_COMPONENT_ORDER,'settings']);
 const COMPOSE_FONTS = [
   {name:'Arial', value:'Arial, Helvetica, sans-serif'},
   {name:'Georgia', value:'Georgia, "Times New Roman", serif'},
@@ -387,8 +388,8 @@ export default function App(){
         if(v.density) setDensity(v.density); if(v.profileName) setProfileName(v.profileName); if(v.profileEmail) setProfileEmail(v.profileEmail); if(v.signature) setSignature(v.signature);
         if(typeof v.notifEmail==='boolean') setNotifEmail(v.notifEmail); if(typeof v.notifDesktop==='boolean') setNotifDesktop(v.notifDesktop); if(typeof v.notifSound==='boolean') setNotifSound(v.notifSound);
         if(v.replyBehavior) setReplyBehavior(v.replyBehavior); if(typeof v.vacationOn==='boolean') setVacationOn(v.vacationOn); if(v.vacationSubject) setVacationSubject(v.vacationSubject); if(v.vacationBody) setVacationBody(v.vacationBody);
-        if(Array.isArray(v.componentOrder) && v.componentOrder.length){ const merged = [...(v.componentOrder as View[]), ...DEFAULT_COMPONENT_ORDER].filter((x,i,a)=>a.indexOf(x)===i); setComponentOrder(merged); }
-        if(Array.isArray(v.componentHidden)) setHiddenComponents(new Set(v.componentHidden as View[]));
+        if(Array.isArray(v.componentOrder) && v.componentOrder.length){ const savedOrder=v.componentOrder.filter((x:any):x is View=>DEFAULT_COMPONENT_ORDER.includes(x as View)); const merged=[...savedOrder,...DEFAULT_COMPONENT_ORDER].filter((x,i,a)=>a.indexOf(x)===i); setComponentOrder(merged); }
+        if(Array.isArray(v.componentHidden)) setHiddenComponents(new Set(v.componentHidden.filter((x:any):x is View=>VALID_VIEWS.has(x as View))));
         if(v.senderNotes) setSenderNotes(v.senderNotes);
       }else setPrefsId(null);
       const formatMailDate=(value:any)=>{const d=new Date(typeof value==='number'?value:(value||Date.now()));return Number.isNaN(d.getTime())?'':d.toLocaleDateString([], {month:'short',day:'numeric'});};
@@ -724,12 +725,12 @@ export default function App(){
   function composeBodyStyle(): React.CSSProperties { return {fontFamily: composeFont, fontSize: composeFontSize, textAlign: composeAlign, color: composeColor, backgroundColor: composeHighlight, textDecoration: fmtStrike ? 'line-through' : undefined}; }
   function composeHtmlBody(body:string):string { const content=containsHtml(body)?sanitizeHtml(body):sanitizeHtml(body).replace(/\r?\n/g,'<br>'); const font=composeFont.replace(/[;"<>]/g,''); const size=/^\d{1,2}px$/.test(composeFontSize)?composeFontSize:'14px'; const color=/^#[0-9a-f]{6}$/i.test(composeColor)?composeColor:'#000000'; const background=composeHighlight==='transparent'?'':`background-color:${composeHighlight};`; return `<div style="font-family:${font};font-size:${size};text-align:${composeAlign};color:${color};${background}">${content}</div>`; }
 
-  const viewTitle = view==='compose'?'Compose': view==='inbox'?'Inbox': view==='sent'?'Sent': view==='outbox'?'Outbox': view==='deleted'?'Deleted': view==='assistant'?'Assistant': view==='automation'?'Automation': view==='templates'?'Templates': view==='scheduled'?'Scheduled':'Settings';
+  const viewTitle = view==='compose'?'Compose': view==='inbox'?'Inbox': view==='sent'?'Sent': view==='outbox'?'Outbox': view==='deleted'?'Deleted': view==='assistant'?'Assistant': view==='automation'?'Automation': view==='templates'?'Templates': view==='scheduled'?'Scheduled':view==='settings'?'Settings':'Unavailable';
   function navigateToView(next:View){
     if(next!==view){setNavigationLoading(true);setLoadingOverlayDismissed(false);}
     setView(next);
   }
-  const goView = (v:View)=>{ if(v==='compose'){ if(view==='compose'){setMobileSidebar(false);return;} openComposeTab(); return; } if(v===view){setMobileSidebar(false);return;} if(view==='compose') setPreviousView(view); setSearch(''); setOnlyAttachment(false); setShowFilters(false); navigateToView(v); setOpenEmailId(null); setPreviewEmailId(null); setSelected(new Set()); setMobileSidebar(false); setConfirmEmpty(false); setViewError(false); };
+  const goView = (v:View)=>{ if(!VALID_VIEWS.has(v)){setViewError(true);setStatus('This section is unavailable. Choose a supported workspace section.');setMobileSidebar(false);return;} if(v==='compose'){ if(view==='compose'){setMobileSidebar(false);return;} openComposeTab(); return; } if(v===view){setMobileSidebar(false);return;} if(view==='compose') setPreviousView(view); setSearch(''); setOnlyAttachment(false); setShowFilters(false); navigateToView(v); setOpenEmailId(null); setPreviewEmailId(null); setSelected(new Set()); setMobileSidebar(false); setConfirmEmpty(false); setViewError(false); };
   const badgeFor = (k:View)=> k==='inbox'?counts.inboxUnread : k==='outbox'?counts.outbox : k==='deleted'?counts.deleted : k==='scheduled'?counts.scheduled : 0;
   const NAV: {k:View; label:string; icon:IconName; badge:number}[] = componentOrder.filter(k=>k!=='settings' && !hiddenComponents.has(k)).map(k=>({k, label:componentLabel(k), icon:componentIcon(k), badge:badgeFor(k)}));
 
@@ -1127,6 +1128,7 @@ export default function App(){
       {view==='inbox' && !openEmail && <div className="grid sm:grid-cols-3 gap-3 mx-1 sm:mx-2 mt-4">
         {[{t:'One inbox', d:'All incoming messages appear together. Search and use message actions to focus on what matters.', i:'spark' as IconName}, {t:'Triage in seconds', d:'Hover any row to archive, delete, or snooze. Star what you need to find again.', i:'zap' as IconName}, {t:'Assistant does the busywork', d:'Summaries, draft replies, cleanup, and priority leads — in one panel.', i:'assistant' as IconName}].map(x=><div key={x.t} className="bg-[var(--surface)] rounded-2xl p-4 gmail-shadow border border-[var(--border)]"><UniformIcon name={x.i} size={18}/><p className="font-medium mt-2">{x.t}</p><p className="text-[13px] text-[var(--text-3)] leading-relaxed mt-1">{x.d}</p></div>)}
       </div>}
+      {!VALID_VIEWS.has(view) && <section className="mx-1 sm:mx-2 grid min-h-[55dvh] place-items-center rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-6 py-12 text-center" role="alert"><div><UniformIcon name="alert" size={32}/><h2 className="mt-3 text-[18px] font-semibold">This workspace section is unavailable</h2><p className="mt-1 text-[13px] text-[var(--text-3)]">The requested section is not supported. No blank page or automatic tab redirect was opened.</p><button onClick={()=>goView('inbox')} className="mt-4 rounded-full bg-[var(--text)] px-5 py-2.5 text-[13px] text-[var(--surface)]">Open Inbox</button></div></section>}
     </>
   );
 
