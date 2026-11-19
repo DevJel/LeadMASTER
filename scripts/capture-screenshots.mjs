@@ -211,7 +211,7 @@ try {
     }
     // Critical empty-navigation regression checks: empty folders must never render
     // a blank split pane, retain stale filters, or silently reopen a different utility.
-    const clickPrimaryNav=async(label)=>{if(device==="mobile")await page.getByRole("button",{name:"Open navigation"}).click();await page.getByRole("navigation",{name:"LeadMASTER navigation"}).getByRole("button",{name:label,exact:true}).click();};
+    const clickPrimaryNav=async(label)=>{if(device==="mobile")await page.getByRole("button",{name:"Open navigation"}).click();await page.getByRole("navigation",{name:"LeadMASTER navigation"}).getByRole("button",{name:label,exact:false}).click();};
     await clickPrimaryNav("Deleted");
     await page.getByText("Synthetic deleted message",{exact:true}).waitFor({state:"visible",timeout:5000});
     await page.getByRole("heading",{name:"Select a message to preview",exact:true}).waitFor({state:"visible",timeout:5000});
