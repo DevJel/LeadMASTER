@@ -247,9 +247,28 @@ class MainActivity : ComponentActivity() {
                     super.onPageFinished(view, url)
                     CookieManager.getInstance().flush()
                     view?.evaluateJavascript(nativeLoginStyleScript) {
-                        pageLoading = false
-                        pageLoadError = false
-                        pageProgress = 100
+                        // A successful HTTP load is not enough: verify that the shared workspace
+                        // actually rendered. This prevents a white/empty WebView when dashboard
+                        // JavaScript fails or a navigation destination has no screen.
+                        view.evaluateJavascript(
+                            """
+                            (function(){
+                              var login = location.pathname === '/login.html' &&
+                                !!document.querySelector('form') &&
+                                (document.body?.innerText || '').trim().length > 8;
+                              var main = document.querySelector('#root main, main[role="main"], main');
+                              var renderedWorkspace = !!main &&
+                                (main.innerText || '').trim().length >= 12;
+                              return !!(document.readyState === 'complete' &&
+                                (login || renderedWorkspace));
+                            })();
+                            """.trimIndent()
+                        ) { result ->
+                            val rendered = result == "true"
+                            pageLoading = false
+                            pageLoadError = !rendered
+                            pageProgress = if (rendered) 100 else pageProgress.coerceAtMost(95)
+                        }
                     }
                     view?.evaluateJavascript(
                         """
