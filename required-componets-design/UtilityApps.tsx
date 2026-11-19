@@ -53,7 +53,7 @@ export default function UtilityApps({route}:{route:string|null}){
   const [notes,setNotes]=useState<RecordRow<Note>[]>([]);
   const [contacts,setContacts]=useState<RecordRow<Contact>[]>([]);
   const [reminders,setReminders]=useState<RecordRow<Reminder>[]>([]);
-  const [loading,setLoading]=useState(true);
+  const [loading,setLoading]=useState(()=>routeList.includes(route as UtilityRoute));
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
@@ -186,7 +186,7 @@ export default function UtilityApps({route}:{route:string|null}){
     const blob=new Blob([cleanHtml(html)],{type:'text/html;charset=utf-8'});const url=URL.createObjectURL(blob);const anchor=document.createElement('a');anchor.href=url;anchor.download='leadmaster-email-template.html';anchor.click();URL.revokeObjectURL(url);
   }
 
-  const nav=<div className="flex flex-wrap gap-2">{routeList.map(item=><a key={item} href={'/dashboard?app='+item} className={'rounded-full px-3 py-2 text-xs border '+(selected===item?'bg-[#222] text-white border-[#222]':'border-[#ddd] hover:bg-[#f5f5f5')}>{labels[item]}</a>)}</div>;
+  const nav=<div className="flex flex-wrap gap-2">{routeList.map(item=><a key={item} href={'/dashboard?app='+item} className={'rounded-full px-3 py-2 text-xs border '+(isValidRoute&&selected===item?'bg-[#222] text-white border-[#222]':'border-[#ddd] hover:bg-[#f5f5f5')}>{labels[item]}</a>)}</div>;
   const panel='w-full min-w-0 border-b border-[#e5e5e5] bg-transparent py-5';
   const field='w-full rounded-xl border border-[#d9d9d9] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#555]';
   const action='rounded-full bg-[#222] px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50';
@@ -195,7 +195,7 @@ export default function UtilityApps({route}:{route:string|null}){
   return <div className="lm-utility-workspace flex h-dvh min-h-0 w-full flex-col overflow-hidden bg-[#f7f7f7] text-[#252525]">
     <header className="sticky top-0 z-30 shrink-0 border-b border-[#e5e5e5] bg-white/95 backdrop-blur">
       <div className="flex w-full items-center justify-between gap-3 px-4 py-3">
-        <a href="/dashboard" className="text-lg font-bold tracking-tight">LeadMASTER <span className="font-normal text-[#777]">/ {labels[selected]}</span></a>
+        <a href="/dashboard" className="text-lg font-bold tracking-tight">LeadMASTER <span className="font-normal text-[#777]">/ {isValidRoute?labels[selected]:'Unavailable'}</span></a>
         <a href="/dashboard" className={secondary}>Back to workspace</a>
       </div>
       <div className="w-full px-4 pb-3">{nav}</div>
