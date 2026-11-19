@@ -211,21 +211,21 @@ try {
     }
     // Critical empty-navigation regression checks: empty folders must never render
     // a blank split pane, retain stale filters, or silently reopen a different utility.
-    const primaryNav=page.getByRole("navigation",{name:"LeadMASTER navigation"});
-    await primaryNav.getByRole("button",{name:"Deleted",exact:true}).click();
+    const clickPrimaryNav=async(label)=>{if(device==="mobile")await page.getByRole("button",{name:"Open navigation"}).click();await page.getByRole("navigation",{name:"LeadMASTER navigation"}).getByRole("button",{name:label,exact:true}).click();};
+    await clickPrimaryNav("Deleted");
     await page.getByText("Synthetic deleted message",{exact:true}).waitFor({state:"visible",timeout:5000});
     await page.getByRole("button",{name:/Empty Trash/}).click();
     await page.getByRole("button",{name:"Empty Deleted folder",exact:true}).click();
     await page.getByRole("heading",{name:"Inbox is empty",exact:true}).waitFor({state:"visible",timeout:10000});
     if(await page.locator(".lm-mail-workspace").count())throw new Error("Empty Inbox rendered the split mail workspace.");
-    await primaryNav.getByRole("button",{name:"Deleted",exact:true}).click();
+    await clickPrimaryNav("Deleted");
     await page.getByRole("heading",{name:"Deleted is empty",exact:true}).waitFor({state:"visible",timeout:5000});
     if(await page.locator(".lm-mail-workspace").count())throw new Error("Empty Deleted folder rendered a blank split pane.");
     await primaryNav.getByRole("button",{name:"Deleted",exact:true}).click();
     await page.getByRole("heading",{name:"Deleted is empty",exact:true}).waitFor({state:"visible",timeout:5000});
     const searchBox=page.getByRole("textbox",{name:"Search mail"});
     await searchBox.fill("no-such-message");
-    await primaryNav.getByRole("button",{name:"Sent",exact:true}).click();
+    await clickPrimaryNav("Sent");
     if(await searchBox.inputValue()!=="")throw new Error("Changing folders retained a stale search filter.");
     await page.getByRole("heading",{name:"Sent is empty",exact:true}).waitFor({state:"visible",timeout:5000});
     if(await page.locator(".lm-mail-workspace").count())throw new Error("Empty Sent folder rendered a blank split pane.");
@@ -236,7 +236,7 @@ try {
     await page.goto(`http://127.0.0.1:${port}/dashboard.html`,{waitUntil:"domcontentloaded"});
     await page.waitForSelector("#root main",{timeout:15000});
     await page.waitForFunction(()=>!document.querySelector("#root")?.textContent?.includes("Loading workspace"),null,{timeout:10000});
-    await primaryNav.getByRole("button",{name:"Inbox",exact:true}).waitFor({state:"visible",timeout:5000});
+    await page.getByRole("navigation",{name:"LeadMASTER navigation"}).getByRole("button",{name:"Inbox",exact:true}).waitFor({state:"visible",timeout:5000});
     await snap("dashboard-empty-navigation-regression");
     // Retain the existing refresh and template-preview smoke checks.
     if (device === "desktop") {
