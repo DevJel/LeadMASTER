@@ -7,7 +7,7 @@ LeadMASTER for Android is the official Android companion to the LeadMASTER web w
 - **Production workspace:** https://leadmaster.jelvan.space
 - **Source repository:** https://github.com/DevJel/LeadMASTER
 - **Android build workflow:** https://github.com/DevJel/LeadMASTER/actions/workflows/android-apk.yml
-- **Current app version in source:** `1.9.1` (`versionCode 11`)
+- **Current app version in source:** `1.9.2` (`versionCode 12`)
 - **Android application ID:** `pro.leadmaster.app`
 
 > **APK availability:** CI publishes an installable debug APK as a GitHub Actions artifact. Open the Android build workflow, select the latest successful run, and download the `leadmaster-android-debug-apk` artifact. Artifacts are retained for 90 days. A public GitHub Release APK is not currently published. Debug builds are for testing and are not signed with the owner's production release key.
@@ -62,6 +62,12 @@ The Android companion displays the shared responsive workspace in a hardened Web
 | Inbox | Compose | Settings |
 |---|---|---|
 | [![Mobile inbox preview](../assets/screenshots/dashboard-inbox-mobile.png)](../assets/screenshots/dashboard-inbox-mobile.png) | [![Mobile compose preview](../assets/screenshots/dashboard-compose-mobile.png)](../assets/screenshots/dashboard-compose-mobile.png) | [![Mobile settings preview](../assets/screenshots/dashboard-settings-mobile.png)](../assets/screenshots/dashboard-settings-mobile.png) |
+
+## Android/API parity map
+
+The APK uses the same production workspace origin, authenticated session, API routes, account data, queue and authorization rules as the web dashboard. It does not have a separate mobile backend or duplicate business-data store. See [Android ↔ production API/backend parity](API-BACKEND-PARITY.md) for the screen-to-API map, security boundaries and release verification checklist.
+
+The native shell now checks that the login form or workspace main content actually rendered before removing its loading overlay. A document that loads successfully but renders no usable workspace shows a retry/recovery surface instead of a blank white screen. Dashboard navigation and unsupported-feature handling remain owned by the shared dashboard so web and Android use the same behavior.
 
 ## 3. Architecture
 
