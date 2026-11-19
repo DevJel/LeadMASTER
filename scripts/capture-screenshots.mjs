@@ -212,9 +212,15 @@ try {
       if(pageErrors.length) throw new Error(`JavaScript error while opening ${slug}: ${pageErrors.join("; ")}`);
       await snap(`dashboard-${slug}`);
       if(slug==="assistant"){
-        await page.getByText("Suggest replies",{exact:true}).click();
+        const suggestRepliesCard=page.locator("button").filter({hasText:"Suggest replies"}).first();
+        await suggestRepliesCard.waitFor({state:"visible",timeout:5000});
+        await page.waitForFunction(()=>{const button=[...document.querySelectorAll("button")].find(item=>item.textContent?.includes("Suggest replies"));return !!button&&!button.disabled;},null,{timeout:10000});
+        await suggestRepliesCard.click();
+        await page.getByText("AI reply suggestions",{exact:true}).waitFor({state:"visible",timeout:5000});
         await page.getByText("No inbox messages are available for reply suggestions yet.",{exact:true}).waitFor({state:"visible",timeout:5000});
-        await page.getByText("Priority messages",{exact:true}).click();
+        const priorityCard=page.locator("button").filter({hasText:"Priority messages"}).first();
+        await page.waitForFunction(()=>{const button=[...document.querySelectorAll("button")].find(item=>item.textContent?.includes("Priority messages"));return !!button&&!button.disabled;},null,{timeout:10000});
+        await priorityCard.click();
         await page.getByText("No priority messages yet.",{exact:true}).waitFor({state:"visible",timeout:5000});
       }
     }
