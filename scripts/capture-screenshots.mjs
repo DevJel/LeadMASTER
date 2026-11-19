@@ -204,7 +204,7 @@ try {
         await page.getByRole("button",{name:"Open profile and settings"}).click();
         await page.getByRole("button",{name:"Profile, settings & configurations"}).click();
       } else {
-        await page.getByRole("navigation",{name:"LeadMASTER navigation"}).getByRole("button",{name:label,exact:true}).click();
+        await page.getByRole("navigation",{name:"LeadMASTER navigation"}).getByRole("button",{name:label,exact:false}).click();
       }
       await page.waitForTimeout(200);
       await snap(`dashboard-${slug}`);
