@@ -154,8 +154,22 @@ try {
       }
       await route.fulfill({status: 200, contentType: "application/json", body: JSON.stringify({data})});
     });
+    const deletedMailFixture = [{id:"deleted-fixture-1",from_address:"former-contact@example.test",from_name:"Former Contact",subject:"Synthetic deleted message",received_at:Date.now(),kind:"received"}];
     await page.route("**/api/admin/mail**", async route => {
-      await route.fulfill({status: 200, contentType: "application/json", body: JSON.stringify({items: [], counts: {inbox: 0, archived: 0, sent: 0, queued: 0, deleted: 0, bounced: 0, unsuccessful: 0, unsubscribed: 0}})});
+      const request=route.request();
+      const requestUrl=new URL(request.url());
+      if(request.method()==="PATCH"){
+        let payload={};try{payload=request.postDataJSON()||{}}catch{}
+        if(payload.action==="permanentDelete"){
+          const id=decodeURIComponent(requestUrl.pathname.split("/").pop()||"");
+          const index=deletedMailFixture.findIndex(item=>item.id===id);
+          if(index>=0)deletedMailFixture.splice(index,1);
+        }
+        return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({ok:true})});
+      }
+      const folder=requestUrl.searchParams.get("folder")||"inbox";
+      const items=folder==="deleted"?deletedMailFixture:[];
+      await route.fulfill({status: 200, contentType: "application/json", body: JSON.stringify({items, counts: {inbox: 0, archived: 0, sent: 0, queued: 0, deleted: deletedMailFixture.length, bounced: 0, unsuccessful: 0, unsubscribed: 0}})});
     });
     const pageErrors = [];
     page.on("pageerror", error => pageErrors.push(error.message));
@@ -190,11 +204,43 @@ try {
         await page.getByRole("button",{name:"Open profile and settings"}).click();
         await page.getByRole("button",{name:"Profile, settings & configurations"}).click();
       } else {
-        await page.getByRole("navigation",{name:"LeadMASTER navigation"}).getByRole("button",{name:label,exact:true}).click();
+        await page.getByRole("navigation",{name:"LeadMASTER navigation"}).getByRole("button",{name:label,exact:false}).click();
       }
       await page.waitForTimeout(200);
       await snap(`dashboard-${slug}`);
     }
+    // Critical empty-navigation regression checks: empty folders must never render
+    // a blank split pane, retain stale filters, or silently reopen a different utility.
+    const clickPrimaryNav=async(label)=>{if(device==="mobile")await page.getByRole("button",{name:"Open navigation"}).click();await page.getByRole("navigation",{name:"LeadMASTER navigation"}).getByRole("button",{name:label,exact:false}).click();};
+    await clickPrimaryNav("Deleted");
+    await page.getByText("Synthetic deleted message",{exact:true}).waitFor({state:"visible",timeout:5000});
+    await page.getByRole("heading",{name:"Select a message to preview",exact:true}).waitFor({state:"visible",timeout:5000});
+    await page.getByRole("button",{name:/Empty Trash/}).click();
+    await page.getByRole("button",{name:"Empty Deleted folder",exact:true}).click();
+    await page.waitForTimeout(700);
+    if(!(await page.getByRole("heading",{name:"Inbox is empty",exact:true}).isVisible())){const state=(await page.locator("body").innerText().catch(()=>"" )).slice(-3000);throw new Error("Empty Trash did not navigate to Inbox. URL: "+page.url()+"; browser errors: "+pageErrors.join(" | ")+"; current UI: "+state); }
+    if(await page.locator(".lm-mail-workspace").count())throw new Error("Empty Inbox rendered the split mail workspace.");
+    await clickPrimaryNav("Deleted");
+    await page.getByRole("heading",{name:"Deleted is empty",exact:true}).waitFor({state:"visible",timeout:5000});
+    if(await page.locator(".lm-mail-workspace").count())throw new Error("Empty Deleted folder rendered a blank split pane.");
+    await clickPrimaryNav("Deleted");
+    await page.getByRole("heading",{name:"Deleted is empty",exact:true}).waitFor({state:"visible",timeout:5000});
+    const searchBox=page.getByRole("textbox",{name:"Search mail"});
+    await searchBox.fill("no-such-message");
+    await clickPrimaryNav("Sent");
+    if(await searchBox.inputValue()!=="")throw new Error("Changing folders retained a stale search filter.");
+    await page.getByRole("heading",{name:"Sent is empty",exact:true}).waitFor({state:"visible",timeout:5000});
+    if(await page.locator(".lm-mail-workspace").count())throw new Error("Empty Sent folder rendered a blank split pane.");
+    // An unknown app route must show an unavailable state, never default to Notes.
+    await page.goto(`http://127.0.0.1:${port}/dashboard.html?app=unknown-feature`,{waitUntil:"domcontentloaded"});
+    await page.getByRole("heading",{name:"This section is unavailable",exact:true}).waitFor({state:"visible",timeout:10000});
+    if(await page.getByRole("heading",{name:"Create or edit a note"}).count())throw new Error("Unknown utility route silently opened Notes.");
+    await page.goto(`http://127.0.0.1:${port}/dashboard.html`,{waitUntil:"domcontentloaded"});
+    await page.waitForSelector("#root main",{timeout:15000});
+    await page.waitForFunction(()=>!document.querySelector("#root")?.textContent?.includes("Loading workspace"),null,{timeout:10000});
+    if(device==="mobile") await page.getByRole("heading",{name:"Inbox is empty",exact:true}).waitFor({state:"visible",timeout:5000});
+    else await page.getByRole("navigation",{name:"LeadMASTER navigation"}).getByRole("button",{name:"Inbox",exact:true}).waitFor({state:"visible",timeout:5000});
+    await snap("dashboard-empty-navigation-regression");
     // Retain the existing refresh and template-preview smoke checks.
     if (device === "desktop") {
       await page.getByRole("button",{name:"Refresh workspace"}).click();
@@ -214,6 +260,7 @@ try {
       await page.goto(`http://127.0.0.1:${port}/dashboard.html?app=${app}`,{waitUntil:"domcontentloaded"});
       await page.waitForSelector("#root",{timeout:15000});
       await page.waitForTimeout(300);
+      if(app==="calendar") await page.getByText("No calendar reminders yet.",{exact:true}).waitFor({state:"visible",timeout:5000});
       await mark();
       await snap(`app-${app}`);
     }

@@ -50,17 +50,17 @@ try {
   await page.getByRole('button', { name: 'Dismiss loading overlay' }).click();
   assert.equal(await page.getByRole('button', { name: 'Dismiss loading overlay' }).count(), 0, 'dismiss hides the overlay');
   assert.ok(requestCount > 0, 'dismissal does not cancel the loading request');
-  assert.equal(await page.getByText('Nothing in Inbox').isVisible(), false, 'empty state during loading');
+  assert.equal(await page.getByRole('heading', { name: 'Inbox is empty', exact: true }).isVisible(), false, 'empty state during loading');
   await page.getByRole('heading', { name: 'Workspace could not be loaded' }).waitFor({ timeout: 5000 });
-  assert.equal(await page.getByText('Nothing in Inbox').isVisible(), false, 'empty state after load failure');
+  assert.equal(await page.getByRole('heading', { name: 'Inbox is empty', exact: true }).isVisible(), false, 'empty state after load failure');
   fail = false;
   await page.getByRole('button', { name: 'Retry', exact: true }).click();
-  await page.getByText('Nothing in Inbox').waitFor({ timeout: 5000 });
+  await page.getByRole('heading', { name: 'Inbox is empty', exact: true }).waitFor({ timeout: 5000 });
   const before = requestCount;
   await page.getByRole('button', { name: 'Refresh workspace', exact: true }).click();
   await page.getByText('Refreshing and verifying workspace data', { exact: false }).first().waitFor({ timeout: 5000 });
-  assert.equal(await page.getByText('Nothing in Inbox').isVisible(), true, 'last successful content stays visible during refresh');
-  await page.getByText('Nothing in Inbox').waitFor({ timeout: 5000 });
+  assert.equal(await page.getByRole('heading', { name: 'Inbox is empty', exact: true }).isVisible(), true, 'last successful content stays visible during refresh');
+  await page.getByRole('heading', { name: 'Inbox is empty', exact: true }).waitFor({ timeout: 5000 });
   assert.ok(requestCount - before > 0, 'refresh must request workspace data');
   assert.equal(await page.getByText('LeadMASTER refreshed', { exact: true }).count(), 0);
   assert.equal(await page.getByText('Workspace refreshed from the server.', { exact: true }).count(), 0);
@@ -69,11 +69,11 @@ try {
   const navigationOverlay = page.getByRole('button', { name: 'Dismiss loading overlay' });
   await navigation.getByRole('button', { name: 'Sent', exact: true }).click();
   await navigationOverlay.waitFor({ state: 'visible', timeout: 5000 });
-  await page.getByText('Nothing in Sent', { exact: true }).waitFor({ timeout: 5000 });
+  await page.getByRole('heading', { name: 'Sent is empty', exact: true }).waitFor({ timeout: 5000 });
   await navigationOverlay.waitFor({ state: 'detached', timeout: 5000 });
   await navigation.getByRole('button', { name: 'Inbox', exact: true }).click();
   await navigationOverlay.waitFor({ state: 'visible', timeout: 5000 });
-  await page.getByText('Nothing in Inbox', { exact: true }).waitFor({ timeout: 5000 });
+  await page.getByRole('heading', { name: 'Inbox is empty', exact: true }).waitFor({ timeout: 5000 });
   await navigationOverlay.waitFor({ state: 'detached', timeout: 5000 });
 
   const utilityPage = await browser.newPage();
@@ -100,7 +100,7 @@ try {
   assert.ok(mobileBox && mobileViewport && Math.abs((mobileBox.x + mobileBox.width / 2) - mobileViewport.width / 2) < 4, 'mobile loading card horizontally centered');
   assert.ok(mobileBox && mobileViewport && Math.abs((mobileBox.y + mobileBox.height / 2) - mobileViewport.height / 2) < 4, 'mobile loading card vertically centered');
   await mobilePage.getByRole('button', { name: 'Dismiss loading overlay' }).click();
-  await mobilePage.getByText('Nothing in Inbox', { exact: true }).waitFor({ timeout: 5000 });
+  await mobilePage.getByRole('heading', { name: 'Inbox is empty', exact: true }).waitFor({ timeout: 5000 });
   await mobilePage.close();
 
   console.log('Synthetic local dashboard: centered dismissible workspace and utility loading on desktop and mobile, error, retry, empty and single refresh passed.');

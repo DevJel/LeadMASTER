@@ -48,11 +48,12 @@ function calculate(input:string):number{
 }
 
 export default function UtilityApps({route}:{route:string|null}){
-  const selected=(routeList.includes(route as UtilityRoute)?route:'notes') as UtilityRoute;
+  const isValidRoute=routeList.includes(route as UtilityRoute);
+  const selected=(isValidRoute?route:'notes') as UtilityRoute;
   const [notes,setNotes]=useState<RecordRow<Note>[]>([]);
   const [contacts,setContacts]=useState<RecordRow<Contact>[]>([]);
   const [reminders,setReminders]=useState<RecordRow<Reminder>[]>([]);
-  const [loading,setLoading]=useState(true);
+  const [loading,setLoading]=useState(()=>routeList.includes(route as UtilityRoute));
   const [saving,setSaving]=useState(false);
   const [error,setError]=useState('');
   const [notice,setNotice]=useState('');
@@ -100,7 +101,7 @@ export default function UtilityApps({route}:{route:string|null}){
     finally{if(!silent)setLoading(false);}
   },[selected]);
 
-  useEffect(()=>{void load(false);},[load]);
+  useEffect(()=>{if(isValidRoute)void load(false);},[load,isValidRoute]);
   // Keep the last loaded records in component memory. Refresh only on initial entry,
   // after a successful mutation, or when the user explicitly requests it.
 
@@ -185,7 +186,7 @@ export default function UtilityApps({route}:{route:string|null}){
     const blob=new Blob([cleanHtml(html)],{type:'text/html;charset=utf-8'});const url=URL.createObjectURL(blob);const anchor=document.createElement('a');anchor.href=url;anchor.download='leadmaster-email-template.html';anchor.click();URL.revokeObjectURL(url);
   }
 
-  const nav=<div className="flex flex-wrap gap-2">{routeList.map(item=><a key={item} href={'/dashboard?app='+item} className={'rounded-full px-3 py-2 text-xs border '+(selected===item?'bg-[#222] text-white border-[#222]':'border-[#ddd] hover:bg-[#f5f5f5')}>{labels[item]}</a>)}</div>;
+  const nav=<div className="flex flex-wrap gap-2">{routeList.map(item=><a key={item} href={'/dashboard?app='+item} className={'rounded-full px-3 py-2 text-xs border '+(isValidRoute&&selected===item?'bg-[#222] text-white border-[#222]':'border-[#ddd] hover:bg-[#f5f5f5')}>{labels[item]}</a>)}</div>;
   const panel='w-full min-w-0 border-b border-[#e5e5e5] bg-transparent py-5';
   const field='w-full rounded-xl border border-[#d9d9d9] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#555]';
   const action='rounded-full bg-[#222] px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50';
@@ -194,12 +195,13 @@ export default function UtilityApps({route}:{route:string|null}){
   return <div className="lm-utility-workspace flex h-dvh min-h-0 w-full flex-col overflow-hidden bg-[#f7f7f7] text-[#252525]">
     <header className="sticky top-0 z-30 shrink-0 border-b border-[#e5e5e5] bg-white/95 backdrop-blur">
       <div className="flex w-full items-center justify-between gap-3 px-4 py-3">
-        <a href="/dashboard" className="text-lg font-bold tracking-tight">LeadMASTER <span className="font-normal text-[#777]">/ {labels[selected]}</span></a>
+        <a href="/dashboard" className="text-lg font-bold tracking-tight">LeadMASTER <span className="font-normal text-[#777]">/ {isValidRoute?labels[selected]:'Unavailable'}</span></a>
         <a href="/dashboard" className={secondary}>Back to workspace</a>
       </div>
       <div className="w-full px-4 pb-3">{nav}</div>
     </header>
     <main className="min-h-0 w-full flex-1 space-y-4 overflow-y-auto px-4 py-4">
+      {!isValidRoute ? <section className="grid min-h-[55dvh] place-items-center rounded-2xl border border-[#e5e5e5] bg-white px-6 py-12 text-center" role="alert"><div className="max-w-md"><div aria-hidden="true" className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-[#f5f5f5] text-2xl text-[#666]">!</div><h1 className="mt-4 text-xl font-semibold">This section is unavailable</h1><p className="mt-2 text-sm leading-relaxed text-[#666]">The requested workspace section does not exist or is no longer available. Nothing has been redirected to another utility.</p><a href="/dashboard" className={action+' mt-5 inline-flex'}>Return to main workspace</a></div></section> : <>
       <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-[#777]">Workspace utility</p><h1 className="mt-1 text-2xl font-semibold">{labels[selected]}</h1>{lastLoaded&&<p className="mt-1 text-xs text-[#888]">Updated {new Date(lastLoaded).toLocaleTimeString()}</p>}</div><button type="button" className={secondary} disabled={loading||saving} onClick={()=>void load(false)}>{loading?'Refreshing…':'Refresh'}</button></div>
       {error&&lastLoaded!==null&&<div role="alert" className="rounded-xl border border-[#e6caca] bg-[#fff8f8] p-3 text-sm">{error}</div>}
       {notice&&<div role="status" className="rounded-xl border border-[#ddd] bg-white p-3 text-sm">{notice}</div>}
@@ -225,7 +227,7 @@ export default function UtilityApps({route}:{route:string|null}){
 
       {selected==='calendar'&&<div className="grid gap-4 lg:grid-cols-[minmax(280px,360px)_1fr]">
         <section className={panel}><h2 className="font-semibold">Add or edit a reminder</h2><div className="mt-3 space-y-3"><input className={field} placeholder="Reminder title" value={reminderForm.title} onChange={e=>setReminderForm({...reminderForm,title:e.target.value})}/><label className="block text-sm">Date<input type="date" className={field+' mt-1'} value={reminderForm.date} onChange={e=>setReminderForm({...reminderForm,date:e.target.value})}/></label><label className="block text-sm">Time<input type="time" className={field+' mt-1'} value={reminderForm.time} onChange={e=>setReminderForm({...reminderForm,time:e.target.value})}/></label><button className={action} disabled={saving} onClick={()=>void saveReminder()}>{saving?'Saving…':'Save reminder'}</button></div></section>
-        <section className={panel}><h2 className="font-semibold">Calendar reminders ({reminders.length})</h2><div className="mt-4 space-y-2">{filteredReminders.map(row=><article key={row.id} className="flex items-center gap-3 border-b border-[#e5e5e5] py-3"><input type="checkbox" checked={!!row.value.done} onChange={()=>void toggleReminder(row)}/><div className="min-w-0 flex-1"><p className={'font-medium '+(row.value.done?'line-through text-[#888]':'')}>{row.value.title}</p><p className="text-sm text-[#777]">{row.value.date} · {row.value.time}</p></div><button className="text-xs underline" onClick={()=>setReminderForm({id:row.id,title:row.value.title,date:row.value.date,time:row.value.time})}>Edit</button><button className="text-xs underline" onClick={()=>askDelete({title:'Delete this reminder?',message:'This reminder will be removed from your calendar.',itemLabel:row.value.title,confirmLabel:'Delete reminder'},()=>deleteRecord('leadmaster_reminders',row.id))}>Delete</button></article>)}</div></section>
+        <section className={panel}><h2 className="font-semibold">Calendar reminders ({reminders.length})</h2><div className="mt-4 space-y-2">{filteredReminders.map(row=><article key={row.id} className="flex items-center gap-3 border-b border-[#e5e5e5] py-3"><input type="checkbox" checked={!!row.value.done} onChange={()=>void toggleReminder(row)}/><div className="min-w-0 flex-1"><p className={'font-medium '+(row.value.done?'line-through text-[#888]':'')}>{row.value.title}</p><p className="text-sm text-[#777]">{row.value.date} · {row.value.time}</p></div><button className="text-xs underline" onClick={()=>setReminderForm({id:row.id,title:row.value.title,date:row.value.date,time:row.value.time})}>Edit</button><button className="text-xs underline" onClick={()=>askDelete({title:'Delete this reminder?',message:'This reminder will be removed from your calendar.',itemLabel:row.value.title,confirmLabel:'Delete reminder'},()=>deleteRecord('leadmaster_reminders',row.id))}>Delete</button></article>)}</div>{filteredReminders.length===0&&<div className="py-8 text-center" role="status" aria-live="polite"><div aria-hidden="true" className="mx-auto mb-3 grid h-16 w-16 place-items-center rounded-2xl border border-[#e5e5e5] bg-[#fafafa] text-3xl text-[#777]">▦</div><p className="font-medium text-sm">{search?'No reminders match that search.':'No calendar reminders yet.'}</p><p className="mt-1 text-xs text-[#777]">{search?'Clear the search to see all reminders.':'Add a reminder using the form to get started.'}</p></div>}</section>
       </div>}
 
       {selected==='calculator'&&<section className={panel+' w-full'}><h2 className="font-semibold">Calculator</h2><p className="mt-1 text-sm text-[#777]">Use +, −, ×, ÷, parentheses and powers.</p><input className={field+' mt-4 font-mono text-lg'} value={calcInput} onChange={e=>setCalcInput(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')try{setCalcResult(String(calculate(calcInput)));setError('')}catch(err){setError(mapLeadMasterError(err).message)}}}/><div className="mt-3 flex flex-wrap gap-2"><button className={action} onClick={()=>{try{setCalcResult(String(calculate(calcInput)));setError('')}catch(err){setError(mapLeadMasterError(err).message)}}}>Calculate</button><button className={secondary} onClick={()=>{setCalcInput('');setCalcResult('')}}>Clear</button></div>{calcResult&&<p className="mt-4 border-t border-[#e5e5e5] py-4 text-2xl font-semibold">{calcResult}</p>}</section>}
@@ -236,6 +238,7 @@ export default function UtilityApps({route}:{route:string|null}){
         <section className={panel}><div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-semibold">AI email designer</h2><p className="text-xs text-[#777]">Generate a draft, then review before exporting.</p></div><span className="rounded-full border border-[#ddd] px-2.5 py-1 text-[10px] uppercase tracking-wider">AI assisted</span></div><label className="mt-4 block text-sm">What should this email say?<textarea className={field+' mt-1'} rows={4} value={prompt} onChange={e=>setPrompt(e.target.value)}/></label><label className="mt-3 block text-sm">Subject<input className={field+' mt-1'} value={subject} onChange={e=>setSubject(e.target.value)}/></label><label className="mt-3 block text-sm">HTML source<textarea className={field+' mt-1 font-mono text-xs'} rows={14} value={html} onChange={e=>setHtml(e.target.value)}/></label><div className="mt-3 flex flex-wrap gap-2"><button className={action} disabled={aiBusy} onClick={()=>void generateEmail()}>{aiBusy?'Preparing…':'Generate with AI'}</button><button className={secondary} onClick={()=>void copyHtml()}>{htmlCopied?'Copied':'Copy HTML'}</button><button className={secondary} onClick={downloadHtml}>Export HTML</button><button className={secondary} onClick={()=>setShowPreview(!showPreview)}>{showPreview?'Hide preview':'Show preview'}</button></div></section>
         <section className={panel}><div className="flex items-center justify-between gap-2"><h2 className="font-semibold">Email preview</h2><span className="text-xs text-[#777]">Sanitized preview</span></div><div className="mt-3 border-b border-[#e5e5e5] py-3"><p className="text-xs text-[#777]">Subject</p><p className="mt-1 font-semibold">{subject}</p></div>{showPreview&&<div className="mt-3 min-h-[480px] overflow-auto bg-transparent py-3"><div dangerouslySetInnerHTML={{__html:cleanHtml(html)}}/></div>}</section>
       </div>}
+      </>}
       </>}
     </main>
     <ActionConfirmation request={confirmation} onCancel={()=>{setConfirmation(null);setConfirmationAction(null);}} onConfirm={async()=>{
