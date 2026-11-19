@@ -737,7 +737,7 @@ export default function App(){
   const stateBar = (
     <div className="mx-1 sm:mx-2 mt-2 space-y-2">
       {actionError && <div role="alert" className="flex flex-wrap items-center gap-3 rounded-xl border-2 border-[var(--text)] bg-[var(--surface)] px-3 py-2.5"><UniformIcon name="alert" size={18}/><span className="flex-1 min-w-[180px] text-[13px] font-medium">{actionError}</span><button onClick={()=>setActionError('')} className="px-3 py-1.5 rounded-full border border-[var(--border)] text-[13px]">Dismiss</button></div>}
-      {status && !showLoading && <div className="flex flex-wrap items-center gap-2"><span className="bg-[var(--text)] text-[var(--surface)] text-[13px] px-3 py-2 rounded-lg">{status}</span><button onClick={()=>setStatus('')} className="text-[13px] underline underline-offset-2">Dismiss</button></div>}
+      {status && !loadingOverlayActive && <div className="flex flex-wrap items-center gap-2"><span className="bg-[var(--text)] text-[var(--surface)] text-[13px] px-3 py-2 rounded-lg">{status}</span><button onClick={()=>setStatus('')} className="text-[13px] underline underline-offset-2">Dismiss</button></div>}
       {settingsSaved && view==='settings' && <div className="flex items-center gap-2 bg-[var(--text)] text-[var(--surface)] text-[13px] px-3 py-2 rounded-lg"><UniformIcon name="check" size={16}/> Settings saved.<button onClick={()=>setSettingsSaved(false)} className="underline underline-offset-2 ml-1">Dismiss</button></div>}
     </div>
   );
