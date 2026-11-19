@@ -259,6 +259,7 @@ try {
       await page.goto(`http://127.0.0.1:${port}/dashboard.html?app=${app}`,{waitUntil:"domcontentloaded"});
       await page.waitForSelector("#root",{timeout:15000});
       await page.waitForTimeout(300);
+      if(app==="calendar") await page.getByText("No calendar reminders yet.",{exact:true}).waitFor({state:"visible",timeout:5000});
       await mark();
       await snap(`app-${app}`);
     }
