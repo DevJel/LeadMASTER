@@ -14,10 +14,14 @@
     "types": [
       "react",
       "react-dom"
-    ]
+    ],
+    "allowJs": true,
+    "checkJs": false
   },
   "include": [
     "src/dashboard-tsx/**/*.ts",
-    "src/dashboard-tsx/**/*.tsx"
+    "src/dashboard-tsx/**/*.tsx",
+    "required-componets-design/**/*.ts",
+    "required-componets-design/**/*.tsx"
   ]
 }
