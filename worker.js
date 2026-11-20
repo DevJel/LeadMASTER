@@ -604,6 +604,8 @@ async function adminSendRoute(request,env,session){
  if(request.method!=="POST")return json({error:"Method not allowed"},405,{allow:"POST"});
  if(!sameOrigin(request))return json({error:"Invalid request"},403);
  if(!env.MAIL_SEND_QUEUE)return json({error:"Sending is temporarily unavailable"},503);
+ const declaredLength=Number(request.headers.get("content-length")||0);
+ if(Number.isFinite(declaredLength)&&declaredLength>1000000)return json({error:"Email request is too large. Keep the text and HTML body below 200 KB. Replace embedded base64 images with public HTTPS image URLs."},413);
  let b;try{b=await readBoundedJson(request,1000000)}catch{return json({error:"Invalid request"},400)}
  const toList=Array.isArray(b.recipients)?b.recipients:(typeof b.to==="string"?b.to.split(/[\s,;]+/):[]);
  const recipients=[...new Set(toList.map(x=>String(x||"").trim().toLowerCase()).filter(Boolean))];
