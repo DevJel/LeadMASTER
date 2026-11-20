@@ -597,7 +597,12 @@ export default function App(){
         setStatus('Draft saved to your account.');
       }else{
         const body=compose.body||'';
-        const payload={to:compose.to.trim(),cc:compose.cc,bcc:compose.bcc,subject:compose.subject.trim(),text:containsHtml(body)?body.replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ').trim():body,html:body.trim()?composeHtmlBody(body):undefined,fromEmail:profileEmail||'hello@work.jelvan.pro',fromName:profileName||'LeadMASTER'};
+        const html=body.trim()?composeHtmlBody(body):undefined;
+        const text=containsHtml(body)?body.replace(/<[^>]*>/g,' ').replace(/\\s+/g,' ').trim():body;
+        const htmlBytes=html?new TextEncoder().encode(html).byteLength:0;
+        const textBytes=new TextEncoder().encode(text).byteLength;
+        if(htmlBytes>180000||textBytes>180000)throw new Error('Email content is too large. Keep the text and HTML body below 180 KB. If the HTML contains an embedded image, replace its base64 data with a public HTTPS image URL.');
+        const payload={to:compose.to.trim(),cc:compose.cc,bcc:compose.bcc,subject:compose.subject.trim(),text,html,fromEmail:profileEmail||'hello@work.jelvan.pro',fromName:profileName||'LeadMASTER'};
         const res=await fetch('/api/admin/send',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});
         const result=await res.json().catch(()=>({}));
         if(!res.ok) throw new Error(result.error||`Send request failed (${res.status})`);
