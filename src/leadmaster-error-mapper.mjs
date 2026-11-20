@@ -30,6 +30,7 @@ export const CUSTOMER_ERROR_GUIDE = [
   { code:"LM-USR-4003", category:"Limits", title:"Choose a valid currency pair", what:"One of the selected currencies is not available for this conversion.", steps:["Choose a currency from the list.","Select a different source or destination currency.","Try the conversion again."] },
   { code:"LM-USR-4004", category:"Limits", title:"Check the amount you entered", what:"Enter a valid number to complete this calculation.", steps:["Use digits and a decimal point if needed.","Remove letters or other symbols.","Enter the amount again."] },
   { code:"LM-USR-4005", category:"Limits", title:"This send is larger than the current allowance", what:"The number of recipients or messages is above the permitted amount for one action.", steps:["Split the recipients into smaller groups.","Review the number of selected messages.","Ask your workspace administrator if you need a larger allowance."] }
+  { code:"LM-USR-4006", category:"Email & Contacts", title:"Your email content is too large", what:"The message body exceeds the current email size limit.", steps:["Keep the text and HTML body below 180 KB.","Replace embedded base64 images with public HTTPS image URLs.","Try sending again; your compose content remains available."] }
 ];
 
 const SYSTEM_FALLBACK = "We couldn't complete this action just now. Please contact LeadMASTER support at " + SUPPORT_EMAIL + ".";
@@ -72,6 +73,7 @@ export function mapLeadMasterError(error, context = "") {
   else if (/network|fetch failed|failed to fetch|connection.*(lost|interrupted)|timeout/.test(normalized)) code = "LM-USR-2002";
   else if (/integration|authorization.*expired|reconnect/.test(normalized)) code = "LM-USR-2003";
   else if (/file.*(type|format)|unsupported.*file/.test(normalized)) code = "LM-USR-3004";
+  else if (/email content.*large|email request.*large|message body.*large|embedded base64|payload too large/.test(normalized)) code = "LM-USR-4006";
   else if (/file.*(large|size)|too large/.test(normalized)) code = "LM-USR-3005";
   else if (/date|time.*invalid|future/.test(normalized)) code = "LM-USR-3007";
   else if (/recipient|to field/.test(normalized)) code = "LM-USR-3008";
